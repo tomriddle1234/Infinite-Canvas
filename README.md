@@ -16,5 +16,24 @@ Detailed tutorial: https://youtu.be/1y9ShTvgC_w
 
 Features a powerful grouping function, simplifying page display and operation.
 
+----
+不知道为什么上传API和env失败，需要在根目录新建API文件夹，里面增加.env文件，文件内容：
+I don't know why uploading the API and env failed. I need to create an API folder in the root directory and add a .env file inside it. The file content is:
+
+
+COMFLY_BASE_URL=https://ai.comfly.chat
+COMFLY_API_KEY=sk-
+MODELSCOPE_API_KEY=ms-
+
+COMFYUI_INSTANCES=127.0.0.1:8188,127.0.0.1:4090
+
+SYSTEM_PROMPT=You are a helpful assistant.
+MAX_HISTORY_MESSAGES=30
+REQUEST_TIMEOUT=120
+IMAGE_POLL_INTERVAL=2
+CHAT_MODELS=gpt-5.5
+IMAGE_MODELS=gpt-image-2,nano-banana-pro
+MODELSCOPE_CHAT_MODELS=Qwen/Qwen3-235B-A22B
+
 <img width="2196" height="1040" alt="image" src="https://github.com/user-attachments/assets/6d823668-cde2-4836-8332-1858efe5f520" />
 <img width="2214" height="771" alt="image" src="https://github.com/user-attachments/assets/52e10958-753f-45ba-a50e-3bbec27be436" />
