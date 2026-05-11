@@ -356,6 +356,43 @@
         .gate-list { margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #edf2f7; border-radius:18px; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; max-height:440px; overflow:auto; text-align:left; }
         .gate-list-empty { grid-column:1/-1; padding:56px 16px; text-align:center; color:#94a3b8; font-size:12px; font-weight:700; line-height:1.6; }
         .gate-list-empty-icon { display:flex; align-items:center; justify-content:center; width:60px; height:60px; margin:0 auto 16px; border-radius:20px; background:linear-gradient(135deg, #ffffff, #f1f5f9); border:1px solid #eef2f7; color:#94a3b8; box-shadow:0 8px 20px rgba(15,23,42,.04); }
+        .theme-dark .canvas-gate { background:var(--page); background-image:radial-gradient(var(--grid) 1px, transparent 1px); }
+        .theme-dark .gate-count-pill,
+        .theme-dark .gate-icon-btn,
+        .theme-dark .gate-back-link,
+        .theme-dark .gate-create-row,
+        .theme-dark .secondary-btn,
+        .theme-dark .create-cancel,
+        .theme-dark .gate-list,
+        .theme-dark .canvas-card-meta,
+        .theme-dark .canvas-preview-mark,
+        .theme-dark .canvas-card-edit,
+        .theme-dark .canvas-delete { background:var(--soft); border-color:var(--line); color:var(--muted); }
+        .theme-dark .canvas-item { background:var(--card-solid); border-color:var(--line); }
+        .theme-dark .canvas-item:hover { border-color:var(--line-2); box-shadow:0 14px 30px rgba(0,0,0,.18); }
+        .theme-dark .canvas-card-title { color:var(--text); }
+        .theme-dark .canvas-card-time,
+        .theme-dark .gate-list-empty { color:var(--faint); }
+        .theme-dark .gate-title { color:var(--text); }
+        .theme-dark .gate-subtitle { color:var(--faint); }
+        .theme-dark .gate-icon-btn:hover,
+        .theme-dark .gate-back-link:hover,
+        .theme-dark .canvas-preview-mark:hover { background:var(--soft-2); border-color:var(--line-2); color:var(--text); }
+        .theme-dark .gate-trash-badge { background:#d8dee9; color:#0f172a; border-color:var(--card); }
+        .theme-dark .gate-create-row:focus-within { background:var(--soft-2); border-color:var(--line-2); }
+        .theme-dark .gate-name-input,
+        .theme-dark .canvas-card-title-input { color:var(--text); background:transparent; border-color:var(--line); }
+        .theme-dark .secondary-btn.active,
+        .theme-dark .create-confirm { background:#d8dee9; color:#0f172a; border-color:#d8dee9; }
+        .theme-dark .trash-note { background:rgba(146,64,14,.18); color:#fed7aa; border-color:rgba(251,191,36,.28); }
+        .theme-dark .gate-list-empty-icon { background:linear-gradient(135deg, var(--soft), var(--card-solid)); border-color:var(--line); color:var(--faint); box-shadow:none; }
+        .theme-dark .canvas-item.active { background:#d8dee9; border-color:#d8dee9; box-shadow:0 16px 34px rgba(0,0,0,.22); }
+        .theme-dark .canvas-item.active .canvas-card-title,
+        .theme-dark .canvas-item.active .canvas-card-time { color:#0f172a; }
+        .theme-dark .canvas-item.active .canvas-card-meta,
+        .theme-dark .canvas-item.active .canvas-preview-mark,
+        .theme-dark .canvas-item.active .canvas-card-edit,
+        .theme-dark .canvas-item.active .canvas-delete { background:rgba(15,23,42,.08); color:#0f172a; border-color:rgba(15,23,42,.14); }
         .shell:not(.no-canvas) .canvas-gate { display:none; }
         .shell.no-canvas .topbar { display:none; }
         .shell.no-canvas .editor-only { display:none; }
