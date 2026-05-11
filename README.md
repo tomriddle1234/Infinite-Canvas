@@ -19,8 +19,10 @@ Features a powerful grouping function, simplifying page display and operation.
 
 ----
 不知道为什么上传API和env失败，需要在根目录新建API文件夹，里面增加.env文件，文件内容：
+
 I don't know why uploading the API and env failed. I need to create an API folder in the root directory and add a .env file inside it. The file content is:
 
+---
 
 COMFLY_BASE_URL=https://ai.comfly.chat
 
