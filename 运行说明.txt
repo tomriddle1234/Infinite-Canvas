@@ -1,10 +1,10 @@
 1. API网站注册：
 https://ai.comfly.chat/register?aff=HAOj137551 （暂停新注册了）
-https://kgc.grsai.ai/zh/dashboard/models （这个可以用）
+https://kgc.grsai.ai/zh/dashboard/models （这个可以用，API请求地址：https://grsai.dakka.com.cn）
+
 
 2. 新建API key
 https://ai.comfly.chat/token
-https://kgc.grsai.ai/zh/dashboard/api-keys（新网站）
 
 3. 代码更新，所有API设置都在网页中进行，操作更便捷
 
