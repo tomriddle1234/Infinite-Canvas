@@ -114,6 +114,7 @@ API_ENV_FILE = os.path.join(BASE_DIR, "API", ".env")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 CONVERSATION_DIR = os.path.join(DATA_DIR, "conversations")
 CANVAS_DIR = os.path.join(DATA_DIR, "canvases")
+API_PROVIDERS_FILE = os.path.join(DATA_DIR, "api_providers.json")
 GLOBAL_CONFIG_FILE = os.path.join(BASE_DIR, "global_config.json")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -125,6 +126,8 @@ CONVERSATION_LOCK = Lock()
 CANVAS_LOCK = Lock()
 LOAD_LOCK = Lock()
 NEXT_TASK_ID = 1
+
+PROVIDER_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{2,40}$")
 
 def load_env_file():
     if not os.path.exists(API_ENV_FILE):
@@ -152,6 +155,8 @@ AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
 MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
 MODELSCOPE_CHAT_BASE_URL = "https://api-inference.modelscope.cn/v1"
 MODELSCOPE_CHAT_MODELS = [m.strip() for m in os.getenv("MODELSCOPE_CHAT_MODELS", "Qwen/Qwen3-235B-A22B,MiniMax/MiniMax-M2.7:MiniMax").split(",") if m.strip()]
+MODELSCOPE_DEFAULT_IMAGE_MODEL = "Tongyi-MAI/Z-Image-Turbo"
+MODELSCOPE_DEFAULT_CHAT_MODEL = "Qwen/Qwen3-235B-A22B"
 CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "gpt-image-2")
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
@@ -171,6 +176,167 @@ def model_list(env_name, primary, defaults):
 
 CHAT_MODELS = model_list("CHAT_MODELS", CHAT_MODEL, ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
 IMAGE_MODELS = model_list("IMAGE_MODELS", IMAGE_MODEL, ["nano-banana-pro"])
+
+def provider_key_env(provider_id):
+    if provider_id == "comfly":
+        return "COMFLY_API_KEY"
+    if provider_id == "modelscope":
+        return "MODELSCOPE_API_KEY"
+    return f"API_PROVIDER_{re.sub(r'[^A-Za-z0-9]', '_', provider_id).upper()}_KEY"
+
+def mask_secret(value):
+    if not value:
+        return ""
+    tail = value[-4:] if len(value) > 4 else value
+    return f"••••••••{tail}"
+
+def default_api_providers():
+    # 只保留 ModelScope 为强制默认平台，其他平台均可自定义增删
+    return [
+        {
+            "id": "modelscope",
+            "name": "ModelScope",
+            "base_url": MODELSCOPE_CHAT_BASE_URL,
+            "enabled": True,
+            "primary": False,
+            "image_models": [MODELSCOPE_DEFAULT_IMAGE_MODEL],
+            "chat_models": MODELSCOPE_CHAT_MODELS,
+        },
+    ]
+
+def merge_default_api_providers(providers):
+    merged = [dict(item) for item in providers]
+    # 只强制保留 modelscope（不再强制 comfly）
+    ms_default = next((d for d in default_api_providers() if d["id"] == "modelscope"), None)
+    if ms_default:
+        current = next((item for item in merged if item.get("id") == "modelscope"), None)
+        if not current:
+            merged.append(ms_default)
+        else:
+            if not current.get("base_url"):
+                current["base_url"] = ms_default["base_url"]
+            image_models = current.get("image_models") or []
+            chat_models = current.get("chat_models") or []
+            if MODELSCOPE_DEFAULT_IMAGE_MODEL not in image_models:
+                current["image_models"] = [MODELSCOPE_DEFAULT_IMAGE_MODEL, *image_models]
+            if MODELSCOPE_DEFAULT_CHAT_MODEL not in chat_models:
+                current["chat_models"] = [MODELSCOPE_DEFAULT_CHAT_MODEL, *chat_models]
+    return merged
+
+def normalize_model_list(values):
+    return model_list_from_values(values)
+
+def model_list_from_values(values):
+    deduped = []
+    for value in values or []:
+        item = str(value or "").strip()
+        if item and item not in deduped:
+            selected_model(item, item)
+            deduped.append(item)
+    return deduped
+
+def normalize_provider(item):
+    provider_id = str(item.get("id") or "").strip().lower()
+    if not PROVIDER_ID_RE.fullmatch(provider_id):
+        raise HTTPException(status_code=400, detail=f"API 平台 ID 不合法：{provider_id or '(empty)'}")
+    name = re.sub(r"\s+", " ", str(item.get("name") or provider_id).strip())[:60] or provider_id
+    base_url = str(item.get("base_url") or "").strip().rstrip("/")
+    if base_url and not re.match(r"^https?://", base_url):
+        raise HTTPException(status_code=400, detail=f"{name} 的 Base URL 需要以 http:// 或 https:// 开头")
+    return {
+        "id": provider_id,
+        "name": name,
+        "base_url": base_url,
+        "enabled": bool(item.get("enabled", True)),
+        "primary": bool(item.get("primary", False)),
+        "image_models": model_list_from_values(item.get("image_models") or []),
+        "chat_models": model_list_from_values(item.get("chat_models") or []),
+    }
+
+def load_api_providers():
+    defaults = default_api_providers()
+    if not os.path.exists(API_PROVIDERS_FILE):
+        return defaults
+    try:
+        with open(API_PROVIDERS_FILE, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        providers = [normalize_provider(item) for item in raw if isinstance(item, dict)]
+        return merge_default_api_providers(providers or defaults)
+    except Exception as e:
+        print(f"加载 API 平台配置失败: {e}")
+        return defaults
+
+def save_api_providers(providers):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with GLOBAL_CONFIG_LOCK:
+        with open(API_PROVIDERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(providers, f, ensure_ascii=False, indent=2)
+
+def public_provider(provider):
+    key = os.getenv(provider_key_env(provider["id"]), "")
+    return {
+        **provider,
+        "has_key": bool(key),
+        "key_preview": mask_secret(key),
+        "key_env": provider_key_env(provider["id"]),
+    }
+
+def get_primary_provider_id(providers=None):
+    """返回当前首选 provider 的 id；优先 primary=True 的，否则取第一个非 modelscope 的，再次取第一个。"""
+    providers = providers if providers is not None else load_api_providers()
+    primary = next((p for p in providers if p.get("primary") and p.get("enabled", True)), None)
+    if primary:
+        return primary["id"]
+    non_ms = next((p for p in providers if p["id"] != "modelscope" and p.get("enabled", True)), None)
+    if non_ms:
+        return non_ms["id"]
+    return providers[0]["id"] if providers else "modelscope"
+
+def get_api_provider(provider_id="comfly"):
+    providers = load_api_providers()
+    target = (provider_id or "").strip().lower()
+    # 兼容旧的 "comfly" 硬编码：若 comfly 不存在或未指定，回退到首选 provider
+    if not target or not any(p["id"] == target for p in providers):
+        target = get_primary_provider_id(providers)
+    provider = next((p for p in providers if p["id"] == target), None)
+    if not provider:
+        raise HTTPException(status_code=400, detail=f"未找到 API 平台：{target}")
+    if not provider.get("enabled", True):
+        raise HTTPException(status_code=400, detail=f"API 平台已禁用：{provider.get('name') or target}")
+    return provider
+
+def env_quote(value):
+    text = str(value or "")
+    if not text or re.search(r"\s|#|['\"]", text):
+        return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return text
+
+def update_env_values(updates):
+    os.makedirs(os.path.dirname(API_ENV_FILE), exist_ok=True)
+    lines = []
+    if os.path.exists(API_ENV_FILE):
+        with open(API_ENV_FILE, "r", encoding="utf-8-sig") as f:
+            lines = f.read().splitlines()
+    seen = set()
+    next_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in line:
+            next_lines.append(line)
+            continue
+        key = line.split("=", 1)[0].strip()
+        if key in updates:
+            next_lines.append(f"{key}={env_quote(updates[key])}")
+            os.environ[key] = str(updates[key] or "")
+            seen.add(key)
+        else:
+            next_lines.append(line)
+    for key, value in updates.items():
+        if key not in seen:
+            next_lines.append(f"{key}={env_quote(value)}")
+            os.environ[key] = str(value or "")
+    with open(API_ENV_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(next_lines).rstrip() + "\n")
 
 BACKEND_LOCAL_LOAD = {addr: 0 for addr in COMFYUI_INSTANCES}
 
@@ -220,10 +386,21 @@ class AIReference(BaseModel):
 
 class OnlineImageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
+    provider_id: str = "comfly"
     model: str = ""
     size: str = "1024x1024"
     quality: str = "auto"
     reference_images: List[AIReference] = []
+
+class ApiProviderPayload(BaseModel):
+    id: str = ""
+    name: str = ""
+    base_url: str = ""
+    enabled: bool = True
+    primary: bool = False
+    image_models: List[str] = []
+    chat_models: List[str] = []
+    api_key: Optional[str] = None
 
 class ChatRequest(BaseModel):
     conversation_id: str = ""
@@ -536,15 +713,28 @@ def resolve_chat_provider(provider: str, model: str, ms_model: str):
         hdrs = {"Authorization": f"Bearer {MODELSCOPE_API_KEY}", "Content-Type": "application/json"}
         mdl = selected_model(ms_model or model, MODELSCOPE_CHAT_MODELS[0] if MODELSCOPE_CHAT_MODELS else "MiniMax/MiniMax-M2.7")
         return base, hdrs, mdl
-    base = AI_BASE_URL + "/v1"
-    hdrs = api_headers()
-    mdl = selected_model(model, CHAT_MODEL)
+    api_provider = get_api_provider(provider or "")
+    base_root = (api_provider.get("base_url") or AI_BASE_URL).rstrip("/")
+    if not base_root:
+        raise HTTPException(status_code=400, detail=f"{api_provider.get('name') or api_provider['id']} 未配置 Base URL")
+    base = base_root if base_root.endswith("/v1") else base_root + "/v1"
+    hdrs = api_headers(provider=api_provider)
+    default_model = (api_provider.get("chat_models") or [CHAT_MODEL])[0]
+    mdl = selected_model(model, default_model)
     return base, hdrs, mdl
 
-def api_headers(json_body=True):
-    if not AI_API_KEY:
-        raise HTTPException(status_code=400, detail="未配置 COMFLY_API_KEY，请在 API/.env 中填写。")
-    headers = {"Accept": "application/json", "Authorization": f"Bearer {AI_API_KEY}"}
+def api_headers(json_body=True, provider=None):
+    if provider:
+        key_env = provider_key_env(provider["id"])
+        api_key = os.getenv(key_env, "")
+        provider_name = provider.get("name") or provider["id"]
+        if not api_key:
+            raise HTTPException(status_code=400, detail=f"未配置 {provider_name} 的 API Key，请在 API 平台管理中填写。")
+    else:
+        api_key = AI_API_KEY
+        if not api_key:
+            raise HTTPException(status_code=400, detail="未配置 COMFLY_API_KEY，请在 API/.env 中填写。")
+    headers = {"Accept": "application/json", "Authorization": f"Bearer {api_key}"}
     if json_body:
         headers["Content-Type"] = "application/json"
     return headers
@@ -615,11 +805,13 @@ def extract_task_id(data):
         return extract_task_id(nested)
     return None
 
-async def wait_for_image_task(client, task_id):
+async def wait_for_image_task(client, task_id, provider=None):
+    base_url = (provider.get("base_url") if provider else AI_BASE_URL).rstrip("/")
+    task_url = f"{base_url}/images/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{task_id}"
     deadline = time.monotonic() + AI_REQUEST_TIMEOUT
     last_payload = {}
     while time.monotonic() < deadline:
-        response = await client.get(f"{AI_BASE_URL}/v1/images/tasks/{task_id}", headers=api_headers())
+        response = await client.get(task_url, headers=api_headers(provider=provider))
         response.raise_for_status()
         last_payload = response.json()
         task_data = last_payload.get("data") if isinstance(last_payload.get("data"), dict) else last_payload
@@ -708,7 +900,82 @@ async def save_ai_image_to_output(image_data, prefix="online_"):
         print(f"保存上游图片失败: {e}")
         return value
 
-async def generate_ai_image(prompt, size, quality, model, reference_images=None):
+def parse_size_pair(size):
+    match = re.fullmatch(r"\s*(\d+)\s*[xX*]\s*(\d+)\s*", str(size or ""))
+    if not match:
+        return 0, 0
+    return int(match.group(1)), int(match.group(2))
+
+async def generate_modelscope_provider_image(prompt, size, model, reference_images=None, provider=None):
+    clean_token = MODELSCOPE_API_KEY.strip()
+    if not clean_token:
+        raise HTTPException(status_code=400, detail="未配置 ModelScope API Key，请在 API 设置中填写。")
+    width, height = parse_size_pair(size)
+    refs = []
+    for ref in (reference_images or [])[:4]:
+        if not ref.get("url"):
+            continue
+        refs.append(reference_to_data_url(ref))
+    headers = {
+        "Authorization": f"Bearer {clean_token}",
+        "Content-Type": "application/json",
+        "X-ModelScope-Async-Mode": "true",
+    }
+    payload = {
+        "model": selected_model(model, "Tongyi-MAI/Z-Image-Turbo"),
+        "prompt": prompt.strip(),
+    }
+    if width and height:
+        payload["width"] = width
+        payload["height"] = height
+        payload["size"] = f"{width}x{height}"
+    if refs:
+        payload["image_url"] = refs
+
+    base_root = ((provider or {}).get("base_url") or MODELSCOPE_CHAT_BASE_URL).rstrip("/")
+    api_root = base_root if base_root.endswith("/v1") else f"{base_root}/v1"
+    async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+        submit_res = await client.post(f"{api_root}/images/generations", headers=headers, json=payload)
+        submit_res.raise_for_status()
+        raw = submit_res.json()
+        task_id = raw.get("task_id")
+        if not task_id:
+            try:
+                return extract_image(raw), raw
+            except HTTPException:
+                raise HTTPException(status_code=502, detail=f"ModelScope 未返回 task_id：{raw}")
+
+        deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+        last_payload = raw
+        while time.monotonic() < deadline:
+            await asyncio.sleep(IMAGE_POLL_INTERVAL)
+            result = await client.get(
+                f"{api_root}/tasks/{task_id}",
+                headers={**headers, "X-ModelScope-Task-Type": "image_generation"},
+            )
+            result.raise_for_status()
+            data = result.json()
+            last_payload = data
+            status = str(data.get("task_status") or "").upper()
+            if status == "SUCCEED":
+                images = data.get("output_images") or []
+                if not images:
+                    raise HTTPException(status_code=502, detail=f"ModelScope 成功但没有返回图片：{data}")
+                return {"type": "url", "value": images[0]}, data
+            if status in {"FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED", "TIMEOUT", "REVOKED"}:
+                detail = data.get("error_info") or data.get("message") or data.get("detail") or str(data)
+                raise HTTPException(status_code=502, detail=f"ModelScope 任务失败：{detail}")
+        raise HTTPException(status_code=504, detail=f"ModelScope 生图任务超时：{last_payload}")
+
+async def generate_ai_image(prompt, size, quality, model, reference_images=None, provider_id="comfly"):
+    provider = get_api_provider(provider_id)
+    if provider["id"] == "modelscope":
+        return await generate_modelscope_provider_image(prompt, size, model, reference_images, provider)
+    base_url = (provider.get("base_url") or AI_BASE_URL).rstrip("/")
+    if not base_url:
+        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
+    gen_url = f"{base_url}/images/generations" if base_url.endswith("/v1") else f"{base_url}/v1/images/generations"
+    edit_url = f"{base_url}/images/edits" if base_url.endswith("/v1") else f"{base_url}/v1/images/edits"
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
     async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
         if refs:
@@ -723,14 +990,14 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None)
                     opened.append(fh)
                     files.append(("image", (os.path.basename(path), fh, content_type_for_path(path))))
                 data = {"model": model, "prompt": prompt, "size": size, "quality": quality, "response_format": "url", "n": "1"}
-                response = await client.post(f"{AI_BASE_URL}/v1/images/edits", headers=api_headers(json_body=False), data=data, files=files)
+                response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
             finally:
                 for fh in opened:
                     fh.close()
         else:
             response = await client.post(
-                f"{AI_BASE_URL}/v1/images/generations",
-                headers=api_headers(),
+                gen_url,
+                headers=api_headers(provider=provider),
                 json={"model": model, "prompt": prompt, "size": size, "quality": quality, "response_format": "url", "n": 1},
             )
         response.raise_for_status()
@@ -741,7 +1008,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None)
             task_id = extract_task_id(raw)
             if not task_id:
                 raise
-        task_result = await wait_for_image_task(client, task_id)
+        task_result = await wait_for_image_task(client, task_id, provider)
         return extract_image(task_result), task_result
 
 def upstream_message_from_record(item):
@@ -834,12 +1101,14 @@ async def upload_ai_reference(files: List[UploadFile] = File(...)):
 @app.get("/api/config")
 async def ai_config():
     preferred_chat_model = next((m for m in CHAT_MODELS if m == "gpt-5.5"), CHAT_MODELS[0] if CHAT_MODELS else CHAT_MODEL)
+    providers = [public_provider(p) for p in load_api_providers()]
     return {
         "base_url": AI_BASE_URL,
         "chat_model": preferred_chat_model,
         "image_model": IMAGE_MODEL,
         "chat_models": CHAT_MODELS,
         "image_models": IMAGE_MODELS,
+        "api_providers": providers,
         "has_api_key": bool(AI_API_KEY),
         "ms_chat_models": MODELSCOPE_CHAT_MODELS,
         "has_ms_key": bool(MODELSCOPE_API_KEY),
@@ -848,6 +1117,47 @@ async def ai_config():
 @app.get("/api/models")
 async def ai_models():
     return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS}
+
+@app.get("/api/providers")
+async def api_providers():
+    return {"providers": [public_provider(p) for p in load_api_providers()]}
+
+@app.put("/api/providers")
+async def save_providers(payload: List[ApiProviderPayload]):
+    providers = []
+    env_updates = {}
+    # 收集每个 item 的 primary 字段
+    raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
+    for item in payload:
+        provider = normalize_provider(item.dict(exclude={"api_key"}))
+        if provider["id"] == "modelscope":
+            if MODELSCOPE_DEFAULT_IMAGE_MODEL not in provider["image_models"]:
+                provider["image_models"] = [MODELSCOPE_DEFAULT_IMAGE_MODEL, *provider["image_models"]]
+            if MODELSCOPE_DEFAULT_CHAT_MODEL not in provider["chat_models"]:
+                provider["chat_models"] = [MODELSCOPE_DEFAULT_CHAT_MODEL, *provider["chat_models"]]
+        if any(existing["id"] == provider["id"] for existing in providers):
+            raise HTTPException(status_code=400, detail=f"API 平台 ID 重复：{provider['id']}")
+        providers.append(provider)
+        if item.api_key is not None:
+            env_updates[provider_key_env(provider["id"])] = item.api_key.strip()
+        if provider["id"] == "comfly":
+            env_updates["COMFLY_BASE_URL"] = provider["base_url"]
+            env_updates["IMAGE_MODELS"] = ",".join(provider["image_models"])
+            env_updates["CHAT_MODELS"] = ",".join(provider["chat_models"])
+        if provider["id"] == "modelscope":
+            env_updates["MODELSCOPE_CHAT_MODELS"] = ",".join(provider["chat_models"])
+    if not providers:
+        raise HTTPException(status_code=400, detail="至少保留一个 API 平台")
+    # 强制最多一个 primary（取最后被标记的；都没标记则保持原样不强制）
+    primary_indices = [i for i, flag in enumerate(raw_primary_flags) if flag]
+    if primary_indices:
+        winner = primary_indices[-1]
+        for i, p in enumerate(providers):
+            p["primary"] = (i == winner)
+    save_api_providers(providers)
+    if env_updates:
+        update_env_values(env_updates)
+    return {"providers": [public_provider(p) for p in providers]}
 
 # --- ModelScope Token (从 env 读取，不再支持通过 UI 修改) ---
 
@@ -869,10 +1179,12 @@ async def get_global_token():
 
 @app.post("/api/online-image")
 async def online_image(payload: OnlineImageRequest):
-    model = selected_model(payload.model, IMAGE_MODEL)
+    provider = get_api_provider(payload.provider_id)
+    default_model = (provider.get("image_models") or [IMAGE_MODEL])[0]
+    model = selected_model(payload.model, default_model)
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs)
+        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, provider["id"])
         local_url = await save_ai_image_to_output(image_data, prefix="online_")
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误：{exc.response.text}") from exc
@@ -885,7 +1197,9 @@ async def online_image(payload: OnlineImageRequest):
         "timestamp": time.time(),
         "type": "online",
         "model": model,
-        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs},
+        "provider_id": provider["id"],
+        "provider_name": provider.get("name") or provider["id"],
+        "params": {"provider_id": provider["id"], "model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs},
         "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
     }
     save_to_history(result)
@@ -1027,9 +1341,12 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
     save_conversation(user_id, conversation)
 
     if payload.mode == "image":
-        model = selected_model(payload.image_model or payload.model, IMAGE_MODEL)
+        image_provider_id = payload.provider if payload.provider not in {"modelscope"} else "comfly"
+        provider = get_api_provider(image_provider_id)
+        default_model = (provider.get("image_models") or [IMAGE_MODEL])[0]
+        model = selected_model(payload.image_model or payload.model, default_model)
         try:
-            image_data, raw = await generate_ai_image(payload.message, payload.size, payload.quality, model, refs)
+            image_data, raw = await generate_ai_image(payload.message, payload.size, payload.quality, model, refs, provider["id"])
             local_url = await save_ai_image_to_output(image_data, prefix="chat_")
         except httpx.HTTPStatusError as exc:
             raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误：{exc.response.text}") from exc
