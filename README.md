@@ -2,6 +2,7 @@
 Supports comfyui/API calls/modelscope calls
 
 详细教程：https://youtu.be/1y9ShTvgC_w
+
 5/12日更新：
 1. 修复了安装依赖的报错
 2. 增加了更便捷的API设置方式，现在可以全程在网页中设置
