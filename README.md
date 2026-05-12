@@ -25,7 +25,11 @@ May 12th Update:
 4. Added Chinese/English language switching.
 
 5. Added the ability to customize ComfyUI workflows. Users can set their own inputs and adjust parameters, which can then be invoked within ComfyUI nodes on an infinite canvas. (You can try it out first; I will create tutorials for other features in future updates.)
-   
+
+<img width="1735" height="1400" alt="image" src="https://github.com/user-attachments/assets/d8328ff8-bbe0-4f1c-9ffa-7b56e8a1a51d" />
+<img width="2258" height="969" alt="image" src="https://github.com/user-attachments/assets/4a752d99-885d-4ba9-8b86-91b495786b5c" />
+
+
 <img width="1531" height="1374" alt="image" src="https://github.com/user-attachments/assets/0af79e38-0955-4740-9e65-5c9bb057f58c" />
 <img width="821" height="869" alt="image" src="https://github.com/user-attachments/assets/3884d090-ee57-4817-bc11-0a9462111420" />
 
