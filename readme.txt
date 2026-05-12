@@ -2,7 +2,7 @@
 
 https://ai.comfly.chat/register?aff=HAOj137551 (New registration is currently suspended)
 
-https://kgc.grsai.ai/zh/dashboard/models (This works; API request address: https://grsai.dakka.com.cn)
+https://kgc.grsai.ai/zh/dashboard/models (This works; API request address: https://grsai.dakka.com)
 
 2. Create an API key:
 
