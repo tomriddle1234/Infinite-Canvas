@@ -164,6 +164,7 @@ SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
 MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "30"))
 AI_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "120"))
 IMAGE_POLL_INTERVAL = float(os.getenv("IMAGE_POLL_INTERVAL", "2"))
+VIDEO_POLL_TIMEOUT = float(os.getenv("VIDEO_POLL_TIMEOUT", "1800"))
 
 def model_list(env_name, primary, defaults):
     configured = os.getenv(env_name, "")
@@ -177,6 +178,25 @@ def model_list(env_name, primary, defaults):
 
 CHAT_MODELS = model_list("CHAT_MODELS", CHAT_MODEL, ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
 IMAGE_MODELS = model_list("IMAGE_MODELS", IMAGE_MODEL, ["nano-banana-pro"])
+VIDEO_MODELS = model_list("VIDEO_MODELS", "veo3-fast", [
+    # —— Veo 系列 ——
+    "veo2", "veo2-fast", "veo2-pro",
+    "veo3", "veo3-fast", "veo3-pro",
+    "veo3.1", "veo3.1-fast", "veo3.1-pro",
+    # —— Sora ——
+    "sora-2", "sora-2-pro",
+    # —— 阿里 通义万相 ——
+    "wan2.6-t2v", "wan2.6-i2v",
+    "wan2.5-t2v-preview", "wan2.5-i2v-preview",
+    "wan2.2-t2v-plus", "wan2.2-i2v-plus", "wan2.2-i2v-flash",
+    # —— 火山 豆包 Seedance ——
+    "doubao-seedance-2-0-260128",
+    "doubao-seedance-2-0-fast-260128",
+    "doubao-seedance-1-5-pro-251215",
+    "doubao-seedance-1-0-pro-250528",
+    "doubao-seedance-1-0-lite-t2v-250428",
+    "doubao-seedance-1-0-lite-i2v-250428",
+])
 
 def provider_key_env(provider_id):
     if provider_id == "comfly":
@@ -202,6 +222,7 @@ def default_api_providers():
             "primary": False,
             "image_models": [MODELSCOPE_DEFAULT_IMAGE_MODEL],
             "chat_models": MODELSCOPE_CHAT_MODELS,
+            "video_models": [],
         },
     ]
 
@@ -252,6 +273,7 @@ def normalize_provider(item):
         "primary": bool(item.get("primary", False)),
         "image_models": model_list_from_values(item.get("image_models") or []),
         "chat_models": model_list_from_values(item.get("chat_models") or []),
+        "video_models": model_list_from_values(item.get("video_models") or []),
     }
 
 def load_api_providers():
@@ -393,6 +415,24 @@ class OnlineImageRequest(BaseModel):
     quality: str = "auto"
     reference_images: List[AIReference] = []
 
+class CanvasVideoRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    provider_id: str = "comfly"
+    model: str = "veo3-fast"
+    duration: int = 5
+    aspect_ratio: str = "16:9"
+    resolution: str = ""
+    size: str = ""
+    images: List[AIReference] = []
+    videos: List[str] = []
+    enhance_prompt: bool = False
+    enable_upsample: bool = False
+    watermark: bool = False
+    seed: Optional[int] = None
+    camerafixed: bool = False
+    return_last_frame: bool = False
+    generate_audio: bool = False
+
 class ApiProviderPayload(BaseModel):
     id: str = ""
     name: str = ""
@@ -401,6 +441,7 @@ class ApiProviderPayload(BaseModel):
     primary: bool = False
     image_models: List[str] = []
     chat_models: List[str] = []
+    video_models: List[str] = []
     api_key: Optional[str] = None
 
 class ChatRequest(BaseModel):
@@ -429,9 +470,10 @@ class CanvasLLMRequest(BaseModel):
     message: str = Field(min_length=1, max_length=20000)
     system_prompt: str = "You are a helpful assistant."
     model: str = ""
-    messages: List[Dict[str, str]] = []
+    messages: List[Dict[str, Any]] = []
     provider: str = "comfly"
     ms_model: str = ""
+    images: List[str] = []   # 可以是 /output/*.png 本地路径 或 http(s) URL 或 data URL
 
 class ConversationCreateRequest(BaseModel):
     title: str = "新对话"
@@ -920,6 +962,36 @@ async def save_ai_image_to_output(image_data, prefix="online_"):
         print(f"保存上游图片失败: {e}")
         return value
 
+async def save_remote_video_to_output(url, prefix="video_"):
+    if not url:
+        return ""
+    if url.startswith("/output/"):
+        return url
+    filename = f"{prefix}{uuid.uuid4().hex[:10]}.mp4"
+    path = os.path.join(OUTPUT_DIR, filename)
+    try:
+        async with httpx.AsyncClient(timeout=VIDEO_POLL_TIMEOUT) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            content_type = (response.headers.get("Content-Type") or "").lower()
+            clean_path = urllib.parse.urlparse(url).path
+            ext = os.path.splitext(clean_path)[1].lower()
+            if ext in {".mp4", ".webm", ".mov"}:
+                filename = filename[:-4] + ext
+                path = os.path.join(OUTPUT_DIR, filename)
+            elif "webm" in content_type:
+                filename = filename[:-4] + ".webm"
+                path = os.path.join(OUTPUT_DIR, filename)
+            elif "quicktime" in content_type or "mov" in content_type:
+                filename = filename[:-4] + ".mov"
+                path = os.path.join(OUTPUT_DIR, filename)
+            with open(path, "wb") as f:
+                f.write(response.content)
+            return f"/output/{filename}"
+    except Exception as e:
+        print(f"保存上游视频失败: {e}")
+        return url
+
 def parse_size_pair(size):
     match = re.fullmatch(r"\s*(\d+)\s*[xX*]\s*(\d+)\s*", str(size or ""))
     if not match:
@@ -1152,6 +1224,7 @@ async def ai_config():
         "image_model": IMAGE_MODEL,
         "chat_models": CHAT_MODELS,
         "image_models": IMAGE_MODELS,
+        "video_models": VIDEO_MODELS,
         "api_providers": providers,
         "has_api_key": bool(AI_API_KEY),
         "ms_chat_models": MODELSCOPE_CHAT_MODELS,
@@ -1160,7 +1233,7 @@ async def ai_config():
 
 @app.get("/api/models")
 async def ai_models():
-    return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS}
+    return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS, "video_models": VIDEO_MODELS}
 
 @app.get("/api/providers")
 async def api_providers():
@@ -1188,6 +1261,7 @@ async def save_providers(payload: List[ApiProviderPayload]):
             env_updates["COMFLY_BASE_URL"] = provider["base_url"]
             env_updates["IMAGE_MODELS"] = ",".join(provider["image_models"])
             env_updates["CHAT_MODELS"] = ",".join(provider["chat_models"])
+            env_updates["VIDEO_MODELS"] = ",".join(provider.get("video_models") or [])
         if provider["id"] == "modelscope":
             env_updates["MODELSCOPE_CHAT_MODELS"] = ",".join(provider["chat_models"])
     if not providers:
@@ -1221,6 +1295,108 @@ async def get_global_token():
 
 # --- 在线生图 (COMFLY) ---
 
+class TestConnectionPayload(BaseModel):
+    base_url: str = ""
+    api_key: str = ""
+    provider_id: str = ""
+
+@app.post("/api/providers/test-connection")
+async def test_provider_connection(payload: TestConnectionPayload):
+    """测试请求地址是否可用：调上游 /v1/models。验证通过时同时把模型清单按类别返回，避免再调一次拉取接口。"""
+    base_url = (payload.base_url or "").strip().rstrip("/")
+    if not base_url:
+        raise HTTPException(status_code=400, detail="请先填写请求地址")
+    if not re.match(r"^https?://", base_url):
+        raise HTTPException(status_code=400, detail="请求地址必须以 http:// 或 https:// 开头")
+    api_key = (payload.api_key or "").strip()
+    if not api_key and payload.provider_id:
+        api_key = os.getenv(provider_key_env(payload.provider_id), "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
+    url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url, headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"})
+        if resp.status_code >= 400:
+            return {"ok": False, "status": resp.status_code, "message": resp.text[:300]}
+        data = resp.json() if resp.text else {}
+        items = (data.get("data") if isinstance(data, dict) else None) or []
+        # 抽取模型 id
+        ids = []
+        for it in items:
+            if isinstance(it, str):
+                ids.append(it)
+            elif isinstance(it, dict):
+                mid = it.get("id") or it.get("name") or it.get("model")
+                if mid:
+                    ids.append(str(mid))
+        ids = sorted(set(ids))
+        # 关键字分类
+        def classify(mid):
+            lc = mid.lower()
+            video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v", "minimax-"]
+            if any(k in lc for k in video_keys):
+                return "video"
+            image_keys = ["image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein"]
+            if any(k in lc for k in image_keys):
+                return "image"
+            return "chat"
+        grouped = {"image": [], "chat": [], "video": []}
+        for mid in ids:
+            grouped[classify(mid)].append(mid)
+        return {"ok": True, "status": resp.status_code, "model_count": len(ids), "image_models": grouped["image"], "chat_models": grouped["chat"], "video_models": grouped["video"], "all": ids}
+    except httpx.HTTPError as e:
+        return {"ok": False, "status": 0, "message": str(e)[:300]}
+
+@app.get("/api/providers/{provider_id}/fetch-models")
+async def fetch_upstream_models(provider_id: str):
+    """从上游 OpenAI 兼容接口拉取 /v1/models 列表，按名称智能分类为 image/chat/video。"""
+    provider = get_api_provider(provider_id)
+    base_url = (provider.get("base_url") or "").rstrip("/")
+    if not base_url:
+        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 Base URL")
+    api_key = os.getenv(provider_key_env(provider["id"]), "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
+    url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url, headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"})
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=resp.status_code, detail=f"上游 /v1/models 失败：{resp.text[:300]}")
+            raw = resp.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"请求上游模型列表失败：{e}")
+    # 兼容多种返回结构：{data:[{id:...},...]} 或 {models:[...]}
+    items = raw.get("data") if isinstance(raw, dict) else None
+    if not items and isinstance(raw, dict):
+        items = raw.get("models") or raw.get("list") or []
+    if not isinstance(items, list):
+        items = []
+    ids = []
+    for it in items:
+        if isinstance(it, str):
+            ids.append(it)
+        elif isinstance(it, dict):
+            mid = it.get("id") or it.get("name") or it.get("model")
+            if mid:
+                ids.append(str(mid))
+    ids = sorted(set(ids))
+    # 分类规则（按关键字）
+    def classify(mid):
+        lc = mid.lower()
+        video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v", "minimax-"]
+        if any(k in lc for k in video_keys):
+            return "video"
+        image_keys = ["image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein"]
+        if any(k in lc for k in image_keys):
+            return "image"
+        return "chat"
+    grouped = {"image": [], "chat": [], "video": []}
+    for mid in ids:
+        grouped[classify(mid)].append(mid)
+    return {"total": len(ids), "image_models": grouped["image"], "chat_models": grouped["chat"], "video_models": grouped["video"], "all": ids}
+
 @app.post("/api/online-image")
 async def online_image(payload: OnlineImageRequest):
     provider = get_api_provider(payload.provider_id)
@@ -1251,6 +1427,147 @@ async def online_image(payload: OnlineImageRequest):
         asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(result), GLOBAL_LOOP)
     return result
 
+# --- Canvas Video ---
+
+def video_output_urls(raw):
+    data = raw.get("data") if isinstance(raw, dict) else {}
+    if not isinstance(data, dict):
+        data = {}
+    urls = []
+    output = data.get("output") or raw.get("output")
+    outputs = data.get("outputs") or raw.get("outputs") or []
+    if isinstance(output, str) and output:
+        urls.append(output)
+    if isinstance(outputs, list):
+        for item in outputs:
+            if isinstance(item, str) and item:
+                urls.append(item)
+            elif isinstance(item, dict):
+                value = item.get("url") or item.get("output")
+                if value:
+                    urls.append(value)
+    deduped = []
+    for url in urls:
+        if url not in deduped:
+            deduped.append(url)
+    return deduped
+
+def video_api_root(provider):
+    base_url = (provider.get("base_url") or AI_BASE_URL).rstrip("/")
+    if base_url.endswith("/v1") or base_url.endswith("/v2"):
+        base_url = base_url.rsplit("/", 1)[0]
+    return base_url
+
+async def wait_for_video_task(client, provider, task_id):
+    base_url = video_api_root(provider)
+    if not base_url:
+        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
+    task_url = f"{base_url}/v2/videos/generations/{task_id}"
+    deadline = time.monotonic() + VIDEO_POLL_TIMEOUT
+    delay = max(2.0, IMAGE_POLL_INTERVAL)
+    last_payload = {}
+    while time.monotonic() < deadline:
+        await asyncio.sleep(delay)
+        response = await client.get(task_url, headers=api_headers(provider=provider))
+        response.raise_for_status()
+        raw = response.json()
+        last_payload = raw
+        status = str(raw.get("status") or "").upper()
+        if status == "SUCCESS":
+            return raw
+        if status in {"FAILURE", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED", "TIMEOUT"}:
+            reason = raw.get("fail_reason") or raw.get("error") or raw.get("message") or str(raw)
+            raise HTTPException(status_code=502, detail=f"视频生成任务失败：{reason}")
+        delay = min(delay * 1.6, 12)
+    raise HTTPException(status_code=504, detail=f"视频生成任务超时：{last_payload or task_id}")
+
+@app.post("/api/canvas-video")
+async def canvas_video(payload: CanvasVideoRequest):
+    provider = get_api_provider(payload.provider_id)
+    base_url = video_api_root(provider)
+    if not base_url:
+        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
+    api_key = os.getenv(provider_key_env(provider["id"]), "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail=f"未配置 {provider.get('name') or provider['id']} 的 API Key，请在 API 设置中填写。")
+    submit_url = f"{base_url}/v2/videos/generations"
+    image_payload = []
+    for ref in payload.images[:4]:
+        if ref.url:
+            image_payload.append(reference_to_data_url(ref.dict(), max_size=1536))
+    body = {
+        "prompt": payload.prompt,
+        "model": selected_model(payload.model, "veo3-fast"),
+        "duration": payload.duration,
+        "watermark": payload.watermark,
+    }
+    if payload.aspect_ratio:
+        body["aspect_ratio"] = payload.aspect_ratio
+        body["ratio"] = payload.aspect_ratio
+    if payload.size:
+        body["size"] = payload.size
+    if payload.resolution:
+        body["resolution"] = payload.resolution
+    if image_payload:
+        body["images"] = image_payload
+    if payload.videos:
+        body["videos"] = [v for v in payload.videos if v]
+    if payload.enhance_prompt:
+        body["enhance_prompt"] = True
+    if payload.enable_upsample:
+        body["enable_upsample"] = True
+    if payload.seed is not None:
+        body["seed"] = payload.seed
+    if payload.camerafixed:
+        body["camerafixed"] = True
+    if payload.return_last_frame:
+        body["return_last_frame"] = True
+    if payload.generate_audio:
+        body["generate_audio"] = True
+    try:
+        async with httpx.AsyncClient(timeout=VIDEO_POLL_TIMEOUT) as client:
+            response = await client.post(submit_url, headers=api_headers(provider=provider), json=body)
+            response.raise_for_status()
+            raw = response.json()
+            task_id = raw.get("task_id") or raw.get("id")
+            result = raw
+            if task_id and not video_output_urls(raw):
+                result = await wait_for_video_task(client, provider, task_id)
+            urls = video_output_urls(result)
+            if not urls:
+                raise HTTPException(status_code=502, detail=f"视频生成成功但没有返回视频：{result}")
+            local_urls = [await save_remote_video_to_output(url) for url in urls]
+            return {"videos": local_urls, "task_id": task_id, "raw": result}
+    except httpx.HTTPStatusError as exc:
+        text = exc.response.text
+        requested_model = body.get("model", "")
+        provider_name = provider.get('name') or provider['id']
+        # 1) 模型名不在上游支持范围 → 从错误信息里抽取合法列表展示
+        valid_models_match = re.search(r"not in\s*\[([^\]]+)\]", text)
+        if valid_models_match:
+            valid_models = [m.strip() for m in valid_models_match.group(1).split(",") if m.strip()]
+            sample = valid_models[:30]
+            more = f"（共 {len(valid_models)} 个，仅显示前 {len(sample)} 个）" if len(valid_models) > len(sample) else ""
+            hint = (
+                f"上游「{provider_name}」不识别模型「{requested_model}」。\n\n"
+                f"上游支持的视频模型清单{more}：\n  {', '.join(sample)}\n\n"
+                f"请到「API 设置」里把视频模型改成上面列表中的一个。"
+            )
+            raise HTTPException(status_code=exc.response.status_code, detail=hint) from exc
+        # 2) 模型名合法但账号没开通通道
+        if "channel not found" in text or "model_not_found" in text:
+            hint = (
+                f"上游「{provider_name}」识别了模型「{requested_model}」，但你的 API Key 账号下**没有该模型的可用通道**。\n\n"
+                f"原因：你的账号没开通这个模型的访问权限（付费/订阅相关）。\n\n"
+                f"解决方法：\n"
+                f"  1. 登录 {provider.get('base_url') or '上游平台'} 控制台，开通该模型 / 充值；\n"
+                f"  2. 或在「API 设置」里把视频模型改成你账号已开通的型号（如 veo3-fast / veo2-fast / sora-2 等）。"
+            )
+            raise HTTPException(status_code=exc.response.status_code, detail=hint) from exc
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游视频接口错误：{text}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"请求上游视频接口失败：{exc}") from exc
+
 # --- Canvas LLM ---
 
 @app.post("/api/canvas-llm")
@@ -1262,7 +1579,26 @@ async def canvas_llm(payload: CanvasLLMRequest):
         content = item.get("content")
         if role in {"user", "assistant"} and content:
             upstream_messages.append({"role": role, "content": content})
-    upstream_messages.append({"role": "user", "content": payload.message})
+    # 构造用户消息：有图片时用 OpenAI vision 多模态格式
+    if payload.images:
+        content_parts = [{"type": "text", "text": payload.message}]
+        ok_imgs = 0
+        for img in payload.images[:8]:
+            if not img or not isinstance(img, str):
+                continue
+            # 本地 /output/* 路径转为 data URL；http(s) 或 data URL 直接用
+            if img.startswith("/output/"):
+                ref_url = reference_to_data_url({"url": img}, max_size=1024)
+            else:
+                ref_url = img
+            if not ref_url:
+                continue
+            content_parts.append({"type": "image_url", "image_url": {"url": ref_url}})
+            ok_imgs += 1
+        print(f"[canvas-llm] model={model} provider={payload.provider} text_len={len(payload.message)} images={ok_imgs}/{len(payload.images)}")
+        upstream_messages.append({"role": "user", "content": content_parts})
+    else:
+        upstream_messages.append({"role": "user", "content": payload.message})
     try:
         async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
             response = await client.post(
