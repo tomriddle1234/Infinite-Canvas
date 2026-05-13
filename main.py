@@ -945,7 +945,8 @@ async def save_ai_image_to_output(image_data, prefix="online_"):
     if value.startswith("/output/"):
         return value
     try:
-        async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+        timeout = httpx.Timeout(connect=20.0, read=300.0, write=60.0, pool=20.0)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             response = await client.get(value)
             response.raise_for_status()
             content_type = response.headers.get("Content-Type", "")
@@ -997,6 +998,37 @@ def parse_size_pair(size):
     if not match:
         return 0, 0
     return int(match.group(1)), int(match.group(2))
+
+GPT_IMAGE2_MAX_EDGE = 3840
+GPT_IMAGE2_MAX_PIXELS = 8_294_400
+GPT_IMAGE2_MIN_PIXELS = 655_360
+
+def is_gpt_image_2_model(model):
+    return str(model or "").strip().lower() == "gpt-image-2"
+
+def normalize_gpt_image_2_size(size):
+    width, height = parse_size_pair(size)
+    if not width or not height:
+        return size or "auto"
+    if width == height and (width > 2048 or width * height > 4_194_304):
+        return "3840x2160"
+    ratio = width / height
+    if ratio > 3:
+        width = height * 3
+    elif ratio < 1 / 3:
+        height = width * 3
+    scale = min(
+        1.0,
+        GPT_IMAGE2_MAX_EDGE / max(width, height),
+        (GPT_IMAGE2_MAX_PIXELS / max(1, width * height)) ** 0.5,
+    )
+    width = max(16, int((width * scale) // 16) * 16)
+    height = max(16, int((height * scale) // 16) * 16)
+    if width * height < GPT_IMAGE2_MIN_PIXELS:
+        grow = (GPT_IMAGE2_MIN_PIXELS / max(1, width * height)) ** 0.5
+        width = int((width * grow + 15) // 16) * 16
+        height = int((height * grow + 15) // 16) * 16
+    return f"{width}x{height}"
 
 async def generate_modelscope_provider_image(prompt, size, model, reference_images=None, provider=None):
     clean_token = MODELSCOPE_API_KEY.strip()
@@ -1064,15 +1096,26 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
     provider = get_api_provider(provider_id)
     if provider["id"] == "modelscope":
         return await generate_modelscope_provider_image(prompt, size, model, reference_images, provider)
+    is_gpt2 = is_gpt_image_2_model(model)
+    if is_gpt_image_2_model(model):
+        size = normalize_gpt_image_2_size(size)
     base_url = (provider.get("base_url") or AI_BASE_URL).rstrip("/")
     if not base_url:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
     gen_url = f"{base_url}/images/generations" if base_url.endswith("/v1") else f"{base_url}/v1/images/generations"
     edit_url = f"{base_url}/images/edits" if base_url.endswith("/v1") else f"{base_url}/v1/images/edits"
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
-    async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+    request_timeout = httpx.Timeout(connect=20.0, read=600.0, write=120.0, pool=20.0) if is_gpt2 else AI_REQUEST_TIMEOUT
+    async with httpx.AsyncClient(timeout=request_timeout) as client:
         response = None
-        if refs:
+        if is_gpt2:
+            body = {"model": model, "prompt": prompt, "size": size}
+            if quality:
+                body["quality"] = quality
+            if refs:
+                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in refs[:4]]
+            response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
+        elif refs:
             # 1) 先用 multipart 提交到 /images/edits（OpenAI / Comfly 风格）
             files = []
             opened = []
@@ -1334,7 +1377,7 @@ async def test_provider_connection(payload: TestConnectionPayload):
         # 关键字分类
         def classify(mid):
             lc = mid.lower()
-            video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v", "minimax-"]
+            video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"]
             if any(k in lc for k in video_keys):
                 return "video"
             image_keys = ["image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein"]
@@ -1385,7 +1428,7 @@ async def fetch_upstream_models(provider_id: str):
     # 分类规则（按关键字）
     def classify(mid):
         lc = mid.lower()
-        video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v", "minimax-"]
+        video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"]
         if any(k in lc for k in video_keys):
             return "video"
         image_keys = ["image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein"]
@@ -1407,7 +1450,23 @@ async def online_image(payload: OnlineImageRequest):
         image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, provider["id"])
         local_url = await save_ai_image_to_output(image_data, prefix="online_")
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误：{exc.response.text}") from exc
+        text = exc.response.text or ''
+        # 把上游英文错误转成中文友好提示
+        friendly = None
+        m = re.search(r"longest edge must be less than or equal to (\d+)", text)
+        if m:
+            limit = m.group(1)
+            friendly = f"该模型不支持当前分辨率：最长边超过 {limit}px。请把图片分辨率调低（例如换到 2K 或更小），或更换支持高分辨率的模型。"
+        elif "Invalid size" in text or "invalid_value" in text:
+            friendly = f"该模型不支持当前尺寸：{payload.size}。请尝试更换分辨率或模型。"
+        elif "rate limit" in text.lower() or "429" in text:
+            friendly = "请求过于频繁，已被上游限流，请稍后再试。"
+        elif "Unauthorized" in text or "401" in text:
+            friendly = "API Key 无效或已过期，请到「API 设置」检查 Key。"
+        elif "model_not_found" in text or "channel not found" in text:
+            friendly = f"上游平台找不到模型「{model}」可用通道。可能该模型未在此账号开通，请换一个已开通的模型。"
+        detail = friendly or f"上游生图接口错误：{text[:300]}"
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"请求上游生图接口失败：{exc}") from exc
 
@@ -2507,6 +2566,49 @@ def workflow_config_path(name: str) -> str:
 def is_builtin_workflow(name: str) -> bool:
     return "/" not in name and os.path.basename(name) in BUILTIN_WORKFLOWS
 
+class ComfyInstancesPayload(BaseModel):
+    instances: List[str] = []
+
+@app.get("/api/comfyui/instances")
+def get_comfyui_instances():
+    return {"instances": COMFYUI_INSTANCES}
+
+@app.put("/api/comfyui/instances")
+def save_comfyui_instances(payload: ComfyInstancesPayload):
+    # 宽容校验：去前后空白、去 http(s):// 前缀、去尾部斜杠；要求形如 host:port
+    cleaned = []
+    for item in payload.instances:
+        s = str(item or "").strip()
+        if not s:
+            continue
+        s = re.sub(r"^https?://", "", s)
+        s = s.rstrip("/")
+        if ":" not in s:
+            raise HTTPException(status_code=400, detail=f"地址缺少端口号：{item}（应为 host:port，例如 127.0.0.1:8188）")
+        host, _, port = s.rpartition(":")
+        if not host or not port.isdigit():
+            raise HTTPException(status_code=400, detail=f"地址不合法：{item}（应为 host:port，例如 127.0.0.1:8188）")
+        if s in cleaned:
+            continue
+        cleaned.append(s)
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="至少保留一个 ComfyUI 后端地址")
+    # 写入 env 文件
+    try:
+        update_env_values({"COMFYUI_INSTANCES": ",".join(cleaned)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"写入 env 失败：{e}")
+    # 更新进程中的全局变量
+    global COMFYUI_INSTANCES, COMFYUI_ADDRESS, BACKEND_LOCAL_LOAD
+    COMFYUI_INSTANCES = cleaned
+    COMFYUI_ADDRESS = cleaned[0]
+    new_load = {addr: 0 for addr in cleaned}
+    for addr, n in (BACKEND_LOCAL_LOAD or {}).items():
+        if addr in new_load:
+            new_load[addr] = n
+    BACKEND_LOCAL_LOAD = new_load
+    return {"instances": COMFYUI_INSTANCES}
+
 @app.get("/api/workflows")
 def list_workflows():
     if not os.path.isdir(WORKFLOW_DIR):
@@ -2626,6 +2728,17 @@ def run_workflow(name: str, payload: WorkflowRunRequest):
                     pass
             elif field.type == "boolean":
                 value = bool(value)
+            elif field.type == "dropdown":
+                # 下拉值如果看起来是数字（如 "1024" / "2048" / "0.8"），自动转成 int/float
+                if isinstance(value, str):
+                    s = value.strip()
+                    try:
+                        if s and ('.' in s or 'e' in s.lower()):
+                            value = float(s)
+                        elif s and (s.lstrip('-').isdigit()):
+                            value = int(s)
+                    except (ValueError, TypeError):
+                        pass
             params.setdefault(field.node, {})[field.input] = value
     req = GenerateRequest(
         prompt="",
