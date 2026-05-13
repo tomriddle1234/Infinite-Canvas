@@ -10,6 +10,8 @@ Supports comfyui/API calls/modelscope calls
 4. 增加了中英文切换
 5. 增加了自定义comfyui工作流的功能，可以自己设置需要的输入和要调整的参数，可以在无限画布的comfyui节点中调用。
 6. 增加了视频生成功能
+7. 修复了2k/4k生成报错问题
+8. 新增了生成节点可以通过output前后连接一键生成
 
 -----
 
@@ -29,6 +31,10 @@ May 13th Update:
 
 6. Added video generation functionality.
 
+7. Fixed 2K/4K generation error issues.
+
+8. Added the ability to generate nodes with a single click by connecting the output nodes before and after them.
+9. 
 <img width="1525" height="1473" alt="image" src="https://github.com/user-attachments/assets/6f61fcf9-746c-425b-9e36-cfc8d252da7c" />
 
    <img width="1261" height="864" alt="image" src="https://github.com/user-attachments/assets/57f3e230-3134-488f-8179-d97e7d15383a" />
