@@ -13,6 +13,10 @@ Supports comfyui/API calls/modelscope calls
 7. 修复了2k/4k生成报错问题
 8. 新增了生成节点可以通过output前后连接一键生成
 
+5/14日更新：
+1. 修复mac的一些bug
+2. modelscope支持lora调用
+   
 -----
 
 Detailed tutorial: https://youtu.be/1y9ShTvgC_w
@@ -34,7 +38,14 @@ May 13th Update:
 7. Fixed 2K/4K generation error issues.
 
 8. Added the ability to generate nodes with a single click by connecting the output nodes before and after them.
-9. 
+
+May 14th Update:
+
+1. Fixed some bugs on Mac.
+
+2. Added support for LoRa calls to ModelScope.
+
+   
 <img width="1525" height="1473" alt="image" src="https://github.com/user-attachments/assets/6f61fcf9-746c-425b-9e36-cfc8d252da7c" />
 
    <img width="1261" height="864" alt="image" src="https://github.com/user-attachments/assets/57f3e230-3134-488f-8179-d97e7d15383a" />
