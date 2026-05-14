@@ -110,6 +110,9 @@ WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
 WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "Z-Image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+OUTPUT_INPUT_DIR = os.path.join(ASSETS_DIR, "input")
+OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
 HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
 API_ENV_FILE = os.path.join(BASE_DIR, "API", ".env")
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -155,9 +158,47 @@ AI_BASE_URL = os.getenv("COMFLY_BASE_URL", "https://ai.comfly.chat").rstrip("/")
 AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
 MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
 MODELSCOPE_CHAT_BASE_URL = "https://api-inference.modelscope.cn/v1"
-MODELSCOPE_CHAT_MODELS = [m.strip() for m in os.getenv("MODELSCOPE_CHAT_MODELS", "Qwen/Qwen3-235B-A22B,MiniMax/MiniMax-M2.7:MiniMax").split(",") if m.strip()]
-MODELSCOPE_DEFAULT_IMAGE_MODEL = "Tongyi-MAI/Z-Image-Turbo"
+MODELSCOPE_DEFAULT_IMAGE_MODELS = [
+    "Tongyi-MAI/Z-Image-Turbo",
+    "Qwen/Qwen-Image-2512",
+    "black-forest-labs/FLUX.2-klein-9B",
+]
+MODELSCOPE_DEFAULT_CHAT_MODELS = [
+    "Qwen/Qwen3-235B-A22B",
+    "Qwen/Qwen3-VL-235B-A22B-Instruct",
+    "MiniMax/MiniMax-M2.7:MiniMax",
+]
+_MODELSCOPE_CONFIGURED_CHAT_MODELS = [m.strip() for m in os.getenv("MODELSCOPE_CHAT_MODELS", "").split(",") if m.strip()]
+MODELSCOPE_CHAT_MODELS = list(dict.fromkeys([m for m in [*MODELSCOPE_DEFAULT_CHAT_MODELS, *_MODELSCOPE_CONFIGURED_CHAT_MODELS] if m]))
+MODELSCOPE_DEFAULT_IMAGE_MODEL = MODELSCOPE_DEFAULT_IMAGE_MODELS[0]
 MODELSCOPE_DEFAULT_CHAT_MODEL = "Qwen/Qwen3-235B-A22B"
+MODELSCOPE_DEFAULT_LORAS = [
+    {
+        "id": "Daniel8152/film",
+        "name": "Z-Image Film",
+        "target_model": "Tongyi-MAI/Z-Image-Turbo",
+        "strength": 0.8,
+        "enabled": True,
+        "note": "",
+    },
+    {
+        "id": "Daniel8152/Qwen-Image-2512-Film",
+        "name": "Qwen Image 2512 Film",
+        "target_model": "Qwen/Qwen-Image-2512",
+        "strength": 0.8,
+        "enabled": True,
+        "note": "",
+    },
+    {
+        "id": "Daniel8152/Klein-enhance",
+        "name": "Klein enhance",
+        "target_model": "black-forest-labs/FLUX.2-klein-9B",
+        "strength": 0.8,
+        "enabled": True,
+        "note": "",
+    },
+]
+MODELSCOPE_DEFAULTS_VERSION = 2
 CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "gpt-image-2")
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
@@ -220,9 +261,11 @@ def default_api_providers():
             "base_url": MODELSCOPE_CHAT_BASE_URL,
             "enabled": True,
             "primary": False,
-            "image_models": [MODELSCOPE_DEFAULT_IMAGE_MODEL],
+            "image_models": MODELSCOPE_DEFAULT_IMAGE_MODELS,
             "chat_models": MODELSCOPE_CHAT_MODELS,
             "video_models": [],
+            "ms_loras": MODELSCOPE_DEFAULT_LORAS,
+            "ms_defaults_version": MODELSCOPE_DEFAULTS_VERSION,
         },
     ]
 
@@ -237,12 +280,15 @@ def merge_default_api_providers(providers):
         else:
             if not current.get("base_url"):
                 current["base_url"] = ms_default["base_url"]
-            image_models = current.get("image_models") or []
-            chat_models = current.get("chat_models") or []
-            if MODELSCOPE_DEFAULT_IMAGE_MODEL not in image_models:
-                current["image_models"] = [MODELSCOPE_DEFAULT_IMAGE_MODEL, *image_models]
-            if MODELSCOPE_DEFAULT_CHAT_MODEL not in chat_models:
-                current["chat_models"] = [MODELSCOPE_DEFAULT_CHAT_MODEL, *chat_models]
+            seeded_version = int(current.get("ms_defaults_version") or 0)
+            if seeded_version < MODELSCOPE_DEFAULTS_VERSION:
+                image_models = model_list_from_values([*MODELSCOPE_DEFAULT_IMAGE_MODELS, *(current.get("image_models") or [])])
+                chat_models = model_list_from_values([*MODELSCOPE_DEFAULT_CHAT_MODELS, *(current.get("chat_models") or [])])
+                loras = normalize_ms_loras([*MODELSCOPE_DEFAULT_LORAS, *(current.get("ms_loras") or [])])
+                current["image_models"] = image_models
+                current["chat_models"] = chat_models
+                current["ms_loras"] = loras
+                current["ms_defaults_version"] = MODELSCOPE_DEFAULTS_VERSION
     return merged
 
 def normalize_model_list(values):
@@ -256,6 +302,38 @@ def model_list_from_values(values):
             selected_model(item, item)
             deduped.append(item)
     return deduped
+
+def normalize_ms_loras(values):
+    normalized = []
+    seen = set()
+    for raw in values or []:
+        if not isinstance(raw, dict):
+            continue
+        lora_id = str(raw.get("id") or "").strip()
+        if not lora_id:
+            continue
+        target_model = str(raw.get("target_model") or raw.get("model") or "").strip()
+        if not target_model:
+            continue
+        key = (target_model, lora_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            strength = float(raw.get("strength", raw.get("default_strength", 0.8)))
+        except Exception:
+            strength = 0.8
+        strength = max(0.0, min(2.0, strength))
+        name = re.sub(r"\s+", " ", str(raw.get("name") or "").strip())[:80]
+        normalized.append({
+            "id": lora_id[:180],
+            "name": name or lora_id,
+            "target_model": target_model[:180],
+            "strength": strength,
+            "enabled": bool(raw.get("enabled", True)),
+            "note": str(raw.get("note") or "").strip()[:300],
+        })
+    return normalized
 
 def normalize_provider(item):
     provider_id = str(item.get("id") or "").strip().lower()
@@ -274,6 +352,8 @@ def normalize_provider(item):
         "image_models": model_list_from_values(item.get("image_models") or []),
         "chat_models": model_list_from_values(item.get("chat_models") or []),
         "video_models": model_list_from_values(item.get("video_models") or []),
+        "ms_loras": normalize_ms_loras(item.get("ms_loras") or []),
+        "ms_defaults_version": int(item.get("ms_defaults_version") or 0),
     }
 
 def load_api_providers():
@@ -364,6 +444,9 @@ def update_env_values(updates):
 BACKEND_LOCAL_LOAD = {addr: 0 for addr in COMFYUI_INSTANCES}
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(ASSETS_DIR, exist_ok=True)
+os.makedirs(OUTPUT_INPUT_DIR, exist_ok=True)
+os.makedirs(OUTPUT_OUTPUT_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(WORKFLOW_DIR, exist_ok=True)
 os.makedirs(CONVERSATION_DIR, exist_ok=True)
@@ -371,6 +454,7 @@ os.makedirs(CANVAS_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/output", StaticFiles(directory=OUTPUT_DIR), name="output")
+app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 # --- Pydantic 模型 ---
 
@@ -396,6 +480,7 @@ class CloudGenRequest(BaseModel):
     resolution: str = "1024*1024"
     type: str = "zimage"
     image_urls: List[str] = []
+    loras: Optional[Any] = None
     client_id: Optional[str] = None
 
 class CloudPollRequest(BaseModel):
@@ -442,6 +527,8 @@ class ApiProviderPayload(BaseModel):
     image_models: List[str] = []
     chat_models: List[str] = []
     video_models: List[str] = []
+    ms_loras: List[Dict[str, Any]] = []
+    ms_defaults_version: int = 0
     api_key: Optional[str] = None
 
 class ChatRequest(BaseModel):
@@ -473,7 +560,7 @@ class CanvasLLMRequest(BaseModel):
     messages: List[Dict[str, Any]] = []
     provider: str = "comfly"
     ms_model: str = ""
-    images: List[str] = []   # 可以是 /output/*.png 本地路径 或 http(s) URL 或 data URL
+    images: List[str] = []   # 可以是 /output/*.png、/assets/*.png 本地路径 或 http(s) URL 或 data URL
 
 class ConversationCreateRequest(BaseModel):
     title: str = "新对话"
@@ -546,12 +633,12 @@ def get_best_backend(required_images: List[str] = None):
 
 def download_image(comfy_address, comfy_url_path, prefix="studio_"):
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
-    local_path = os.path.join(OUTPUT_DIR, filename)
+    local_path = output_path_for(filename, "output")
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-        return f"/output/{filename}"
+        return output_url_for(filename, "output")
     except Exception as e:
         print(f"下载图片失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -868,18 +955,46 @@ async def wait_for_image_task(client, task_id, provider=None):
         await asyncio.sleep(IMAGE_POLL_INTERVAL)
     raise HTTPException(status_code=504, detail=f"生图任务超时，task_id={task_id}")
 
+def output_storage(category="output"):
+    return (OUTPUT_INPUT_DIR, "input") if category == "input" else (OUTPUT_OUTPUT_DIR, "output")
+
+def output_url_for(filename, category="output"):
+    _, subdir = output_storage(category)
+    return f"/assets/{subdir}/{filename}"
+
+def output_path_for(filename, category="output"):
+    folder, _ = output_storage(category)
+    return os.path.join(folder, filename)
+
 def output_file_from_url(url):
-    if not url or not url.startswith("/output/"):
+    if isinstance(url, dict):
+        url = url.get("url", "")
+    if not url or not (url.startswith("/output/") or url.startswith("/assets/")):
         return None
-    filename = os.path.basename(urllib.parse.unquote(url.split("?", 1)[0]))
-    path = os.path.abspath(os.path.join(OUTPUT_DIR, filename))
-    output_root = os.path.abspath(OUTPUT_DIR)
+    clean = urllib.parse.unquote(url.split("?", 1)[0]).replace("\\", "/")
+    if clean.startswith("/assets/"):
+        root = ASSETS_DIR
+        rel = clean[len("/assets/"):]
+    else:
+        root = OUTPUT_DIR
+        rel = clean[len("/output/"):]
+    rel = rel.lstrip("/")
+    if not rel:
+        return None
+    path = os.path.abspath(os.path.join(root, rel))
+    output_root = os.path.abspath(root)
     if os.path.commonpath([output_root, path]) != output_root or not os.path.exists(path):
         return None
     return path
 
 def content_type_for_path(path):
     ext = os.path.splitext(path)[1].lower()
+    if ext in [".mp4", ".m4v"]:
+        return "video/mp4"
+    if ext == ".webm":
+        return "video/webm"
+    if ext == ".mov":
+        return "video/quicktime"
     if ext in [".jpg", ".jpeg"]:
         return "image/jpeg"
     if ext == ".webp":
@@ -903,7 +1018,13 @@ def convert_output_to_jpg(url, quality=88):
             else:
                 img = img.convert("RGB")
             img.save(jpg_path, "JPEG", quality=quality, optimize=True)
-        return f"/output/{os.path.basename(jpg_path)}"
+        try:
+            root = ASSETS_DIR if os.path.commonpath([os.path.abspath(ASSETS_DIR), os.path.abspath(jpg_path)]) == os.path.abspath(ASSETS_DIR) else OUTPUT_DIR
+        except ValueError:
+            root = OUTPUT_DIR
+        rel = os.path.relpath(jpg_path, root).replace("\\", "/")
+        prefix = "/assets" if root == ASSETS_DIR else "/output"
+        return f"{prefix}/{rel}"
     except Exception as e:
         print(f"转换 JPG 失败: {e}")
         return url
@@ -934,15 +1055,15 @@ def reference_to_data_url(ref, max_size=None):
         encoded = base64.b64encode(f.read()).decode("ascii")
     return f"data:{content_type_for_path(path)};base64,{encoded}"
 
-async def save_ai_image_to_output(image_data, prefix="online_"):
+async def save_ai_image_to_output(image_data, prefix="online_", category="output"):
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
-    path = os.path.join(OUTPUT_DIR, filename)
+    path = output_path_for(filename, category)
     if image_data["type"] == "b64":
         with open(path, "wb") as f:
             f.write(base64.b64decode(image_data["value"]))
-        return f"/output/{filename}"
+        return output_url_for(filename, category)
     value = image_data["value"]
-    if value.startswith("/output/"):
+    if value.startswith("/output/") or value.startswith("/assets/"):
         return value
     try:
         timeout = httpx.Timeout(connect=20.0, read=300.0, write=60.0, pool=20.0)
@@ -952,24 +1073,24 @@ async def save_ai_image_to_output(image_data, prefix="online_"):
             content_type = response.headers.get("Content-Type", "")
             if "jpeg" in content_type or "jpg" in content_type:
                 filename = filename[:-4] + ".jpg"
-                path = os.path.join(OUTPUT_DIR, filename)
+                path = output_path_for(filename, category)
             elif "webp" in content_type:
                 filename = filename[:-4] + ".webp"
-                path = os.path.join(OUTPUT_DIR, filename)
+                path = output_path_for(filename, category)
             with open(path, "wb") as f:
                 f.write(response.content)
-            return f"/output/{filename}"
+            return output_url_for(filename, category)
     except Exception as e:
         print(f"保存上游图片失败: {e}")
         return value
 
-async def save_remote_video_to_output(url, prefix="video_"):
+async def save_remote_video_to_output(url, prefix="video_", category="output"):
     if not url:
         return ""
-    if url.startswith("/output/"):
+    if url.startswith("/output/") or url.startswith("/assets/"):
         return url
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.mp4"
-    path = os.path.join(OUTPUT_DIR, filename)
+    path = output_path_for(filename, category)
     try:
         async with httpx.AsyncClient(timeout=VIDEO_POLL_TIMEOUT) as client:
             response = await client.get(url)
@@ -979,16 +1100,16 @@ async def save_remote_video_to_output(url, prefix="video_"):
             ext = os.path.splitext(clean_path)[1].lower()
             if ext in {".mp4", ".webm", ".mov"}:
                 filename = filename[:-4] + ext
-                path = os.path.join(OUTPUT_DIR, filename)
+                path = output_path_for(filename, category)
             elif "webm" in content_type:
                 filename = filename[:-4] + ".webm"
-                path = os.path.join(OUTPUT_DIR, filename)
+                path = output_path_for(filename, category)
             elif "quicktime" in content_type or "mov" in content_type:
                 filename = filename[:-4] + ".mov"
-                path = os.path.join(OUTPUT_DIR, filename)
+                path = output_path_for(filename, category)
             with open(path, "wb") as f:
                 f.write(response.content)
-            return f"/output/{filename}"
+            return output_url_for(filename, category)
     except Exception as e:
         print(f"保存上游视频失败: {e}")
         return url
@@ -1251,10 +1372,10 @@ async def upload_ai_reference(files: List[UploadFile] = File(...)):
             content_type = (file.content_type or "").lower()
             ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
         filename = f"ai_ref_{uuid.uuid4().hex[:12]}{ext}"
-        path = os.path.join(OUTPUT_DIR, filename)
+        path = output_path_for(filename, "input")
         with open(path, "wb") as f:
             f.write(content)
-        uploaded.append({"url": f"/output/{filename}", "name": file.filename or filename})
+        uploaded.append({"url": output_url_for(filename, "input"), "name": file.filename or filename})
     return {"files": uploaded}
 
 @app.get("/api/config")
@@ -1290,11 +1411,6 @@ async def save_providers(payload: List[ApiProviderPayload]):
     raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
     for item in payload:
         provider = normalize_provider(item.dict(exclude={"api_key"}))
-        if provider["id"] == "modelscope":
-            if MODELSCOPE_DEFAULT_IMAGE_MODEL not in provider["image_models"]:
-                provider["image_models"] = [MODELSCOPE_DEFAULT_IMAGE_MODEL, *provider["image_models"]]
-            if MODELSCOPE_DEFAULT_CHAT_MODEL not in provider["chat_models"]:
-                provider["chat_models"] = [MODELSCOPE_DEFAULT_CHAT_MODEL, *provider["chat_models"]]
         if any(existing["id"] == provider["id"] for existing in providers):
             raise HTTPException(status_code=400, detail=f"API 平台 ID 重复：{provider['id']}")
         providers.append(provider)
@@ -1645,8 +1761,8 @@ async def canvas_llm(payload: CanvasLLMRequest):
         for img in payload.images[:8]:
             if not img or not isinstance(img, str):
                 continue
-            # 本地 /output/* 路径转为 data URL；http(s) 或 data URL 直接用
-            if img.startswith("/output/"):
+            # 本地 /output/* 或 /assets/* 路径转为 data URL；http(s) 或 data URL 直接用
+            if img.startswith("/output/") or img.startswith("/assets/"):
                 ref_url = reference_to_data_url({"url": img}, max_size=1024)
             else:
                 ref_url = img
@@ -1984,14 +2100,12 @@ async def delete_history(req: DeleteHistoryRequest):
 
         if target_record:
             for img_url in target_record.get("images", []):
-                if img_url.startswith("/output/"):
-                    filename = img_url.split("/")[-1]
-                    file_path = os.path.join(OUTPUT_DIR, filename)
-                    if os.path.exists(file_path):
-                        try:
-                            os.remove(file_path)
-                        except Exception as e:
-                            print(f"Failed to delete file {file_path}: {e}")
+                file_path = output_file_from_url(img_url)
+                if file_path and os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        print(f"Failed to delete file {file_path}: {e}")
             return {"success": True}
         else:
             return {"success": False, "message": "Record not found"}
@@ -2036,10 +2150,10 @@ async def poll_angle_cloud(req: CloudPollRequest):
                                 img_res = await dl_client.get(img_url)
                                 if img_res.status_code == 200:
                                     filename = f"cloud_angle_{int(time.time())}.png"
-                                    file_path = os.path.join(OUTPUT_DIR, filename)
+                                    file_path = output_path_for(filename, "output")
                                     with open(file_path, "wb") as f:
                                         f.write(img_res.content)
-                                    local_path = f"/output/{filename}"
+                                    local_path = output_url_for(filename, "output")
                                 else:
                                     local_path = img_url
                         except Exception:
@@ -2091,6 +2205,10 @@ async def generate_angle_cloud(req: CloudGenRequest):
         "prompt": req.prompt.strip(),
         "image_url": req.image_urls
     }
+    if req.resolution:
+        payload["size"] = req.resolution
+    if req.loras is not None:
+        payload["loras"] = req.loras
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -2123,10 +2241,10 @@ async def generate_angle_cloud(req: CloudGenRequest):
                                 img_res = await dl_client.get(img_url)
                                 if img_res.status_code == 200:
                                     filename = f"cloud_angle_{int(time.time())}.png"
-                                    file_path = os.path.join(OUTPUT_DIR, filename)
+                                    file_path = output_path_for(filename, "output")
                                     with open(file_path, "wb") as f:
                                         f.write(img_res.content)
-                                    local_path = f"/output/{filename}"
+                                    local_path = output_url_for(filename, "output")
                                 else:
                                     local_path = img_url
                         except Exception:
@@ -2184,6 +2302,8 @@ async def generate_cloud(req: CloudGenRequest):
         "size": req.resolution,
         "n": 1
     }
+    if req.loras is not None:
+        payload["loras"] = req.loras
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -2223,10 +2343,10 @@ async def generate_cloud(req: CloudGenRequest):
                                 img_res = await dl_client.get(img_url)
                                 if img_res.status_code == 200:
                                     filename = f"cloud_{int(time.time())}.png"
-                                    file_path = os.path.join(OUTPUT_DIR, filename)
+                                    file_path = output_path_for(filename, "output")
                                     with open(file_path, "wb") as f:
                                         f.write(img_res.content)
-                                    local_path = f"/output/{filename}"
+                                    local_path = output_url_for(filename, "output")
                                 else:
                                     local_path = img_url
                         except Exception as dl_e:
@@ -2323,10 +2443,10 @@ async def ms_generate(req: MsGenerateRequest):
                                 img_res = await dl_client.get(img_url)
                                 if img_res.status_code == 200:
                                     filename = f"ms_{req.model.replace('/', '_').replace(':', '_')}_{int(time.time())}.png"
-                                    file_path = os.path.join(OUTPUT_DIR, filename)
+                                    file_path = output_path_for(filename, "output")
                                     with open(file_path, "wb") as f:
                                         f.write(img_res.content)
-                                    local_path = f"/output/{filename}"
+                                    local_path = output_url_for(filename, "output")
                                 else:
                                     local_path = img_url
                         except Exception:
