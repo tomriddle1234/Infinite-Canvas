@@ -205,6 +205,10 @@ SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
 MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "30"))
 AI_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "120"))
 IMAGE_POLL_INTERVAL = float(os.getenv("IMAGE_POLL_INTERVAL", "2"))
+IMAGE_TASK_TIMEOUT = float(os.getenv("IMAGE_TASK_TIMEOUT", str(AI_REQUEST_TIMEOUT)))
+APIMART_IMAGE_TASK_TIMEOUT = float(os.getenv("APIMART_IMAGE_TASK_TIMEOUT", "1800"))
+APIMART_IMAGE_POLL_INTERVAL = float(os.getenv("APIMART_IMAGE_POLL_INTERVAL", "5"))
+APIMART_IMAGE_INITIAL_POLL_DELAY = float(os.getenv("APIMART_IMAGE_INITIAL_POLL_DELAY", "10"))
 VIDEO_POLL_TIMEOUT = float(os.getenv("VIDEO_POLL_TIMEOUT", "1800"))
 
 def model_list(env_name, primary, defaults):
@@ -966,13 +970,22 @@ def is_apimart_provider(provider):
 
 async def wait_for_image_task(client, task_id, provider=None):
     base_url = (provider.get("base_url") if provider else AI_BASE_URL).rstrip("/")
-    if is_apimart_provider(provider):
+    is_apimart = is_apimart_provider(provider)
+    if is_apimart:
         task_url = f"{base_url}/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{task_id}"
     else:
         task_url = f"{base_url}/images/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{task_id}"
-    deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+    timeout = APIMART_IMAGE_TASK_TIMEOUT if is_apimart else IMAGE_TASK_TIMEOUT
+    interval = APIMART_IMAGE_POLL_INTERVAL if is_apimart else IMAGE_POLL_INTERVAL
+    initial_delay = APIMART_IMAGE_INITIAL_POLL_DELAY if is_apimart else 0
+    deadline = time.monotonic() + timeout
     last_payload = {}
     while time.monotonic() < deadline:
+        if initial_delay:
+            await asyncio.sleep(min(initial_delay, max(0.0, deadline - time.monotonic())))
+            initial_delay = 0
+            if time.monotonic() >= deadline:
+                break
         response = await client.get(task_url, headers=api_headers(provider=provider))
         response.raise_for_status()
         last_payload = response.json()
@@ -984,8 +997,8 @@ async def wait_for_image_task(client, task_id, provider=None):
             error = task_data.get("error") if isinstance(task_data.get("error"), dict) else {}
             reason = task_data.get("fail_reason") or error.get("message") or last_payload.get("message") or "生图任务失败"
             raise HTTPException(status_code=502, detail=f"生图任务失败：{reason}")
-        await asyncio.sleep(IMAGE_POLL_INTERVAL)
-    raise HTTPException(status_code=504, detail=f"生图任务超时，task_id={task_id}")
+        await asyncio.sleep(min(interval, max(0.0, deadline - time.monotonic())))
+    raise HTTPException(status_code=504, detail=f"生图任务超时（已等待 {int(timeout)} 秒），task_id={task_id}")
 
 def output_storage(category="output"):
     return (OUTPUT_INPUT_DIR, "input") if category == "input" else (OUTPUT_OUTPUT_DIR, "output")
