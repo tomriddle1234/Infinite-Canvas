@@ -3,6 +3,13 @@ Supports comfyui/API calls/modelscope calls
 
 详细教程：https://youtu.be/1y9ShTvgC_w
 
+由于最近很多API网址关停，我找到一个稳定的网址：
+
+https://apimart.ai/register?aff=1uyAbb
+
+【折扣码（daxiong）首次充值9折，可开发票。】
+
+
 5/13日更新：
 1. 修复了安装依赖的报错
 2. 增加了更便捷的API设置方式，现在可以全程在网页中设置，并且可以拉取模型一键添加
@@ -20,6 +27,13 @@ Supports comfyui/API calls/modelscope calls
 -----
 
 Detailed tutorial: https://youtu.be/1y9ShTvgC_w
+
+Due to the recent shutdown of many API websites, I found a stable one:
+
+https://apimart.ai/register?aff=1uyAbb
+
+[Discount code (daxiong): 10% off your first top-up, invoice available.]
+
 
 May 13th Update:
 
