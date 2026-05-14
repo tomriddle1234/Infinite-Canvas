@@ -23,6 +23,7 @@ https://apimart.ai/register?aff=1uyAbb
 5/14日更新：
 1. 修复mac的一些bug
 2. modelscope支持lora调用
+3. 支持OpenAI协议和异步协议（生成失败不扣费）
    
 -----
 
@@ -59,6 +60,7 @@ May 14th Update:
 
 2. Added support for LoRa calls to ModelScope.
 
+3. Supports OpenAI protocol and asynchronous protocol (no charge for failed generation)
    
 <img width="1525" height="1473" alt="image" src="https://github.com/user-attachments/assets/6f61fcf9-746c-425b-9e36-cfc8d252da7c" />
 
