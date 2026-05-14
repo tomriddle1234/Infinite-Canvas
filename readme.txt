@@ -1,21 +1,19 @@
-1. API Website Registration:
+1. API website registration:
 
-https://ai.comfly.chat/register?aff=HAOj137551 (New registration is currently suspended)
+https://apimart.ai/register?aff=1uyAbb
 
-https://kgc.grsai.ai/zh/dashboard/models (This works; API request address: https://grsai.dakka.com.cn)
+[Discount code (daxiong): 10% off first recharge, invoice available.]
 
-2. Create an API key:
+2. Run the installation dependencies.bat file.
 
-https://ai.comfly.chat/token (New registration is currently suspended)
+3. If your computer doesn't have Python installed, the program won't open. If you have a VPN, you can install CodeX; if you have a VPN in China, you can install Trae. You can search for the software yourself or use the installation package from a cloud drive.
 
-3. All API settings are done on the webpage, making operation more convenient. You can also pull all models, select the models to apply, save, and then use them. The video generation node is running successfully. LLM supports word suggestion reverse engineering (you can use ModelScope models to test; searching for models with VL can identify images).
+4. After opening CodeX, select the program folder and tell CodeX: "There's a problem starting the service, troubleshooting the environment error."
 
-----Running Instructions-----
+5. After successful execution, go to the API settings in the lower left corner of the webpage. Request address: https://api.apimart.ai, select APIMart asynchronous protocol (different websites use different protocols; other websites can use the OpenAI protocol), and enter the API key to retrieve and select the desired model.
 
-Run "Start Service.bat" directly. If dependencies are missing, run "Install Dependencies.bat".
+6. To generate workflows for free, set a ModelScope key and you can also call Lora.
 
----Error Troubleshooting---
+7. To use local ComfyUI, you can set the ComfyUI option in the lower left corner. It supports importing custom workflows.
 
-If you encounter any errors, you can install Codex Installer.exe. Select this folder and let Codex resolve the runtime issues for you. Free accounts have a weekly free quota.
-
-If Codex fails to install, install Trae and use the same repair method.
+===API/ModelScope/ComfyUI, any of these three modes can be used to run the workflow.====
