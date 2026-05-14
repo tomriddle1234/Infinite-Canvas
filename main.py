@@ -343,10 +343,14 @@ def normalize_provider(item):
     base_url = str(item.get("base_url") or "").strip().rstrip("/")
     if base_url and not re.match(r"^https?://", base_url):
         raise HTTPException(status_code=400, detail=f"{name} 的 Base URL 需要以 http:// 或 https:// 开头")
+    protocol = str(item.get("protocol") or "openai").strip().lower()
+    if protocol not in {"openai", "apimart"}:
+        protocol = "openai"
     return {
         "id": provider_id,
         "name": name,
         "base_url": base_url,
+        "protocol": protocol,
         "enabled": bool(item.get("enabled", True)),
         "primary": bool(item.get("primary", False)),
         "image_models": model_list_from_values(item.get("image_models") or []),
@@ -491,6 +495,7 @@ class CloudPollRequest(BaseModel):
 class AIReference(BaseModel):
     url: str = ""
     name: str = ""
+    role: str = ""
 
 class OnlineImageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
@@ -522,6 +527,7 @@ class ApiProviderPayload(BaseModel):
     id: str = ""
     name: str = ""
     base_url: str = ""
+    protocol: str = "openai"
     enabled: bool = True
     primary: bool = False
     image_models: List[str] = []
@@ -914,6 +920,17 @@ def sse_event(data):
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 def extract_image(data):
+    if isinstance(data.get("data"), dict) and isinstance(data["data"].get("result"), dict):
+        data = data["data"]
+    if isinstance(data.get("result"), dict):
+        result_images = data["result"].get("images") or []
+        if result_images:
+            first = result_images[0]
+            url = first.get("url")
+            if isinstance(url, list) and url:
+                return {"type": "url", "value": url[0]}
+            if isinstance(url, str) and url:
+                return {"type": "url", "value": url}
     if isinstance(data.get("data"), dict) and isinstance(data["data"].get("data"), dict):
         data = data["data"]["data"]
     images = data.get("data") or []
@@ -932,13 +949,27 @@ def extract_task_id(data):
     if data.get("id") and str(data.get("id", "")).startswith("task"):
         return str(data["id"])
     nested = data.get("data")
+    if isinstance(nested, list) and nested:
+        first = nested[0]
+        if isinstance(first, dict):
+            return extract_task_id(first)
     if isinstance(nested, dict):
         return extract_task_id(nested)
     return None
 
+def provider_protocol(provider):
+    return str((provider or {}).get("protocol") or "openai").strip().lower()
+
+def is_apimart_provider(provider):
+    base_url = str((provider or {}).get("base_url") or "").lower()
+    return provider_protocol(provider) == "apimart" or "apimart.ai" in base_url
+
 async def wait_for_image_task(client, task_id, provider=None):
     base_url = (provider.get("base_url") if provider else AI_BASE_URL).rstrip("/")
-    task_url = f"{base_url}/images/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{task_id}"
+    if is_apimart_provider(provider):
+        task_url = f"{base_url}/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{task_id}"
+    else:
+        task_url = f"{base_url}/images/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{task_id}"
     deadline = time.monotonic() + AI_REQUEST_TIMEOUT
     last_payload = {}
     while time.monotonic() < deadline:
@@ -947,10 +978,11 @@ async def wait_for_image_task(client, task_id, provider=None):
         last_payload = response.json()
         task_data = last_payload.get("data") if isinstance(last_payload.get("data"), dict) else last_payload
         status = str(task_data.get("status", "")).upper()
-        if status == "SUCCESS":
+        if status in {"SUCCESS", "COMPLETED"}:
             return last_payload
-        if status == "FAILURE":
-            reason = task_data.get("fail_reason") or last_payload.get("message") or "生图任务失败"
+        if status in {"FAILURE", "FAILED", "ERROR"}:
+            error = task_data.get("error") if isinstance(task_data.get("error"), dict) else {}
+            reason = task_data.get("fail_reason") or error.get("message") or last_payload.get("message") or "生图任务失败"
             raise HTTPException(status_code=502, detail=f"生图任务失败：{reason}")
         await asyncio.sleep(IMAGE_POLL_INTERVAL)
     raise HTTPException(status_code=504, detail=f"生图任务超时，task_id={task_id}")
@@ -1151,6 +1183,33 @@ def normalize_gpt_image_2_size(size):
         height = int((height * grow + 15) // 16) * 16
     return f"{width}x{height}"
 
+def apimart_size_resolution(size):
+    width, height = parse_size_pair(size)
+    if not width or not height:
+        raw = str(size or "").strip().lower()
+        if raw in {"1k", "2k", "4k"}:
+            return "1:1", raw
+        if re.fullmatch(r"(auto|\d+\s*:\s*\d+)", raw):
+            return raw.replace(" ", ""), "1k"
+        return "1:1", "1k"
+    long_edge = max(width, height)
+    pixels = width * height
+    if long_edge >= 3000 or pixels > 4_500_000:
+        resolution = "4k"
+    elif long_edge >= 1800 or pixels > 1_800_000:
+        resolution = "2k"
+    else:
+        resolution = "1k"
+    common = [
+        (1, 1, "1:1"), (3, 2, "3:2"), (2, 3, "2:3"), (4, 3, "4:3"), (3, 4, "3:4"),
+        (5, 4, "5:4"), (4, 5, "4:5"), (16, 9, "16:9"), (9, 16, "9:16"),
+        (2, 1, "2:1"), (1, 2, "1:2"), (3, 1, "3:1"), (1, 3, "1:3"),
+        (21, 9, "21:9"), (9, 21, "9:21"),
+    ]
+    ratio = width / height
+    best = min(common, key=lambda item: abs(ratio - item[0] / item[1]))
+    return best[2], resolution
+
 async def generate_modelscope_provider_image(prompt, size, model, reference_images=None, provider=None):
     clean_token = MODELSCOPE_API_KEY.strip()
     if not clean_token:
@@ -1218,7 +1277,8 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
     if provider["id"] == "modelscope":
         return await generate_modelscope_provider_image(prompt, size, model, reference_images, provider)
     is_gpt2 = is_gpt_image_2_model(model)
-    if is_gpt_image_2_model(model):
+    is_apimart = is_apimart_provider(provider)
+    if is_gpt_image_2_model(model) and not is_apimart:
         size = normalize_gpt_image_2_size(size)
     base_url = (provider.get("base_url") or AI_BASE_URL).rstrip("/")
     if not base_url:
@@ -1226,10 +1286,23 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
     gen_url = f"{base_url}/images/generations" if base_url.endswith("/v1") else f"{base_url}/v1/images/generations"
     edit_url = f"{base_url}/images/edits" if base_url.endswith("/v1") else f"{base_url}/v1/images/edits"
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
-    request_timeout = httpx.Timeout(connect=20.0, read=600.0, write=120.0, pool=20.0) if is_gpt2 else AI_REQUEST_TIMEOUT
+    request_timeout = httpx.Timeout(connect=20.0, read=600.0, write=120.0, pool=20.0) if (is_gpt2 or is_apimart) else AI_REQUEST_TIMEOUT
     async with httpx.AsyncClient(timeout=request_timeout) as client:
         response = None
-        if is_gpt2:
+        if is_apimart:
+            apimart_size, resolution = apimart_size_resolution(size)
+            body = {
+                "model": model,
+                "prompt": prompt,
+                "n": 1,
+                "size": apimart_size,
+                "resolution": resolution.upper(),
+                "official_fallback": False,
+            }
+            if refs:
+                body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in refs[:14]]
+            response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
+        elif is_gpt2:
             body = {"model": model, "prompt": prompt, "size": size}
             if quality:
                 body["quality"] = quality
@@ -1606,11 +1679,15 @@ async def online_image(payload: OnlineImageRequest):
 
 def video_output_urls(raw):
     data = raw.get("data") if isinstance(raw, dict) else {}
+    if isinstance(data, list) and data:
+        data = data[0] if isinstance(data[0], dict) else {}
     if not isinstance(data, dict):
         data = {}
     urls = []
+    result = data.get("result") if isinstance(data.get("result"), dict) else raw.get("result") if isinstance(raw, dict) and isinstance(raw.get("result"), dict) else {}
     output = data.get("output") or raw.get("output")
     outputs = data.get("outputs") or raw.get("outputs") or []
+    videos = result.get("videos") or data.get("videos") or raw.get("videos") or []
     if isinstance(output, str) and output:
         urls.append(output)
     if isinstance(outputs, list):
@@ -1620,10 +1697,20 @@ def video_output_urls(raw):
             elif isinstance(item, dict):
                 value = item.get("url") or item.get("output")
                 if value:
-                    urls.append(value)
+                    urls.extend(value if isinstance(value, list) else [value])
+    if isinstance(videos, list):
+        for item in videos:
+            if isinstance(item, str) and item:
+                urls.append(item)
+            elif isinstance(item, dict):
+                value = item.get("url") or item.get("video_url") or item.get("output")
+                if value:
+                    urls.extend(value if isinstance(value, list) else [value])
+    elif isinstance(videos, str) and videos:
+        urls.append(videos)
     deduped = []
     for url in urls:
-        if url not in deduped:
+        if isinstance(url, str) and url and url not in deduped:
             deduped.append(url)
     return deduped
 
@@ -1637,7 +1724,10 @@ async def wait_for_video_task(client, provider, task_id):
     base_url = video_api_root(provider)
     if not base_url:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
-    task_url = f"{base_url}/v2/videos/generations/{task_id}"
+    if is_apimart_provider(provider):
+        task_url = f"{base_url}/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{task_id}"
+    else:
+        task_url = f"{base_url}/v2/videos/generations/{task_id}"
     deadline = time.monotonic() + VIDEO_POLL_TIMEOUT
     delay = max(2.0, IMAGE_POLL_INTERVAL)
     last_payload = {}
@@ -1647,14 +1737,23 @@ async def wait_for_video_task(client, provider, task_id):
         response.raise_for_status()
         raw = response.json()
         last_payload = raw
-        status = str(raw.get("status") or "").upper()
-        if status == "SUCCESS":
+        task_data = raw.get("data") if isinstance(raw.get("data"), dict) else raw
+        status = str(task_data.get("status") or raw.get("status") or "").upper()
+        if status in {"SUCCESS", "COMPLETED"}:
             return raw
         if status in {"FAILURE", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED", "TIMEOUT"}:
-            reason = raw.get("fail_reason") or raw.get("error") or raw.get("message") or str(raw)
+            error = task_data.get("error") if isinstance(task_data.get("error"), dict) else {}
+            reason = task_data.get("fail_reason") or error.get("message") or raw.get("error") or raw.get("message") or str(raw)
             raise HTTPException(status_code=502, detail=f"视频生成任务失败：{reason}")
         delay = min(delay * 1.6, 12)
     raise HTTPException(status_code=504, detail=f"视频生成任务超时：{last_payload or task_id}")
+
+def apimart_video_size(size):
+    value = str(size or "16:9").strip()
+    if value == "keep_ratio":
+        return "adaptive"
+    allowed = {"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"}
+    return value if value in allowed else "16:9"
 
 @app.post("/api/canvas-video")
 async def canvas_video(payload: CanvasVideoRequest):
@@ -1665,46 +1764,78 @@ async def canvas_video(payload: CanvasVideoRequest):
     api_key = os.getenv(provider_key_env(provider["id"]), "")
     if not api_key:
         raise HTTPException(status_code=400, detail=f"未配置 {provider.get('name') or provider['id']} 的 API Key，请在 API 设置中填写。")
-    submit_url = f"{base_url}/v2/videos/generations"
+    is_apimart = is_apimart_provider(provider)
+    submit_url = f"{base_url}/videos/generations" if is_apimart and base_url.endswith("/v1") else f"{base_url}/v1/videos/generations" if is_apimart else f"{base_url}/v2/videos/generations"
     image_payload = []
     for ref in payload.images[:4]:
         if ref.url:
             image_payload.append(reference_to_data_url(ref.dict(), max_size=1536))
-    body = {
-        "prompt": payload.prompt,
-        "model": selected_model(payload.model, "veo3-fast"),
-        "duration": payload.duration,
-        "watermark": payload.watermark,
-    }
-    if payload.aspect_ratio:
-        body["aspect_ratio"] = payload.aspect_ratio
-        body["ratio"] = payload.aspect_ratio
-    if payload.size:
-        body["size"] = payload.size
-    if payload.resolution:
-        body["resolution"] = payload.resolution
-    if image_payload:
-        body["images"] = image_payload
-    if payload.videos:
-        body["videos"] = [v for v in payload.videos if v]
-    if payload.enhance_prompt:
-        body["enhance_prompt"] = True
-    if payload.enable_upsample:
-        body["enable_upsample"] = True
-    if payload.seed is not None:
-        body["seed"] = payload.seed
-    if payload.camerafixed:
-        body["camerafixed"] = True
-    if payload.return_last_frame:
-        body["return_last_frame"] = True
-    if payload.generate_audio:
-        body["generate_audio"] = True
+    if is_apimart:
+        image_with_roles = []
+        for ref in payload.images[:9]:
+            if not ref.url:
+                continue
+            role = str(ref.role or "").strip()
+            if role in {"first_frame", "last_frame", "reference_image"}:
+                image_with_roles.append({
+                    "url": reference_to_data_url(ref.dict(), max_size=1536),
+                    "role": role,
+                })
+        body = {
+            "prompt": payload.prompt,
+            "model": selected_model(payload.model, "doubao-seedance-2.0"),
+            "duration": payload.duration,
+            "size": apimart_video_size(payload.aspect_ratio or payload.size),
+            "resolution": payload.resolution or "480p",
+        }
+        if image_with_roles:
+            body["image_with_roles"] = image_with_roles
+        elif image_payload:
+            body["image_urls"] = image_payload[:9]
+        if payload.videos:
+            body["video_urls"] = [v for v in payload.videos if v][:3]
+        if payload.seed is not None:
+            body["seed"] = payload.seed
+        if payload.return_last_frame:
+            body["return_last_frame"] = True
+        if payload.generate_audio:
+            body["generate_audio"] = True
+    else:
+        body = {
+            "prompt": payload.prompt,
+            "model": selected_model(payload.model, "veo3-fast"),
+            "duration": payload.duration,
+            "watermark": payload.watermark,
+        }
+        if payload.aspect_ratio:
+            body["aspect_ratio"] = payload.aspect_ratio
+            body["ratio"] = payload.aspect_ratio
+        if payload.size:
+            body["size"] = payload.size
+        if payload.resolution:
+            body["resolution"] = payload.resolution
+        if image_payload:
+            body["images"] = image_payload
+        if payload.videos:
+            body["videos"] = [v for v in payload.videos if v]
+        if payload.enhance_prompt:
+            body["enhance_prompt"] = True
+        if payload.enable_upsample:
+            body["enable_upsample"] = True
+        if payload.seed is not None:
+            body["seed"] = payload.seed
+        if payload.camerafixed:
+            body["camerafixed"] = True
+        if payload.return_last_frame:
+            body["return_last_frame"] = True
+        if payload.generate_audio:
+            body["generate_audio"] = True
     try:
         async with httpx.AsyncClient(timeout=VIDEO_POLL_TIMEOUT) as client:
             response = await client.post(submit_url, headers=api_headers(provider=provider), json=body)
             response.raise_for_status()
             raw = response.json()
-            task_id = raw.get("task_id") or raw.get("id")
+            task_id = extract_task_id(raw) or raw.get("task_id") or raw.get("id")
             result = raw
             if task_id and not video_output_urls(raw):
                 result = await wait_for_video_task(client, provider, task_id)
