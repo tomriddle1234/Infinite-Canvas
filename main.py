@@ -221,6 +221,34 @@ def model_list(env_name, primary, defaults):
             deduped.append(value)
     return deduped
 
+def reload_env_globals():
+    """保存 API 设置后，将 os.environ 里最新的值同步回模块级全局变量，
+    避免保存后需要重启才能生效。"""
+    global MODELSCOPE_API_KEY, AI_API_KEY, AI_BASE_URL
+    global IMAGE_MODELS, CHAT_MODELS, VIDEO_MODELS, MODELSCOPE_CHAT_MODELS
+    MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
+    AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
+    AI_BASE_URL = os.getenv("COMFLY_BASE_URL", "https://ai.comfly.chat").rstrip("/")
+    IMAGE_MODELS = model_list("IMAGE_MODELS", os.getenv("IMAGE_MODEL", IMAGE_MODEL), ["nano-banana-pro"])
+    CHAT_MODELS = model_list("CHAT_MODELS", os.getenv("CHAT_MODEL", CHAT_MODEL), ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
+    VIDEO_MODELS = model_list("VIDEO_MODELS", "veo3-fast", [
+        "veo2", "veo2-fast", "veo2-pro",
+        "veo3", "veo3-fast", "veo3-pro",
+        "veo3.1", "veo3.1-fast", "veo3.1-pro",
+        "sora-2", "sora-2-pro",
+        "wan2.6-t2v", "wan2.6-i2v",
+        "wan2.5-t2v-preview", "wan2.5-i2v-preview",
+        "wan2.2-t2v-plus", "wan2.2-i2v-plus", "wan2.2-i2v-flash",
+        "doubao-seedance-2-0-260128",
+        "doubao-seedance-2-0-fast-260128",
+        "doubao-seedance-1-5-pro-251215",
+        "doubao-seedance-1-0-pro-250528",
+        "doubao-seedance-1-0-lite-t2v-250428",
+        "doubao-seedance-1-0-lite-i2v-250428",
+    ])
+    _configured = [m.strip() for m in os.getenv("MODELSCOPE_CHAT_MODELS", "").split(",") if m.strip()]
+    MODELSCOPE_CHAT_MODELS = list(dict.fromkeys([m for m in [*MODELSCOPE_DEFAULT_CHAT_MODELS, *_configured] if m]))
+
 CHAT_MODELS = model_list("CHAT_MODELS", CHAT_MODEL, ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
 IMAGE_MODELS = model_list("IMAGE_MODELS", IMAGE_MODEL, ["nano-banana-pro"])
 VIDEO_MODELS = model_list("VIDEO_MODELS", "veo3-fast", [
@@ -1528,6 +1556,7 @@ async def save_providers(payload: List[ApiProviderPayload]):
     save_api_providers(providers)
     if env_updates:
         update_env_values(env_updates)
+        reload_env_globals()   # 立即将最新 env 值同步回模块全局变量，无需重启
     return {"providers": [public_provider(p) for p in providers]}
 
 # --- ModelScope Token (从 env 读取，不再支持通过 UI 修改) ---
