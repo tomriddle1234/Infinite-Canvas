@@ -47,40 +47,39 @@ May 13th Update:
 
 1. Fixed dependency installation errors.
 
-2. Added a more convenient API setup method; now you can set everything up in the webpage and add models with one click.
+2. Added a more convenient API setup method; settings can now be configured entirely through the webpage, and models can be added with a single click.
 
-3. LLM nodes support image input for reverse engineering; you can use ModelScope's VL model for testing.
+3. LLM nodes support image input for reverse engineering; VL models from ModelScope can be used for testing.
 
-4. Added Chinese/English switching.
+4. Added Chinese/English switching functionality.
 
-5. Added the ability to customize ComfyUI workflows; you can set the required inputs and adjust the parameters, and call them within ComfyUI nodes on an infinite canvas.
+5. Added the ability to customize ComfyUI workflows; users can set their own inputs and adjust parameters, and these workflows can be invoked within ComfyUI nodes on an infinite canvas.
 
 6. Added video generation functionality.
 
 7. Fixed 2K/4K generation error issues.
 
-8. Added the ability to generate nodes with a single click by connecting the output nodes before and after them.
+8. Added the ability to generate videos with a single click by connecting output nodes before and after.
 
 May 14th Update:
 
 1. Fixed some bugs on Mac.
 
-2. Added support for LoRa calls to ModelScope.
+2. ModelScope supports LoRa calls.
 
-3. Supports OpenAI protocol and asynchronous protocol (no charge for failed generation)
-   
-4. I uploaded a simplified version of Python. Run "install dependencies.bat", and then run "run.bat".
-
+3. Supports OpenAI protocol and asynchronous protocol (no charge for generation failures).
 
 May 15th Update:
 
 1. Added a loop component and counting function, allowing nodes to run concurrently N times. It also includes a prompt word counting function, where the prompt word can be set to: "Run the second selling point image."
 
-Usage: Use Gemini to generate 10 selling point prompt words for a product. Use the loop node, add the prompt word: "Run the Xth selling point image," input it into the API node, and call GPT to generate 10 selling point images concurrently at once.
+Usage: Use Gemini to generate 10 selling point prompt words for a product. Use the loop node, add the prompt word: "Run the Xth selling point image," input it to the API node, call GPT to generate, and you can generate 10 selling point images concurrently at once.
 
 2. Added a protocol verification button for easy verification of your API platform's protocol.
 
 3. Fixed some bugs in the LLM node.
+
+4. Uploaded a simplified version of Python. Run "安装依赖.bat", and then run "run.bat".
 
 
 
