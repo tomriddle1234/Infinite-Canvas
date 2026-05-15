@@ -17,8 +17,9 @@ import httpx
 from PIL import Image
 from io import BytesIO
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -210,6 +211,40 @@ APIMART_IMAGE_TASK_TIMEOUT = float(os.getenv("APIMART_IMAGE_TASK_TIMEOUT", "1800
 APIMART_IMAGE_POLL_INTERVAL = float(os.getenv("APIMART_IMAGE_POLL_INTERVAL", "5"))
 APIMART_IMAGE_INITIAL_POLL_DELAY = float(os.getenv("APIMART_IMAGE_INITIAL_POLL_DELAY", "10"))
 VIDEO_POLL_TIMEOUT = float(os.getenv("VIDEO_POLL_TIMEOUT", "1800"))
+ONLINE_IMAGE_PROMPT_MAX_LENGTH = int(os.getenv("ONLINE_IMAGE_PROMPT_MAX_LENGTH", "20000"))
+VIDEO_PROMPT_MAX_LENGTH = int(os.getenv("VIDEO_PROMPT_MAX_LENGTH", "4000"))
+LLM_MESSAGE_MAX_LENGTH = int(os.getenv("LLM_MESSAGE_MAX_LENGTH", "20000"))
+
+FIELD_LABELS = {
+    "prompt": "提示词",
+    "message": "文本",
+    "system_prompt": "系统提示词",
+}
+
+def friendly_validation_error(errors):
+    parts = []
+    for err in errors or []:
+        loc = [str(item) for item in err.get("loc", []) if item != "body"]
+        field = loc[-1] if loc else ""
+        label = FIELD_LABELS.get(field, field or "请求参数")
+        ctx = err.get("ctx") or {}
+        limit = ctx.get("limit_value") or ctx.get("max_length") or ctx.get("min_length")
+        err_type = str(err.get("type") or "")
+        msg = str(err.get("msg") or "")
+        if "max_length" in err_type or "at most" in msg:
+            parts.append(f"{label}过长：当前内容超过后端上限 {limit} 个字符。请拆分为多个提示词节点，或先用 LLM 节点压缩后再生成。")
+        elif "min_length" in err_type:
+            parts.append(f"{label}不能为空。")
+        else:
+            parts.append(f"{label}格式不正确：{msg}")
+    return "\n".join(parts) or "请求参数不正确。"
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": friendly_validation_error(exc.errors()), "errors": exc.errors()},
+    )
 
 def model_list(env_name, primary, defaults):
     configured = os.getenv(env_name, "")
@@ -530,7 +565,7 @@ class AIReference(BaseModel):
     role: str = ""
 
 class OnlineImageRequest(BaseModel):
-    prompt: str = Field(min_length=1, max_length=4000)
+    prompt: str = Field(min_length=1, max_length=ONLINE_IMAGE_PROMPT_MAX_LENGTH)
     provider_id: str = "comfly"
     model: str = ""
     size: str = "1024x1024"
@@ -538,7 +573,7 @@ class OnlineImageRequest(BaseModel):
     reference_images: List[AIReference] = []
 
 class CanvasVideoRequest(BaseModel):
-    prompt: str = Field(min_length=1, max_length=4000)
+    prompt: str = Field(min_length=1, max_length=VIDEO_PROMPT_MAX_LENGTH)
     provider_id: str = "comfly"
     model: str = "veo3-fast"
     duration: int = 5
@@ -571,7 +606,7 @@ class ApiProviderPayload(BaseModel):
 
 class ChatRequest(BaseModel):
     conversation_id: str = ""
-    message: str = Field(min_length=1, max_length=20000)
+    message: str = Field(min_length=1, max_length=LLM_MESSAGE_MAX_LENGTH)
     model: str = ""
     image_model: str = ""
     mode: str = "chat"
@@ -592,7 +627,7 @@ class MsGenerateRequest(BaseModel):
     client_id: Optional[str] = None
 
 class CanvasLLMRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=20000)
+    message: str = Field(min_length=1, max_length=LLM_MESSAGE_MAX_LENGTH)
     system_prompt: str = "You are a helpful assistant."
     model: str = ""
     messages: List[Dict[str, Any]] = []
@@ -680,6 +715,43 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_"):
         return output_url_for(filename, "output")
     except Exception as e:
         print(f"下载图片失败: {e}")
+        if comfy_url_path.startswith("/view"):
+            return comfy_url_path.replace("/view", "/api/view", 1)
+        return full_url
+
+def comfy_output_extension(item):
+    filename = str((item or {}).get("filename") or "")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm", ".mov", ".m4v", ".gif"}:
+        return ext
+    fmt = str((item or {}).get("format") or "").lower()
+    if "webm" in fmt:
+        return ".webm"
+    if "quicktime" in fmt or "mov" in fmt:
+        return ".mov"
+    if "mp4" in fmt or "h264" in fmt or "video" in fmt:
+        return ".mp4"
+    return ".png"
+
+def is_video_output_item(item):
+    ext = comfy_output_extension(item)
+    fmt = str((item or {}).get("format") or "").lower()
+    return ext in {".mp4", ".webm", ".mov", ".m4v"} or "video" in fmt
+
+def download_comfy_output(comfy_address, item, prefix="studio_"):
+    ext = comfy_output_extension(item)
+    filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
+    local_path = output_path_for(filename, "output")
+    subfolder = urllib.parse.quote(str(item.get("subfolder") or ""))
+    file_type = urllib.parse.quote(str(item.get("type") or "output"))
+    comfy_url_path = f"/view?filename={urllib.parse.quote(str(item['filename']))}&subfolder={subfolder}&type={file_type}"
+    full_url = f"http://{comfy_address}{comfy_url_path}"
+    try:
+        with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+        return output_url_for(filename, "output")
+    except Exception as e:
+        print(f"下载 ComfyUI 输出失败: {e}")
         if comfy_url_path.startswith("/view"):
             return comfy_url_path.replace("/view", "/api/view", 1)
         return full_url
@@ -2855,6 +2927,8 @@ def generate(req: GenerateRequest):
         if not history_data:
             raise Exception("ComfyUI 渲染超时")
 
+        local_images = []
+        local_videos = []
         local_urls = []
         current_timestamp = time.time()
         if 'outputs' in history_data:
@@ -2862,16 +2936,26 @@ def generate(req: GenerateRequest):
                 node_output = history_data['outputs'][node_id]
                 if 'images' in node_output:
                     for img in node_output['images']:
-                        comfy_url_path = f"/view?filename={img['filename']}&subfolder={img['subfolder']}&type={img['type']}"
                         prefix = f"{req.type}_{int(current_timestamp)}_"
-                        local_path = download_image(target_backend, comfy_url_path, prefix=prefix)
+                        local_path = download_comfy_output(target_backend, img, prefix=prefix)
                         if req.convert_to_jpg:
                             local_path = convert_output_to_jpg(local_path)
+                        local_images.append(local_path)
+                        local_urls.append(local_path)
+                for output_key in ("videos", "gifs", "animated"):
+                    for video in node_output.get(output_key, []) or []:
+                        if not isinstance(video, dict) or not video.get("filename"):
+                            continue
+                        prefix = f"{req.type}_{int(current_timestamp)}_"
+                        local_path = download_comfy_output(target_backend, video, prefix=prefix)
+                        local_videos.append(local_path)
                         local_urls.append(local_path)
 
         result = {
             "prompt": req.prompt if req.prompt else "Detail Enhance",
-            "images": local_urls,
+            "images": local_images,
+            "videos": local_videos,
+            "outputs": local_urls,
             "seed": seed,
             "timestamp": current_timestamp,
             "type": req.type,
