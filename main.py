@@ -10,6 +10,7 @@ import random
 import time
 import shutil
 import asyncio
+import logging
 import requests
 from typing import List, Dict, Any, Optional
 from threading import Lock
@@ -22,6 +23,23 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
+
+QUIET_ACCESS_PATHS = {
+    "/api/queue_status",
+}
+
+class QuietAccessLogFilter(logging.Filter):
+    def filter(self, record):
+        args = record.args if isinstance(record.args, tuple) else ()
+        if len(args) >= 3:
+            path = str(args[2]).split("?", 1)[0]
+            status = int(args[4]) if len(args) >= 5 and str(args[4]).isdigit() else 0
+            if path in QUIET_ACCESS_PATHS and status < 400:
+                return False
+        message = record.getMessage()
+        return not any(f'"GET {path}' in message and '" 200' in message for path in QUIET_ACCESS_PATHS)
+
+logging.getLogger("uvicorn.access").addFilter(QuietAccessLogFilter())
 
 app = FastAPI()
 
@@ -1208,6 +1226,41 @@ def reference_to_data_url(ref, max_size=None):
         encoded = base64.b64encode(f.read()).decode("ascii")
     return f"data:{content_type_for_path(path)};base64,{encoded}"
 
+async def upload_image_for_apimart(client, provider, ref_url: str) -> str:
+    """把本地 /output/* 或 /assets/* 图片上传到 APIMart 文件接口，返回 https URL。
+    如果已经是 http/https/asset:// URL，直接返回原值。"""
+    if not ref_url:
+        return ref_url
+    # 已经是网络 URL 或 asset:// → 直接可用，无需上传
+    if ref_url.startswith("http://") or ref_url.startswith("https://") or ref_url.startswith("asset://"):
+        return ref_url
+    # data URL → 不支持，返回空串（APIMart 会拒绝 base64）
+    if ref_url.startswith("data:"):
+        return ""
+    path = output_file_from_url(ref_url)
+    if not path:
+        return ref_url  # 无法解析，原样返回，让上游自行处理
+    try:
+        ct = content_type_for_path(path)
+        base_url = video_api_root(provider)
+        upload_url = f"{base_url}/v1/files"
+        with open(path, "rb") as fh:
+            files = {"file": (os.path.basename(path), fh, ct)}
+            resp = await client.post(upload_url, headers=api_headers(provider=provider), files=files, timeout=60)
+        if resp.status_code == 200:
+            rj = resp.json()
+            # 兼容 {"url":...} 或 {"data":{"url":...}} 两种返回格式
+            url = (rj.get("url") or
+                   (rj.get("data") or {}).get("url") or
+                   (rj.get("file") or {}).get("url") or "")
+            if url:
+                return url
+        print(f"APIMart 文件上传失败 ({resp.status_code})，降级使用原路径: {resp.text[:200]}")
+        return ref_url
+    except Exception as e:
+        print(f"APIMart 文件上传异常，降级使用原路径: {e}")
+        return ref_url
+
 async def save_ai_image_to_output(image_data, prefix="online_", category="output"):
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
     path = output_path_for(filename, category)
@@ -1407,6 +1460,8 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
     gen_url = f"{base_url}/images/generations" if base_url.endswith("/v1") else f"{base_url}/v1/images/generations"
     edit_url = f"{base_url}/images/edits" if base_url.endswith("/v1") else f"{base_url}/v1/images/edits"
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
+    mask_refs = [ref for ref in refs if str(ref.get("role") or "").strip().lower() == "mask" or str(ref.get("name") or "").lower().endswith("_mask.png")]
+    image_refs = [ref for ref in refs if ref not in mask_refs]
     request_timeout = httpx.Timeout(connect=20.0, read=600.0, write=120.0, pool=20.0) if (is_gpt2 or is_apimart) else AI_REQUEST_TIMEOUT
     async with httpx.AsyncClient(timeout=request_timeout) as client:
         response = None
@@ -1420,30 +1475,36 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 "resolution": resolution.upper(),
                 "official_fallback": False,
             }
-            if refs:
-                body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in refs[:14]]
+            if image_refs:
+                body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:14]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
-        elif is_gpt2:
+        elif is_gpt2 and not mask_refs:
             body = {"model": model, "prompt": prompt, "size": size}
             if quality:
                 body["quality"] = quality
-            if refs:
-                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in refs[:4]]
+            if image_refs:
+                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:4]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
-        elif refs:
+        elif image_refs:
             # 1) 先用 multipart 提交到 /images/edits（OpenAI / Comfly 风格）
             files = []
             opened = []
             edit_failed_status = None
             edit_failed_text = ""
             try:
-                for ref in refs[:4]:
+                for ref in image_refs[:4]:
                     path = output_file_from_url(ref.get("url", ""))
                     if not path:
                         continue
                     fh = open(path, "rb")
                     opened.append(fh)
                     files.append(("image", (os.path.basename(path), fh, content_type_for_path(path))))
+                if mask_refs:
+                    mask_path = output_file_from_url(mask_refs[0].get("url", ""))
+                    if mask_path:
+                        fh = open(mask_path, "rb")
+                        opened.append(fh)
+                        files.append(("mask", (os.path.basename(mask_path), fh, content_type_for_path(mask_path))))
                 data = {"model": model, "prompt": prompt, "size": size, "quality": quality, "response_format": "url", "n": "1"}
                 try:
                     response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
@@ -1461,7 +1522,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             # 2) edits 失败 → 回退到 /images/generations + JSON image:[urls/base64]（grsai 风格）
             if response is None:
                 print(f"/images/edits failed ({edit_failed_status}): {edit_failed_text[:200]} → 回退到 /images/generations + image:[] JSON")
-                image_payload = [reference_to_data_url(ref, max_size=1536) for ref in refs[:4]]
+                image_payload = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:4]]
                 body = {
                     "model": model, "prompt": prompt, "size": size,
                     "quality": quality, "response_format": "url", "n": 1,
@@ -1898,7 +1959,8 @@ async def wait_for_video_task(client, provider, task_id):
     if not base_url:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
     if is_apimart_provider(provider):
-        task_url = f"{base_url}/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{task_id}"
+        task_path = f"{base_url}/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{task_id}"
+        task_url = f"{task_path}?language=zh"
     else:
         task_url = f"{base_url}/v2/videos/generations/{task_id}"
     deadline = time.monotonic() + VIDEO_POLL_TIMEOUT
@@ -1939,75 +2001,92 @@ async def canvas_video(payload: CanvasVideoRequest):
         raise HTTPException(status_code=400, detail=f"未配置 {provider.get('name') or provider['id']} 的 API Key，请在 API 设置中填写。")
     is_apimart = is_apimart_provider(provider)
     submit_url = f"{base_url}/videos/generations" if is_apimart and base_url.endswith("/v1") else f"{base_url}/v1/videos/generations" if is_apimart else f"{base_url}/v2/videos/generations"
-    image_payload = []
-    for ref in payload.images[:4]:
-        if ref.url:
-            image_payload.append(reference_to_data_url(ref.dict(), max_size=1536))
-    if is_apimart:
-        image_with_roles = []
-        for ref in payload.images[:9]:
-            if not ref.url:
-                continue
-            role = str(ref.role or "").strip()
-            if role in {"first_frame", "last_frame", "reference_image"}:
-                image_with_roles.append({
-                    "url": reference_to_data_url(ref.dict(), max_size=1536),
-                    "role": role,
-                })
-        body = {
-            "prompt": payload.prompt,
-            "model": selected_model(payload.model, "doubao-seedance-2.0"),
-            "duration": payload.duration,
-            "size": apimart_video_size(payload.aspect_ratio or payload.size),
-            "resolution": payload.resolution or "480p",
-        }
-        if image_with_roles:
-            body["image_with_roles"] = image_with_roles
-        elif image_payload:
-            body["image_urls"] = image_payload[:9]
-        if payload.videos:
-            body["video_urls"] = [v for v in payload.videos if v][:3]
-        if payload.seed is not None:
-            body["seed"] = payload.seed
-        if payload.return_last_frame:
-            body["return_last_frame"] = True
-        if payload.generate_audio:
-            body["generate_audio"] = True
-    else:
-        body = {
-            "prompt": payload.prompt,
-            "model": selected_model(payload.model, "veo3-fast"),
-            "duration": payload.duration,
-            "watermark": payload.watermark,
-        }
-        if payload.aspect_ratio:
-            body["aspect_ratio"] = payload.aspect_ratio
-            body["ratio"] = payload.aspect_ratio
-        if payload.size:
-            body["size"] = payload.size
-        if payload.resolution:
-            body["resolution"] = payload.resolution
-        if image_payload:
-            body["images"] = image_payload
-        if payload.videos:
-            body["videos"] = [v for v in payload.videos if v]
-        if payload.enhance_prompt:
-            body["enhance_prompt"] = True
-        if payload.enable_upsample:
-            body["enable_upsample"] = True
-        if payload.seed is not None:
-            body["seed"] = payload.seed
-        if payload.camerafixed:
-            body["camerafixed"] = True
-        if payload.return_last_frame:
-            body["return_last_frame"] = True
-        if payload.generate_audio:
-            body["generate_audio"] = True
     try:
         async with httpx.AsyncClient(timeout=VIDEO_POLL_TIMEOUT) as client:
+            # --- 构造图片载荷 ---
+            if is_apimart:
+                # APIMart 只接受 http/https 或 asset:// URL，先上传本地图片取回网络 URL
+                image_with_roles = []
+                for ref in payload.images[:9]:
+                    if not ref.url:
+                        continue
+                    role = str(ref.role or "").strip()
+                    if role in {"first_frame", "last_frame", "reference_image"}:
+                        up_url = await upload_image_for_apimart(client, provider, ref.url)
+                        if up_url:
+                            image_with_roles.append({"url": up_url, "role": role})
+                image_payload = []
+                if not image_with_roles:
+                    for ref in payload.images[:9]:
+                        if not ref.url:
+                            continue
+                        up_url = await upload_image_for_apimart(client, provider, ref.url)
+                        if up_url:
+                            image_payload.append(up_url)
+                # --- APIMart 请求体 ---
+                body = {
+                    "prompt": payload.prompt,
+                    "model": selected_model(payload.model, "doubao-seedance-2.0"),
+                    "duration": payload.duration,
+                    "size": apimart_video_size(payload.aspect_ratio or payload.size),
+                    "resolution": payload.resolution or "480p",
+                }
+                if image_with_roles:
+                    body["image_with_roles"] = image_with_roles
+                elif image_payload:
+                    body["image_urls"] = image_payload[:9]
+                if payload.videos:
+                    body["video_urls"] = [v for v in payload.videos if v][:3]
+                if payload.seed is not None:
+                    body["seed"] = payload.seed
+                if payload.return_last_frame:
+                    body["return_last_frame"] = True
+                if payload.generate_audio:
+                    body["generate_audio"] = True
+            else:
+                # 非 APIMart：data URL 方式（OpenAI / ComflyAI 接口）
+                image_payload = []
+                for ref in payload.images[:4]:
+                    if ref.url:
+                        image_payload.append(reference_to_data_url(ref.dict(), max_size=1536))
+                body = {
+                    "prompt": payload.prompt,
+                    "model": selected_model(payload.model, "veo3-fast"),
+                    "duration": payload.duration,
+                    "watermark": payload.watermark,
+                }
+                if payload.aspect_ratio:
+                    body["aspect_ratio"] = payload.aspect_ratio
+                    body["ratio"] = payload.aspect_ratio
+                if payload.size:
+                    body["size"] = payload.size
+                if payload.resolution:
+                    body["resolution"] = payload.resolution
+                if image_payload:
+                    body["images"] = image_payload
+                if payload.videos:
+                    body["videos"] = [v for v in payload.videos if v]
+                if payload.enhance_prompt:
+                    body["enhance_prompt"] = True
+                if payload.enable_upsample:
+                    body["enable_upsample"] = True
+                if payload.seed is not None:
+                    body["seed"] = payload.seed
+                if payload.camerafixed:
+                    body["camerafixed"] = True
+                if payload.return_last_frame:
+                    body["return_last_frame"] = True
+                if payload.generate_audio:
+                    body["generate_audio"] = True
+            # --- 发起视频生成请求 ---
             response = await client.post(submit_url, headers=api_headers(provider=provider), json=body)
             response.raise_for_status()
-            raw = response.json()
+            try:
+                raw = response.json()
+            except Exception:
+                # 上游返回了 HTML 错误页面或非 JSON 响应
+                resp_text = response.text[:500]
+                raise HTTPException(status_code=502, detail=f"上游视频接口返回非 JSON 响应（状态 {response.status_code}）：{resp_text}")
             task_id = extract_task_id(raw) or raw.get("task_id") or raw.get("id")
             result = raw
             if task_id and not video_output_urls(raw):
@@ -2019,7 +2098,10 @@ async def canvas_video(payload: CanvasVideoRequest):
             return {"videos": local_urls, "task_id": task_id, "raw": result}
     except httpx.HTTPStatusError as exc:
         text = exc.response.text
-        requested_model = body.get("model", "")
+        try:
+            requested_model = body.get("model", "") or payload.model or ""
+        except NameError:
+            requested_model = payload.model or ""
         provider_name = provider.get('name') or provider['id']
         # 1) 模型名不在上游支持范围 → 从错误信息里抽取合法列表展示
         valid_models_match = re.search(r"not in\s*\[([^\]]+)\]", text)
