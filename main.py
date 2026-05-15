@@ -585,6 +585,7 @@ class CanvasSaveRequest(BaseModel):
     nodes: List[Dict[str, Any]] = []
     connections: List[Dict[str, Any]] = []
     viewport: Dict[str, Any] = {}
+    logs: List[Dict[str, Any]] = []
 
 # --- 负载均衡 ---
 
@@ -1593,6 +1594,55 @@ async def test_provider_connection(payload: TestConnectionPayload):
     except httpx.HTTPError as e:
         return {"ok": False, "status": 0, "message": str(e)[:300]}
 
+@app.post("/api/providers/probe-async")
+async def probe_async_endpoint(payload: TestConnectionPayload):
+    """验证异步协议：用假 task_id 请求 GET /v1/tasks/{fake_id}。
+    收到 400 Invalid task ID = 端点存在且 Key 有效；401/403 = Key 无效；404/连接失败 = 不支持异步端点。"""
+    base_url = (payload.base_url or "").strip().rstrip("/")
+    if not base_url:
+        raise HTTPException(status_code=400, detail="请先填写请求地址")
+    api_key = (payload.api_key or "").strip()
+    if not api_key and payload.provider_id:
+        api_key = os.getenv(provider_key_env(payload.provider_id), "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
+    tasks_base = base_url if base_url.endswith("/v1") else f"{base_url}/v1"
+    probe_url = f"{tasks_base}/tasks/healthcheck_probe_do_not_submit"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(probe_url, headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"})
+        try:
+            body = resp.json()
+        except Exception:
+            body = resp.text[:500]
+        sc = resp.status_code
+        # 判断结果
+        err_msg = ""
+        if isinstance(body, dict):
+            err = body.get("error") or {}
+            if isinstance(err, dict):
+                err_msg = str(err.get("message") or "").lower()
+            else:
+                err_msg = str(err).lower()
+        # 400 + "invalid task id" → 端点存在，Key 有效
+        if sc == 400 and "invalid task id" in err_msg:
+            return {"ok": True, "status_code": sc, "message": "异步任务端点可用，API Key 已通过认证", "raw": body}
+        # 401 / 403 → Key 无效
+        if sc in (401, 403):
+            return {"ok": False, "status_code": sc, "message": "API Key 无效或无权限", "raw": body}
+        # 404 + 没有结构化错误 → 平台不支持此端点
+        if sc == 404:
+            return {"ok": False, "status_code": sc, "message": "平台不支持 /v1/tasks/ 端点，可能不是 APIMart 异步协议", "raw": body}
+        # 其他 400 系 → 返回原始信息供参考
+        if 400 <= sc < 500:
+            return {"ok": None, "status_code": sc, "message": f"端点返回 {sc}，请查看原始响应判断", "raw": body}
+        # 2xx → 意外成功（不太可能）
+        if sc < 300:
+            return {"ok": True, "status_code": sc, "message": f"端点返回 {sc}（意外成功）", "raw": body}
+        return {"ok": False, "status_code": sc, "message": f"服务端错误 {sc}", "raw": body}
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=str(e)[:300])
+
 @app.get("/api/providers/{provider_id}/fetch-models")
 async def fetch_upstream_models(provider_id: str):
     """从上游 OpenAI 兼容接口拉取 /v1/models 列表，按名称智能分类为 image/chat/video。"""
@@ -1680,6 +1730,8 @@ async def online_image(payload: OnlineImageRequest):
         "model": model,
         "provider_id": provider["id"],
         "provider_name": provider.get("name") or provider["id"],
+        "task_id": extract_task_id(raw) if isinstance(raw, dict) else None,
+        "request_id": raw.get("id") if isinstance(raw, dict) else None,
         "params": {"provider_id": provider["id"], "model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs},
         "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
     }
@@ -1987,6 +2039,7 @@ async def update_canvas(canvas_id: str, payload: CanvasSaveRequest):
     canvas["nodes"] = payload.nodes
     canvas["connections"] = payload.connections
     canvas["viewport"] = payload.viewport
+    canvas["logs"] = payload.logs[-500:]
     save_canvas(canvas)
     return {"canvas": canvas}
 
@@ -2763,6 +2816,10 @@ def generate(req: GenerateRequest):
             "seed": seed,
             "timestamp": current_timestamp,
             "type": req.type,
+            "workflow_json": req.workflow_json,
+            "task_id": task_id,
+            "prompt_id": prompt_id,
+            "backend": target_backend,
             "params": req.params
         }
         save_to_history(result)
