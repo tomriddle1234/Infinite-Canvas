@@ -24,6 +24,12 @@ https://apimart.ai/register?aff=1uyAbb
 1. 修复mac的一些bug
 2. modelscope支持lora调用
 3. 支持OpenAI协议和异步协议（生成失败不扣费）
+
+5/15日更新：
+1. 增加了循环组件和计数功能，可以将节点循环/并发运行N次，同时有提示词计数功能，可以设置提示词为：运行第二张卖点图。
+用法可以是：使用Gemini生成产品10个卖点图，用循环计数，增加提示词：运行第X张卖点图，输入给API节点，调用GPT生成，就可以一次性并发生成10个卖点图。
+2. 增加协议的验证按键，可以方便的验证自己的API平台是什么协议
+3. 修复了LLM节点的一些bug
    
 -----
 
@@ -61,6 +67,19 @@ May 14th Update:
 2. Added support for LoRa calls to ModelScope.
 
 3. Supports OpenAI protocol and asynchronous protocol (no charge for failed generation)
+
+May 15th Update:
+
+1. Added a loop component and counting function, allowing nodes to run concurrently N times. It also includes a prompt word counting function, where the prompt word can be set to: "Run the second selling point image."
+
+Usage: Use Gemini to generate 10 selling point images for a product. Use a loop counter, add the prompt word: "Run the Xth selling point image," input it to the API node, and call GPT to generate 10 selling point images concurrently at once.
+
+2. Added a protocol verification button for easy verification of your API platform's protocol.
+
+3. Fixed some bugs in the LLM node.
+
+<img width="1696" height="1350" alt="b68e144c5b04a322bfd035da4d89aba3" src="https://github.com/user-attachments/assets/0a6090fb-a8dd-4c3d-adee-b1f9233a2d91" />
+
    
 <img width="1525" height="1473" alt="image" src="https://github.com/user-attachments/assets/6f61fcf9-746c-425b-9e36-cfc8d252da7c" />
 
