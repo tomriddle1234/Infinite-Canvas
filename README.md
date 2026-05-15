@@ -30,6 +30,7 @@ https://apimart.ai/register?aff=1uyAbb
 用法可以是：使用Gemini生成产品10个卖点提示词。用循环节点，增加提示词：运行第X张卖点图，输入给API节点，调用GPT生成，就可以一次性并发生成10个卖点图。
 2. 增加协议的验证按键，可以方便的验证自己的API平台是什么协议
 3. 修复了LLM节点的一些bug
+4. 上传了精简版的python，运行“安装依赖.bat”，完成之后，运行"run.bat"
    
 -----
 
@@ -67,6 +68,8 @@ May 14th Update:
 2. Added support for LoRa calls to ModelScope.
 
 3. Supports OpenAI protocol and asynchronous protocol (no charge for failed generation)
+   
+4. I uploaded a simplified version of Python. Run "install dependencies.bat", and then run "run.bat".
 
 
 May 15th Update:
