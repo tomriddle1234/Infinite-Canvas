@@ -889,7 +889,14 @@ def selected_model(requested, fallback):
         raise HTTPException(status_code=400, detail=f"模型名称不合法：{model}")
     return model
 
+def unwrap_apimart_response(raw):
+    """APIMart 将标准 OpenAI 响应包在 {"code":200,"data":{...}} 里；如果检测到就解包。"""
+    if isinstance(raw, dict) and "data" in raw and isinstance(raw.get("data"), dict) and "choices" not in raw:
+        return raw["data"]
+    return raw
+
 def text_from_chat_response(data):
+    data = unwrap_apimart_response(data)
     choices = data.get("choices") or []
     if not choices:
         return ""
@@ -1944,6 +1951,9 @@ async def canvas_video(payload: CanvasVideoRequest):
 @app.post("/api/canvas-llm")
 async def canvas_llm(payload: CanvasLLMRequest):
     chat_base, chat_hdrs, model = resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
+    # 判断协议：APIMart 异步 vs 标准 OpenAI
+    _llm_provider = get_api_provider(payload.provider) if payload.provider not in ("modelscope",) else {}
+    _is_apimart = is_apimart_provider(_llm_provider)
     upstream_messages = [{"role": "system", "content": payload.system_prompt or SYSTEM_PROMPT}]
     for item in payload.messages[-MAX_HISTORY_MESSAGES:]:
         role = item.get("role")
@@ -1970,23 +1980,37 @@ async def canvas_llm(payload: CanvasLLMRequest):
         upstream_messages.append({"role": "user", "content": content_parts})
     else:
         upstream_messages.append({"role": "user", "content": payload.message})
+    raw = None
     try:
         async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+            req_body = {"model": model, "messages": upstream_messages}
+            if _is_apimart:
+                req_body["stream"] = False   # APIMart 默认流式，强制关闭
             response = await client.post(
                 f"{chat_base}/chat/completions",
                 headers=chat_hdrs,
-                json={"model": model, "messages": upstream_messages},
+                json=req_body,
             )
             response.raise_for_status()
             if not response.content:
                 raise HTTPException(status_code=502, detail="上游接口返回了空响应")
             raw = response.json()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{exc.response.text}") from exc
+        body = exc.response.text or ""
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{body}") from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
-    text = text_from_chat_response(raw).strip() or "接口返回了空回复。"
-    return {"text": text, "model": model, "raw_usage": raw.get("usage") if isinstance(raw, dict) else None}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"解析上游响应失败：{exc}") from exc
+    try:
+        text = text_from_chat_response(raw).strip() if isinstance(raw, dict) else ""
+        text = text or "接口返回了空回复。"
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"解析回复内容失败：{exc}") from exc
+    raw_data = unwrap_apimart_response(raw) if isinstance(raw, dict) else {}
+    return {"text": text, "model": model, "raw_usage": raw_data.get("usage")}
 
 # --- 对话管理 ---
 
@@ -2116,6 +2140,8 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
         }
     else:
         chat_base, chat_hdrs, model = resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
+        _conv_provider = get_api_provider(payload.provider) if payload.provider not in ("modelscope",) else {}
+        _conv_is_apimart = is_apimart_provider(_conv_provider)
         history = conversation["messages"][-MAX_HISTORY_MESSAGES:]
         upstream_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
         for item in history:
@@ -2124,10 +2150,13 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
                 upstream_messages.append(msg)
         try:
             async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+                conv_req_body = {"model": model, "messages": upstream_messages}
+                if _conv_is_apimart:
+                    conv_req_body["stream"] = False
                 response = await client.post(
                     f"{chat_base}/chat/completions",
                     headers=chat_hdrs,
-                    json={"model": model, "messages": upstream_messages},
+                    json=conv_req_body,
                 )
                 response.raise_for_status()
                 raw = response.json()
@@ -2135,13 +2164,14 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
             raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{exc.response.text}") from exc
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
+        raw_data = unwrap_apimart_response(raw) if isinstance(raw, dict) else raw
         assistant_message = {
             "id": uuid.uuid4().hex,
             "role": "assistant",
             "content": text_from_chat_response(raw).strip() or "接口返回了空回复。",
             "created_at": now_ms(),
             "model": model,
-            "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
+            "raw_usage": raw_data.get("usage") if isinstance(raw_data, dict) else None,
         }
 
     conversation["messages"].append(assistant_message)
