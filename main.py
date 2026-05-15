@@ -1236,6 +1236,44 @@ def reference_to_data_url(ref, max_size=None):
         encoded = base64.b64encode(f.read()).decode("ascii")
     return f"data:{content_type_for_path(path)};base64,{encoded}"
 
+def compress_data_url_image(value, max_size=1536, jpeg_quality=88):
+    if not isinstance(value, str) or not value.startswith("data:image/") or ";base64," not in value:
+        return value
+    header, encoded = value.split(";base64,", 1)
+    try:
+        raw = base64.b64decode(encoded)
+        with Image.open(BytesIO(raw)) as img:
+            img.load()
+            if max_size and max(img.size) > max_size:
+                img.thumbnail((max_size, max_size), Image.LANCZOS)
+            has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+            if has_alpha:
+                if img.mode != "RGBA":
+                    img = img.convert("RGBA")
+                fmt, mime = "PNG", "image/png"
+            else:
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                fmt, mime = "JPEG", "image/jpeg"
+            buf = BytesIO()
+            if fmt == "JPEG":
+                img.save(buf, format=fmt, quality=jpeg_quality, optimize=True)
+            else:
+                img.save(buf, format=fmt, optimize=True)
+            return f"data:{mime};base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
+    except Exception as e:
+        print(f"data url image compress failed, fallback to raw: {e}")
+        return value
+
+def modelscope_image_url(value, max_size=1536):
+    if not value:
+        return value
+    if isinstance(value, str) and (value.startswith("/output/") or value.startswith("/assets/")):
+        return reference_to_data_url({"url": value}, max_size=max_size)
+    if isinstance(value, str) and value.startswith("data:image/"):
+        return compress_data_url_image(value, max_size=max_size)
+    return value
+
 async def upload_image_for_apimart(client, provider, ref_url: str) -> str:
     """把本地 /output/* 或 /assets/* 图片上传到 APIMart 文件接口，返回 https URL。
     如果已经是 http/https/asset:// URL，直接返回原值。"""
@@ -1403,8 +1441,8 @@ async def generate_modelscope_provider_image(prompt, size, model, reference_imag
     for ref in (reference_images or [])[:4]:
         if not ref.get("url"):
             continue
-        # 把参考图压到 1024px 长边以内，避免 base64 payload 过大导致 MS 内部任务失败
-        refs.append(reference_to_data_url(ref, max_size=1024))
+        # 把参考图压缩为 data URL，避免 base64 payload 过大导致 MS 内部任务失败
+        refs.append(modelscope_image_url(ref.get("url", ""), max_size=1536))
     headers = {
         "Authorization": f"Bearer {clean_token}",
         "Content-Type": "application/json",
@@ -2624,7 +2662,7 @@ async def generate_angle_cloud(req: CloudGenRequest):
     payload = {
         "model": model,
         "prompt": req.prompt.strip(),
-        "image_url": req.image_urls
+        "image_url": [modelscope_image_url(url, max_size=1536) for url in req.image_urls]
     }
     if req.resolution:
         payload["size"] = modelscope_size(req.resolution)
@@ -2822,7 +2860,7 @@ async def ms_generate(req: MsGenerateRequest):
     elif req.size:
         payload["size"] = modelscope_size(req.size)
     if req.image_urls:
-        payload["image_url"] = req.image_urls
+        payload["image_url"] = [modelscope_image_url(url, max_size=1536) for url in req.image_urls]
     if req.loras is not None:
         payload["loras"] = req.loras
 
