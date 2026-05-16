@@ -17,6 +17,7 @@ from threading import Lock
 import httpx
 from PIL import Image
 from io import BytesIO
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -41,7 +42,15 @@ class QuietAccessLogFilter(logging.Filter):
 
 logging.getLogger("uvicorn.access").addFilter(QuietAccessLogFilter())
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global GLOBAL_LOOP
+    GLOBAL_LOOP = asyncio.get_running_loop()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -101,11 +110,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 GLOBAL_LOOP = None
-
-@app.on_event("startup")
-async def startup_event():
-    global GLOBAL_LOOP
-    GLOBAL_LOOP = asyncio.get_running_loop()
 
 @app.websocket("/ws/stats")
 async def websocket_endpoint(websocket: WebSocket, client_id: str = None):
@@ -1914,7 +1918,7 @@ async def online_image(payload: OnlineImageRequest):
     provider = get_api_provider(payload.provider_id)
     default_model = (provider.get("image_models") or [IMAGE_MODEL])[0]
     model = selected_model(payload.model, default_model)
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
+    refs = [ref.model_dump() for ref in payload.reference_images if ref.url]
     try:
         image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, provider["id"])
         local_url = await save_ai_image_to_output(image_data, prefix="online_")
@@ -2096,7 +2100,7 @@ async def canvas_video(payload: CanvasVideoRequest):
                 image_payload = []
                 for ref in payload.images[:4]:
                     if ref.url:
-                        image_payload.append(reference_to_data_url(ref.dict(), max_size=1536))
+                        image_payload.append(reference_to_data_url(ref.model_dump(), max_size=1536))
                 body = {
                     "prompt": payload.prompt,
                     "model": selected_model(payload.model, "veo3-fast"),
@@ -2334,7 +2338,7 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
     if not conversation.get("messages"):
         conversation["title"] = display_title(payload.message)
 
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
+    refs = [ref.model_dump() for ref in payload.reference_images if ref.url]
     user_message = {
         "id": uuid.uuid4().hex,
         "role": "user",
@@ -2424,7 +2428,7 @@ async def chat_stream(payload: ChatRequest, request: Request, x_user_id: str = H
     if not conversation.get("messages"):
         conversation["title"] = display_title(payload.message)
 
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
+    refs = [ref.model_dump() for ref in payload.reference_images if ref.url]
     user_message = {
         "id": uuid.uuid4().hex,
         "role": "user",
@@ -3284,8 +3288,8 @@ def save_workflow_config(name: str, payload: WorkflowConfig):
         raise HTTPException(status_code=404, detail="Workflow not found")
     cfg_path = workflow_config_path(name)
     with open(cfg_path, "w", encoding="utf-8") as f:
-        json.dump(payload.dict(), f, ensure_ascii=False, indent=2)
-    return {"config": payload.dict()}
+        json.dump(payload.model_dump(), f, ensure_ascii=False, indent=2)
+    return {"config": payload.model_dump()}
 
 @app.delete("/api/workflows/{name:path}")
 def delete_workflow(name: str):

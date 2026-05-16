@@ -1,6 +1,18 @@
 # Infinite-Canvas
 Supports comfyui/API calls/modelscope calls
 
+## 运行 / Run
+
+```
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python main.py
+```
+
+或 Windows 上双击 `run.bat`，浏览器自动打开 http://127.0.0.1:3000/
+
+需要 Python 3.12+。所有前端依赖（Tailwind / Lucide / Three.js / 字体）已本地化在 `static/vendor/`，离线可用。
+
 详细教程：https://youtu.be/1y9ShTvgC_w
 
 由于最近很多API网址关停，我找到一个稳定的网址：
@@ -30,7 +42,7 @@ https://apimart.ai/register?aff=1uyAbb
 用法可以是：使用Gemini生成产品10个卖点提示词。用循环节点，增加提示词：运行第X张卖点图，输入给API节点，调用GPT生成，就可以一次性并发生成10个卖点图。
 2. 增加协议的验证按键，可以方便的验证自己的API平台是什么协议
 3. 修复了LLM节点的一些bug
-4. 上传了精简版的python，运行“安装依赖.bat”，完成之后，运行"run.bat"
+4. （部署说明已移至文档顶部"运行 / Run"段落。）
    
 -----
 
@@ -79,7 +91,7 @@ Usage: Use Gemini to generate 10 selling point prompt words for a product. Use t
 
 3. Fixed some bugs in the LLM node.
 
-4. Uploaded a simplified version of Python. Run "安装依赖.bat", and then run "run.bat".
+4. (Setup instructions moved to the "运行 / Run" section at the top of this README.)
 
 
 

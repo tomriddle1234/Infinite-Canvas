@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Embedded Python (do not re-add)
+python/
+packages/
+get-pip.py
+
+# Runtime data
+output/
+assets/
+history.json
+global_config.json
+data/conversations/
+data/canvases/
+data/api_providers.json
+API/.env
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Agent tooling
+.agents/
+.claude/
