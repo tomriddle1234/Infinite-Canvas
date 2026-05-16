@@ -50,6 +50,11 @@ def _data_url(ref, max_size=None) -> str:
     return f"data:{imageproc.content_type_for_path(path)};base64,{encoded}"
 
 
+def _is_seedance_1_5(model: str) -> bool:
+    text = str(model or "").lower()
+    return "seedance-1-5" in text or "seedance-1.5" in text
+
+
 def _read_attr(obj, *names):
     cur = obj
     for name in names:
@@ -153,7 +158,7 @@ def _validate_seedance_media_refs(image_refs, video_refs, audio_refs):
 
 def _seedance_duration(model: str, duration) -> int:
     value = int(duration or 5)
-    max_duration = 12 if "1-5" in str(model or "") else 15
+    max_duration = 12 if _is_seedance_1_5(model) else 15
     return max(4, min(max_duration, value))
 
 

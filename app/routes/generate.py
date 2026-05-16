@@ -9,7 +9,9 @@
 """
 
 import asyncio
+import collections
 import json
+import logging
 import os
 import random
 import re
@@ -36,9 +38,33 @@ from ..models import (
     SeedreamRequest,
 )
 
+log = logging.getLogger(__name__)
+
 router = APIRouter()
-SEEDANCE_RESULT_CACHE = {}
+
+SEEDANCE_CACHE_TTL_SECONDS = 30 * 60
+SEEDANCE_CACHE_MAX_ENTRIES = 200
+SEEDANCE_RESULT_CACHE: "collections.OrderedDict[tuple, tuple[float, dict]]" = collections.OrderedDict()
 SEEDANCE_STATUS_LOCK = asyncio.Lock()
+
+
+def _seedance_cache_get(key: tuple):
+    entry = SEEDANCE_RESULT_CACHE.get(key)
+    if not entry:
+        return None
+    timestamp, value = entry
+    if time.time() - timestamp > SEEDANCE_CACHE_TTL_SECONDS:
+        SEEDANCE_RESULT_CACHE.pop(key, None)
+        return None
+    SEEDANCE_RESULT_CACHE.move_to_end(key)
+    return value
+
+
+def _seedance_cache_put(key: tuple, value: dict) -> None:
+    SEEDANCE_RESULT_CACHE[key] = (time.time(), value)
+    SEEDANCE_RESULT_CACHE.move_to_end(key)
+    while len(SEEDANCE_RESULT_CACHE) > SEEDANCE_CACHE_MAX_ENTRIES:
+        SEEDANCE_RESULT_CACHE.popitem(last=False)
 
 
 # ---------------- Dedicated nodes: GPT Image 2.0 / Seedream / Seedance ----------------
@@ -47,17 +73,13 @@ SEEDANCE_STATUS_LOCK = asyncio.Lock()
 async def node_gpt_image_2(payload: GptImage2Request):
     count = max(1, min(8, int(payload.count or 1)))
     refs = [ref.model_dump() for ref in payload.reference_images if ref.url]
-    images = []
-    raws = []
     try:
-        for _ in range(count):
-            image_data, raw = await upstream_openai_image.generate_gpt_image_2(payload.prompt, payload.size, payload.quality, refs)
-            images.append(await imageproc.save_ai_image_to_output(image_data, prefix="gpt_image2_"))
-            raws.append(raw)
+        image_items, raw = await upstream_openai_image.generate_gpt_image_2(payload.prompt, payload.size, payload.quality, refs, count=count)
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=f"OpenAI 图片接口错误：{exc.response.text[:500]}") from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"请求 OpenAI 图片接口失败：{exc}") from exc
+    images = [await imageproc.save_ai_image_to_output(item, prefix="gpt_image2_") for item in image_items]
     result = {
         "prompt": payload.prompt,
         "images": images,
@@ -66,7 +88,7 @@ async def node_gpt_image_2(payload: GptImage2Request):
         "model": "gpt-image-2",
         "provider_id": "openai",
         "params": {"size": payload.size, "quality": payload.quality, "count": count, "reference_images": refs},
-        "raw": raws[0] if len(raws) == 1 else {"items": raws},
+        "raw": raw,
     }
     store.save_to_history(result)
     if ws.GLOBAL_LOOP:
@@ -82,7 +104,7 @@ async def node_seedream(payload: SeedreamRequest):
     model = config.SEEDREAM_MODELS.get(payload.model, payload.model)
     try:
         for index in range(count):
-            generated, raw = upstream_volcengine.generate_seedream_once(payload, index=index)
+            generated, raw = await asyncio.to_thread(upstream_volcengine.generate_seedream_once, payload, index=index)
             for item in generated:
                 images.append(await imageproc.save_ai_image_to_output(item, prefix="seedream_"))
             raws.append(raw)
@@ -109,12 +131,12 @@ async def node_seedream(payload: SeedreamRequest):
 @router.post("/api/nodes/seedance")
 async def node_seedance(payload: SeedanceRequest):
     try:
-        submitted = upstream_volcengine.submit_seedance(payload)
+        submitted = await asyncio.to_thread(upstream_volcengine.submit_seedance, payload)
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Seedance 提交失败：{exc}") from exc
-    print(f"Seedance submitted: task_ids={submitted['task_ids']} model={submitted['model']}")
+    log.info("Seedance submitted: task_ids=%s model=%s", submitted["task_ids"], submitted["model"])
     return {
         "status": "submitted",
         "task_ids": submitted["task_ids"],
@@ -130,10 +152,11 @@ async def node_seedance_status(payload: SeedanceStatusRequest):
         raise HTTPException(status_code=400, detail="缺少 Seedance task_ids")
     cache_key = tuple(item for item in payload.task_ids if item)
     async with SEEDANCE_STATUS_LOCK:
-        if cache_key in SEEDANCE_RESULT_CACHE:
-            return SEEDANCE_RESULT_CACHE[cache_key]
+        cached = _seedance_cache_get(cache_key)
+        if cached is not None:
+            return cached
         try:
-            result = upstream_volcengine.poll_seedance(payload.task_ids)
+            result = await asyncio.to_thread(upstream_volcengine.poll_seedance, payload.task_ids)
         except HTTPException:
             raise
         except Exception as exc:
@@ -153,8 +176,8 @@ async def node_seedance_status(payload: SeedanceStatusRequest):
             store.save_to_history(record)
         response = {**result, "videos": local_videos or result.get("videos", [])}
         if response.get("status") == "succeeded":
-            SEEDANCE_RESULT_CACHE[cache_key] = response
-        print(f"Seedance status: task_ids={list(cache_key)} status={response.get('status')} videos={len(response.get('videos') or [])}")
+            _seedance_cache_put(cache_key, response)
+        log.info("Seedance status: task_ids=%s status=%s videos=%d", list(cache_key), response.get("status"), len(response.get("videos") or []))
         return response
 
 

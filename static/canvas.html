@@ -5384,12 +5384,24 @@
             return runDedicatedImageNode(nodeId, '/api/nodes/seedream', opts);
         }
         const seedancePollTimers = new Map();
+        const SEEDANCE_POLL_MAX_MS = 15 * 60 * 1000;
         function scheduleSeedancePoll(nodeId, delay=8000){
             if(seedancePollTimers.has(nodeId)) return;
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node?.taskIds?.length) return;
+            if(!node._seedancePollStart) node._seedancePollStart = Date.now();
+            if(Date.now() - node._seedancePollStart > SEEDANCE_POLL_MAX_MS){
+                node.runStatus = 'failed';
+                node.runError = node.runError || 'Seedance 自动轮询已超过 15 分钟，请用 Check 按钮手动查询。';
+                node._seedancePollStart = 0;
+                render();
+                scheduleSave();
+                return;
+            }
             const timer = setTimeout(() => {
                 seedancePollTimers.delete(nodeId);
-                const node = nodes.find(n => n.id === nodeId);
-                if(node?.taskIds?.length) checkSeedanceNode(nodeId, {auto:true});
+                const cur = nodes.find(n => n.id === nodeId);
+                if(cur?.taskIds?.length) checkSeedanceNode(nodeId, {auto:true});
             }, delay);
             seedancePollTimers.set(nodeId, timer);
         }
@@ -5419,7 +5431,6 @@
                         seed:node.seed === '' || node.seed == null ? null : Number(node.seed),
                         generate_audio:Boolean(node.generateAudio),
                         return_last_frame:Boolean(node.returnLastFrame),
-                        non_blocking:true,
                         reference_images:imageRefs,
                         reference_videos:node.refVideos || [],
                         reference_audios:node.refAudios || []
@@ -5428,6 +5439,7 @@
                 node.taskIds = result.task_ids || [];
                 node.runStatus = 'submitted';
                 node.runError = '';
+                node._seedancePollStart = Date.now();
                 render();
                 scheduleSave();
                 scheduleSeedancePoll(node.id, 3000);
@@ -5462,6 +5474,7 @@
                     node.runStatus = result.status === 'failed' ? 'failed' : 'submitted';
                     node.runError = result.status === 'failed' ? JSON.stringify(result.failed || result).slice(0, 300) : '';
                     node.checking = false;
+                    if(result.status === 'failed') node._seedancePollStart = 0;
                     render();
                     scheduleSave();
                     if(result.status === 'failed') showErrorModal(node.runError || tr('canvas.videoFailed'));
@@ -5477,6 +5490,7 @@
                 node.lastOutputs = [...(node.lastOutputs || []), ...videos];
                 node.taskIds = [];
                 node._seedancePendingId = '';
+                node._seedancePollStart = 0;
                 node.checking = false;
                 node.runStatus = 'done';
                 node.runError = '';
@@ -5484,6 +5498,7 @@
                 scheduleSave();
             } catch(err) {
                 node.checking = false;
+                node._seedancePollStart = 0;
                 node.runStatus = 'failed';
                 node.runError = err.message || String(err);
                 render();

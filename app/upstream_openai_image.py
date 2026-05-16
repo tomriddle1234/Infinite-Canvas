@@ -39,8 +39,9 @@ def _local_image_files(refs):
     return files
 
 
-async def generate_gpt_image_2(prompt: str, size: str, quality: str, refs=None) -> tuple[dict, dict]:
-    """Return one image item and the raw OpenAI response."""
+async def generate_gpt_image_2(prompt: str, size: str, quality: str, refs=None, count: int = 1) -> tuple[list[dict], dict]:
+    """Return the list of image items and the raw OpenAI response."""
+    n = max(1, min(8, int(count or 1)))
     base_url = config.OPENAI_API_BASE_URL.rstrip("/")
     timeout = httpx.Timeout(connect=20.0, read=config.IMAGE_TASK_TIMEOUT, write=120.0, pool=20.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -49,7 +50,7 @@ async def generate_gpt_image_2(prompt: str, size: str, quality: str, refs=None) 
             if not files:
                 raise HTTPException(status_code=400, detail="参考图必须是画布中的本地图片或输出图片。")
             try:
-                data = {"model": "gpt-image-2", "prompt": prompt, "size": size or "1024x1024"}
+                data = {"model": "gpt-image-2", "prompt": prompt, "size": size or "1024x1024", "n": str(n)}
                 if quality:
                     data["quality"] = quality
                 resp = await client.post(f"{base_url}/images/edits", headers=_headers(), data=data, files=files)
@@ -57,13 +58,13 @@ async def generate_gpt_image_2(prompt: str, size: str, quality: str, refs=None) 
                 for _, file_tuple in files:
                     file_tuple[1].close()
         else:
-            body = {"model": "gpt-image-2", "prompt": prompt, "size": size or "1024x1024"}
+            body = {"model": "gpt-image-2", "prompt": prompt, "size": size or "1024x1024", "n": n}
             if quality:
                 body["quality"] = quality
             resp = await client.post(f"{base_url}/images/generations", headers={**_headers(), "Content-Type": "application/json"}, json=body)
         resp.raise_for_status()
         raw = resp.json()
-    data = raw.get("data") or []
-    if not data:
+    items = raw.get("data") or []
+    if not items:
         raise HTTPException(status_code=502, detail=f"OpenAI 图片接口未返回 data：{raw}")
-    return _image_result(data[0]), raw
+    return [_image_result(item) for item in items], raw

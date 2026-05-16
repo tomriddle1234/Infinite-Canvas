@@ -108,7 +108,6 @@ class SeedanceRequest(BaseModel):
     seed: Optional[int] = None
     generate_audio: bool = True
     return_last_frame: bool = False
-    non_blocking: bool = True
     reference_images: List[AIReference] = []
     reference_videos: List[AIReference] = []
     reference_audios: List[AIReference] = []
