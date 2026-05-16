@@ -76,6 +76,48 @@ class CanvasVideoRequest(BaseModel):
     generate_audio: bool = False
 
 
+class FirstPartyKeysPayload(BaseModel):
+    openai_api_key: Optional[str] = None
+    volcengine_ark_api_key: Optional[str] = None
+
+
+class GptImage2Request(BaseModel):
+    prompt: str = Field(min_length=1, max_length=config.ONLINE_IMAGE_PROMPT_MAX_LENGTH)
+    size: str = "1024x1024"
+    quality: str = "auto"
+    count: int = 1
+    reference_images: List[AIReference] = []
+
+
+class SeedreamRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=config.ONLINE_IMAGE_PROMPT_MAX_LENGTH)
+    model: str = "doubao-seedream-4-5-251128"
+    size: str = "1024x1024"
+    count: int = 1
+    seed: Optional[int] = None
+    watermark: bool = False
+    reference_images: List[AIReference] = []
+
+
+class SeedanceRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=config.VIDEO_PROMPT_MAX_LENGTH)
+    model: str = "doubao-seedance-2-0-fast-260128"
+    duration: int = 5
+    aspect_ratio: str = "16:9"
+    resolution: str = "720p"
+    seed: Optional[int] = None
+    generate_audio: bool = True
+    return_last_frame: bool = False
+    non_blocking: bool = True
+    reference_images: List[AIReference] = []
+    reference_videos: List[AIReference] = []
+    reference_audios: List[AIReference] = []
+
+
+class SeedanceStatusRequest(BaseModel):
+    task_ids: List[str] = []
+
+
 class ApiProviderPayload(BaseModel):
     id: str = ""
     name: str = ""

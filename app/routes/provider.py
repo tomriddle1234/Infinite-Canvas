@@ -9,7 +9,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 
 from .. import config, providers
-from ..models import ApiProviderPayload, TestConnectionPayload
+from ..models import ApiProviderPayload, FirstPartyKeysPayload, TestConnectionPayload
 
 router = APIRouter()
 
@@ -32,6 +32,10 @@ async def ai_config():
         "has_api_key": bool(config.AI_API_KEY),
         "ms_chat_models": config.MODELSCOPE_CHAT_MODELS,
         "has_ms_key": bool(config.MODELSCOPE_API_KEY),
+        "has_openai_key": bool(config.OPENAI_API_KEY),
+        "openai_key_preview": providers.mask_secret(config.OPENAI_API_KEY),
+        "has_volcengine_ark_key": bool(config.VOLCENGINE_ARK_API_KEY),
+        "volcengine_ark_key_preview": providers.mask_secret(config.VOLCENGINE_ARK_API_KEY),
     }
 
 
@@ -47,6 +51,29 @@ async def ai_models():
 @router.get("/api/providers")
 async def api_providers_get():
     return {"providers": [providers.public_provider(p) for p in providers.load_api_providers()]}
+
+
+@router.get("/api/first-party-keys")
+async def first_party_keys_get():
+    return {
+        "has_openai_key": bool(config.OPENAI_API_KEY),
+        "openai_key_preview": providers.mask_secret(config.OPENAI_API_KEY),
+        "has_volcengine_ark_key": bool(config.VOLCENGINE_ARK_API_KEY),
+        "volcengine_ark_key_preview": providers.mask_secret(config.VOLCENGINE_ARK_API_KEY),
+    }
+
+
+@router.put("/api/first-party-keys")
+async def first_party_keys_save(payload: FirstPartyKeysPayload):
+    updates = {}
+    if payload.openai_api_key is not None:
+        updates["OPENAI_API_KEY"] = payload.openai_api_key.strip()
+    if payload.volcengine_ark_api_key is not None:
+        updates["VOLCENGINE_ARK_API_KEY"] = payload.volcengine_ark_api_key.strip()
+    if updates:
+        providers.update_env_values(updates)
+        config.reload_env_globals()
+    return await first_party_keys_get()
 
 
 @router.put("/api/providers")

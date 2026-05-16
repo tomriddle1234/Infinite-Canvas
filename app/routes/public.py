@@ -93,6 +93,41 @@ async def upload_ai_reference(files: List[UploadFile] = File(...)):
     return {"files": uploaded}
 
 
+@router.post("/api/nodes/media-upload")
+async def upload_node_media(files: List[UploadFile] = File(...)):
+    allowed = {
+        ".png", ".jpg", ".jpeg", ".webp",
+        ".mp4", ".mov", ".webm",
+        ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg",
+    }
+    uploaded = []
+    for file in files:
+        content = await file.read()
+        if not content:
+            continue
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        if ext not in allowed:
+            content_type = (file.content_type or "").lower()
+            if content_type.startswith("image/"):
+                ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
+            elif content_type.startswith("video/"):
+                ext = ".mov" if "quicktime" in content_type else ".webm" if "webm" in content_type else ".mp4"
+            elif content_type.startswith("audio/"):
+                ext = ".mp3" if "mpeg" in content_type else ".m4a" if "mp4" in content_type else ".wav"
+            else:
+                raise HTTPException(status_code=400, detail=f"不支持的媒体格式：{file.filename or file.content_type}")
+        filename = f"node_media_{uuid.uuid4().hex[:12]}{ext}"
+        path = imageproc.output_path_for(filename, "input")
+        with open(path, "wb") as handle:
+            handle.write(content)
+        uploaded.append({
+            "url": imageproc.output_url_for(filename, "input"),
+            "name": file.filename or filename,
+            "content_type": imageproc.content_type_for_path(path),
+        })
+    return {"files": uploaded}
+
+
 @router.get("/api/history")
 async def get_history_api(type: str = None):
     return store.load_history(type)
@@ -121,4 +156,3 @@ async def delete_history(req: DeleteHistoryRequest):
             except Exception as exc:
                 print(f"Failed to delete file {file_path}: {exc}")
     return {"success": True}
-

@@ -953,6 +953,83 @@
                 setStatus(err.message || tr('api.saveFailed'));
             }
         }
+        function ensureFirstPartyKeyPanel(){
+            let panel = document.getElementById('firstPartyKeyPanel');
+            if(panel) return panel;
+            const head = document.querySelector('.page-head');
+            panel = document.createElement('section');
+            panel.id = 'firstPartyKeyPanel';
+            panel.style.cssText = 'margin:0 0 22px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--panel);box-shadow:var(--shadow);';
+            panel.innerHTML = `
+                <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px">
+                    <div>
+                        <div style="font-size:14px;font-weight:900;color:var(--ink)">专用节点 Key</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:4px">用于 GPT Image 2.0、Seedream、Seedance。不会注册其它 API 平台。</div>
+                    </div>
+                    <div id="firstPartyKeyStatus" style="font-size:11px;color:var(--muted);font-weight:800"></div>
+                </div>
+                <div class="form" style="margin:0">
+                    <label class="field">
+                        <span>OpenAI API Key</span>
+                        <input id="firstPartyOpenAIKey" type="password" placeholder="留空表示不修改">
+                    </label>
+                    <label class="field">
+                        <span>Volcengine Ark API Key</span>
+                        <input id="firstPartyVolcKey" type="password" placeholder="留空表示不修改">
+                    </label>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+                    <button class="ghost-btn" type="button" id="firstPartyReloadBtn">刷新状态</button>
+                    <button class="save-btn" type="button" id="firstPartySaveBtn">保存专用 Key</button>
+                </div>
+            `;
+            head?.insertAdjacentElement('afterend', panel);
+            panel.querySelector('#firstPartySaveBtn').onclick = saveFirstPartyKeys;
+            panel.querySelector('#firstPartyReloadBtn').onclick = loadFirstPartyKeys;
+            return panel;
+        }
+        async function loadFirstPartyKeys(){
+            const panel = ensureFirstPartyKeyPanel();
+            const status = panel.querySelector('#firstPartyKeyStatus');
+            status.textContent = '读取中...';
+            try {
+                const data = await fetch('/api/first-party-keys').then(r => r.json());
+                status.textContent = [
+                    data.has_openai_key ? `OpenAI ${data.openai_key_preview || '已配置'}` : 'OpenAI 未配置',
+                    data.has_volcengine_ark_key ? `火山 ${data.volcengine_ark_key_preview || '已配置'}` : '火山未配置'
+                ].join(' · ');
+            } catch(err) {
+                status.textContent = '读取失败';
+            }
+        }
+        async function saveFirstPartyKeys(){
+            const panel = ensureFirstPartyKeyPanel();
+            const openai = panel.querySelector('#firstPartyOpenAIKey');
+            const volc = panel.querySelector('#firstPartyVolcKey');
+            const status = panel.querySelector('#firstPartyKeyStatus');
+            const payload = {};
+            if(openai.value.trim()) payload.openai_api_key = openai.value.trim();
+            if(volc.value.trim()) payload.volcengine_ark_api_key = volc.value.trim();
+            if(!Object.keys(payload).length){
+                status.textContent = '没有要保存的新 Key';
+                return;
+            }
+            status.textContent = '保存中...';
+            try {
+                const res = await fetch('/api/first-party-keys', {
+                    method:'PUT',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                if(!res.ok) throw new Error((await res.json()).detail || '保存失败');
+                openai.value = '';
+                volc.value = '';
+                await loadFirstPartyKeys();
+                try { new BroadcastChannel('studio-api').postMessage({ type:'providers-changed' }); } catch(e) {}
+            } catch(err) {
+                status.textContent = err.message || '保存失败';
+            }
+        }
         function escapeHtml(str){
             return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
         }
@@ -971,6 +1048,7 @@
             if(window.StudioTheme) window.StudioTheme.apply();
             if(window.StudioI18n) window.StudioI18n.apply();
             loadProviders();
+            loadFirstPartyKeys();
             // 平台名输入时实时预览生成的 ID
             if(nameInput) nameInput.addEventListener('input', updateIdPreview);
         };

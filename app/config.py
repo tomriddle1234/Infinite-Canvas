@@ -124,6 +124,21 @@ AI_BASE_URL = os.getenv("COMFLY_BASE_URL", "https://ai.comfly.chat").rstrip("/")
 AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
 MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
 MODELSCOPE_CHAT_BASE_URL = "https://api-inference.modelscope.cn/v1"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+VOLCENGINE_ARK_API_KEY = os.getenv("VOLCENGINE_ARK_API_KEY", "")
+VOLCENGINE_ARK_BASE_URL = os.getenv("VOLCENGINE_ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3").rstrip("/")
+
+SEEDREAM_MODELS = {
+    "seedream-4.0": "doubao-seedream-4-0-250828",
+    "seedream-4.5": "doubao-seedream-4-5-251128",
+    "seedream-5.0": "doubao-seedream-5-0-260128",
+}
+SEEDANCE_MODELS = {
+    "seedance-1.5-pro": "doubao-seedance-1-5-pro-251215",
+    "seedance-2.0": "doubao-seedance-2-0-260128",
+    "seedance-2.0-fast": "doubao-seedance-2-0-fast-260128",
+}
 
 MODELSCOPE_DEFAULT_IMAGE_MODELS = [
     "Tongyi-MAI/Z-Image-Turbo",
@@ -219,11 +234,15 @@ VIDEO_MODELS = _model_list("VIDEO_MODELS", "veo3-fast", [
 def reload_env_globals():
     """保存 API 设置后，把 os.environ 里的最新值同步回模块全局变量，
     避免保存后需要重启才能生效。"""
-    global MODELSCOPE_API_KEY, AI_API_KEY, AI_BASE_URL
+    global MODELSCOPE_API_KEY, AI_API_KEY, AI_BASE_URL, OPENAI_API_KEY, OPENAI_API_BASE_URL, VOLCENGINE_ARK_API_KEY, VOLCENGINE_ARK_BASE_URL
     global IMAGE_MODELS, CHAT_MODELS, VIDEO_MODELS, MODELSCOPE_CHAT_MODELS
     MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
     AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
     AI_BASE_URL = os.getenv("COMFLY_BASE_URL", "https://ai.comfly.chat").rstrip("/")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    VOLCENGINE_ARK_API_KEY = os.getenv("VOLCENGINE_ARK_API_KEY", "")
+    VOLCENGINE_ARK_BASE_URL = os.getenv("VOLCENGINE_ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3").rstrip("/")
     IMAGE_MODELS = _model_list("IMAGE_MODELS", os.getenv("IMAGE_MODEL", IMAGE_MODEL), ["nano-banana-pro"])
     CHAT_MODELS = _model_list("CHAT_MODELS", os.getenv("CHAT_MODEL", CHAT_MODEL), ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
     VIDEO_MODELS = _model_list("VIDEO_MODELS", "veo3-fast", [

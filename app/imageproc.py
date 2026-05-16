@@ -62,6 +62,16 @@ def content_type_for_path(path: str) -> str:
         return "video/webm"
     if ext == ".mov":
         return "video/quicktime"
+    if ext == ".wav":
+        return "audio/wav"
+    if ext == ".mp3":
+        return "audio/mpeg"
+    if ext in [".m4a", ".aac"]:
+        return "audio/aac"
+    if ext == ".flac":
+        return "audio/flac"
+    if ext == ".ogg":
+        return "audio/ogg"
     if ext in [".jpg", ".jpeg"]:
         return "image/jpeg"
     if ext == ".webp":
@@ -240,6 +250,11 @@ async def save_remote_video_to_output(url: str, prefix: str = "video_", category
 GPT_IMAGE2_MAX_EDGE = 3840
 GPT_IMAGE2_MAX_PIXELS = 8_294_400
 GPT_IMAGE2_MIN_PIXELS = 655_360
+SEEDREAM_MIN_PIXELS_V4 = 1280 * 720
+SEEDREAM_MIN_PIXELS_V4_5 = 3_686_400
+SEEDREAM_MAX_PIXELS_V4 = 4096 * 4096
+SEEDREAM_MIN_PIXELS_V5 = 3_686_400
+SEEDREAM_MAX_PIXELS_V5 = 10_404_496
 
 
 def parse_size_pair(size):
@@ -275,6 +290,49 @@ def normalize_gpt_image_2_size(size):
         grow = (GPT_IMAGE2_MIN_PIXELS / max(1, width * height)) ** 0.5
         width = int((width * grow + 15) // 16) * 16
         height = int((height * grow + 15) // 16) * 16
+    return f"{width}x{height}"
+
+
+def normalize_seedream_size(size, model=""):
+    """Preserve ratio while fitting Seedream model-specific pixel limits."""
+    width, height = parse_size_pair(size)
+    model_text = str(model or "").lower()
+    min_pixels = SEEDREAM_MIN_PIXELS_V4
+    max_pixels = SEEDREAM_MAX_PIXELS_V4
+    if "4-5" in model_text or "4.5" in model_text:
+        min_pixels = SEEDREAM_MIN_PIXELS_V4_5
+    if "5-0" in model_text or "5.0" in model_text:
+        min_pixels = SEEDREAM_MIN_PIXELS_V5
+        max_pixels = SEEDREAM_MAX_PIXELS_V5
+    if not width or not height:
+        return "2048x2048"
+    ratio = max(1.0 / 16.0, min(16.0, width / max(1, height)))
+    if ratio != width / max(1, height):
+        if ratio >= 1:
+            width = int(height * ratio)
+        else:
+            height = int(width / ratio)
+    pixels = width * height
+    if pixels < min_pixels:
+        grow = (min_pixels / max(1, pixels)) ** 0.5
+        width = max(16, int((width * grow + 15) // 16) * 16)
+        height = max(16, int((height * grow + 15) // 16) * 16)
+    elif pixels > max_pixels:
+        shrink = (max_pixels / max(1, pixels)) ** 0.5
+        width = max(16, int((width * shrink) // 16) * 16)
+        height = max(16, int((height * shrink) // 16) * 16)
+    if min_pixels <= width * height <= max_pixels:
+        return f"{width}x{height}"
+    while width * height < min_pixels:
+        if width <= height:
+            width += 16
+        else:
+            height += 16
+    while width * height > max_pixels and width > 16 and height > 16:
+        if width >= height:
+            width -= 16
+        else:
+            height -= 16
     return f"{width}x{height}"
 
 

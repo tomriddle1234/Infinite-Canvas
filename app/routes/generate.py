@@ -22,17 +22,140 @@ import httpx
 import requests
 from fastapi import APIRouter, HTTPException
 
-from .. import comfyui, config, imageproc, providers, store, upstream, ws
+from .. import comfyui, config, imageproc, providers, store, upstream, upstream_openai_image, upstream_volcengine, ws
 from ..models import (
     CanvasVideoRequest,
     CloudGenRequest,
     CloudPollRequest,
     GenerateRequest,
+    GptImage2Request,
     MsGenerateRequest,
     OnlineImageRequest,
+    SeedanceRequest,
+    SeedanceStatusRequest,
+    SeedreamRequest,
 )
 
 router = APIRouter()
+SEEDANCE_RESULT_CACHE = {}
+SEEDANCE_STATUS_LOCK = asyncio.Lock()
+
+
+# ---------------- Dedicated nodes: GPT Image 2.0 / Seedream / Seedance ----------------
+
+@router.post("/api/nodes/gpt-image-2")
+async def node_gpt_image_2(payload: GptImage2Request):
+    count = max(1, min(8, int(payload.count or 1)))
+    refs = [ref.model_dump() for ref in payload.reference_images if ref.url]
+    images = []
+    raws = []
+    try:
+        for _ in range(count):
+            image_data, raw = await upstream_openai_image.generate_gpt_image_2(payload.prompt, payload.size, payload.quality, refs)
+            images.append(await imageproc.save_ai_image_to_output(image_data, prefix="gpt_image2_"))
+            raws.append(raw)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=f"OpenAI 图片接口错误：{exc.response.text[:500]}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"请求 OpenAI 图片接口失败：{exc}") from exc
+    result = {
+        "prompt": payload.prompt,
+        "images": images,
+        "timestamp": time.time(),
+        "type": "gpt-image-2",
+        "model": "gpt-image-2",
+        "provider_id": "openai",
+        "params": {"size": payload.size, "quality": payload.quality, "count": count, "reference_images": refs},
+        "raw": raws[0] if len(raws) == 1 else {"items": raws},
+    }
+    store.save_to_history(result)
+    if ws.GLOBAL_LOOP:
+        asyncio.run_coroutine_threadsafe(ws.manager.broadcast_new_image(result), ws.GLOBAL_LOOP)
+    return result
+
+
+@router.post("/api/nodes/seedream")
+async def node_seedream(payload: SeedreamRequest):
+    count = max(1, min(8, int(payload.count or 1)))
+    images = []
+    raws = []
+    model = config.SEEDREAM_MODELS.get(payload.model, payload.model)
+    try:
+        for index in range(count):
+            generated, raw = upstream_volcengine.generate_seedream_once(payload, index=index)
+            for item in generated:
+                images.append(await imageproc.save_ai_image_to_output(item, prefix="seedream_"))
+            raws.append(raw)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Seedream 调用失败：{exc}") from exc
+    result = {
+        "prompt": payload.prompt,
+        "images": images,
+        "timestamp": time.time(),
+        "type": "seedream",
+        "model": model,
+        "provider_id": "volcengine-ark",
+        "params": {"size": payload.size, "count": count, "seed": payload.seed, "watermark": payload.watermark},
+        "raw": raws[0] if len(raws) == 1 else {"items": raws},
+    }
+    store.save_to_history(result)
+    if ws.GLOBAL_LOOP:
+        asyncio.run_coroutine_threadsafe(ws.manager.broadcast_new_image(result), ws.GLOBAL_LOOP)
+    return result
+
+
+@router.post("/api/nodes/seedance")
+async def node_seedance(payload: SeedanceRequest):
+    try:
+        submitted = upstream_volcengine.submit_seedance(payload)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Seedance 提交失败：{exc}") from exc
+    print(f"Seedance submitted: task_ids={submitted['task_ids']} model={submitted['model']}")
+    return {
+        "status": "submitted",
+        "task_ids": submitted["task_ids"],
+        "model": submitted["model"],
+        "raw": submitted["raw"],
+        "submitted_at": submitted["submitted_at"],
+    }
+
+
+@router.post("/api/nodes/seedance/status")
+async def node_seedance_status(payload: SeedanceStatusRequest):
+    if not payload.task_ids:
+        raise HTTPException(status_code=400, detail="缺少 Seedance task_ids")
+    cache_key = tuple(item for item in payload.task_ids if item)
+    async with SEEDANCE_STATUS_LOCK:
+        if cache_key in SEEDANCE_RESULT_CACHE:
+            return SEEDANCE_RESULT_CACHE[cache_key]
+        try:
+            result = upstream_volcengine.poll_seedance(payload.task_ids)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Seedance 查询失败：{exc}") from exc
+        local_videos = []
+        if result.get("status") == "succeeded":
+            local_videos = [await imageproc.save_remote_video_to_output(url, prefix="seedance_") for url in result.get("videos", []) if url]
+            record = {
+                "prompt": "",
+                "videos": local_videos,
+                "outputs": local_videos,
+                "timestamp": time.time(),
+                "type": "seedance",
+                "task_ids": payload.task_ids,
+                "raw": result,
+            }
+            store.save_to_history(record)
+        response = {**result, "videos": local_videos or result.get("videos", [])}
+        if response.get("status") == "succeeded":
+            SEEDANCE_RESULT_CACHE[cache_key] = response
+        print(f"Seedance status: task_ids={list(cache_key)} status={response.get('status')} videos={len(response.get('videos') or [])}")
+        return response
 
 
 # ---------------- 在线生图 ----------------

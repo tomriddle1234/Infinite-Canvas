@@ -455,7 +455,16 @@
             </div>
 
             <nav>
-                <div class="nav-item active" onclick="switchUI(this, 'zimage')">
+                <div class="nav-item active" onclick="switchUI(this, 'canvas')">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span class="nav-text" data-i18n="nav.canvas">无限画布</span>
+                </div>
+                <div class="nav-item" onclick="switchUI(this, 'zimage')">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                     </svg>
@@ -497,15 +506,6 @@
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span class="nav-text" data-i18n="nav.gpt">GPT 对话</span>
-                </div>
-                <div class="nav-item" onclick="switchUI(this, 'canvas')">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    <span class="nav-text" data-i18n="nav.canvas">无限画布</span>
                 </div>
             </nav>
 
@@ -589,13 +589,13 @@
         </aside>
 
         <main class="stage">
-            <iframe id="frame-zimage" src="/static/zimage.html?v=20260512-i18n2" class="active" scrolling="yes"></iframe>
+            <iframe id="frame-canvas" src="/static/canvas.html?v=20260515-editor-zoom-undo" class="active" scrolling="yes"></iframe>
+            <iframe id="frame-zimage" data-src="/static/zimage.html?v=20260512-i18n2" scrolling="yes"></iframe>
             <iframe id="frame-enhance" data-src="/static/enhance.html?v=20260512-i18n2" scrolling="yes"></iframe>
             <iframe id="frame-klein" data-src="/static/klein.html?v=20260512-i18n2" scrolling="yes"></iframe>
             <iframe id="frame-angle" data-src="/static/angle.html?v=20260512-i18n2" scrolling="yes"></iframe>
             <iframe id="frame-online" data-src="/static/online.html?v=20260512-i18n2" scrolling="yes"></iframe>
             <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20260514-provider-chat-models" scrolling="yes"></iframe>
-            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20260515-editor-zoom-undo" scrolling="yes"></iframe>
             <iframe id="frame-api-settings" data-src="/static/api-settings.html?v=20260514-provider-protocol" scrolling="yes"></iframe>
             <iframe id="frame-comfyui-settings" data-src="/static/comfyui-settings.html?v=20260515-workflow-refresh" scrolling="yes"></iframe>
 
