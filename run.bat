@@ -1,26 +1,37 @@
 @echo off
+setlocal
 cd /d "%~dp0"
 
-REM Prefer project venv if present, else fall back to system python.
-set "PYEXE=%~dp0.venv\Scripts\python.exe"
-if not exist "%PYEXE%" set "PYEXE=python"
+set "CONDA_ENV=OFX_dev"
 
-"%PYEXE%" --version >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Python not found.
-    echo Install Python 3.12+ from https://www.python.org/downloads/
-    echo Then: python -m venv .venv ^&^& .venv\Scripts\python -m pip install -r requirements.txt
+REM Locate miniforge (system-wide first, then per-user fallbacks)
+set "CONDA_BAT="
+if exist "C:\ProgramData\miniforge3\condabin\conda.bat" set "CONDA_BAT=C:\ProgramData\miniforge3\condabin\conda.bat"
+if not defined CONDA_BAT if exist "%USERPROFILE%\miniforge3\condabin\conda.bat" set "CONDA_BAT=%USERPROFILE%\miniforge3\condabin\conda.bat"
+if not defined CONDA_BAT if exist "%LOCALAPPDATA%\miniforge3\condabin\conda.bat" set "CONDA_BAT=%LOCALAPPDATA%\miniforge3\condabin\conda.bat"
+
+if not defined CONDA_BAT (
+    echo [ERROR] miniforge3 not found.
+    echo Looked in: C:\ProgramData\miniforge3, %%USERPROFILE%%\miniforge3, %%LOCALAPPDATA%%\miniforge3
     pause
     exit /b 1
 )
 
-echo Starting Infinite-Canvas...
+call "%CONDA_BAT%" activate %CONDA_ENV%
+if errorlevel 1 (
+    echo [ERROR] Failed to activate conda env: %CONDA_ENV%
+    echo Create it with: conda create -n %CONDA_ENV% python=3.12
+    pause
+    exit /b 1
+)
+
+echo Starting Infinite-Canvas (env: %CONDA_ENV%)...
 echo Visit: http://127.0.0.1:3000/
 echo Press Ctrl+C to stop.
 echo.
 
 start /b cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:3000/"
-"%PYEXE%" main.py
+python main.py
 
 echo.
 echo Server stopped.
