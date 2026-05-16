@@ -34,6 +34,5 @@ API/.env
 .DS_Store
 Thumbs.db
 
-# Agent tooling
-.agents/
+# Agent tooling (per-user)
 .claude/
