@@ -1,0 +1,184 @@
+"""所有 Pydantic 请求模型。"""
+
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
+
+from . import config
+
+
+class GenerateRequest(BaseModel):
+    prompt: str = ""
+    width: int = 1024
+    height: int = 1024
+    workflow_json: str = "Z-Image.json"
+    params: Dict[str, Any] = {}
+    type: str = "zimage"
+    client_id: str = ""
+    convert_to_jpg: bool = False
+
+
+class DeleteHistoryRequest(BaseModel):
+    timestamp: float
+
+
+class TokenRequest(BaseModel):
+    token: str
+
+
+class CloudGenRequest(BaseModel):
+    prompt: str
+    api_key: str = ""
+    model: str = ""
+    resolution: str = "1024x1024"
+    type: str = "zimage"
+    image_urls: List[str] = []
+    loras: Optional[Any] = None
+    client_id: Optional[str] = None
+
+
+class CloudPollRequest(BaseModel):
+    task_id: str
+    api_key: str = ""
+    client_id: Optional[str] = None
+
+
+class AIReference(BaseModel):
+    url: str = ""
+    name: str = ""
+    role: str = ""
+
+
+class OnlineImageRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=config.ONLINE_IMAGE_PROMPT_MAX_LENGTH)
+    provider_id: str = "comfly"
+    model: str = ""
+    size: str = "1024x1024"
+    quality: str = "auto"
+    reference_images: List[AIReference] = []
+
+
+class CanvasVideoRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=config.VIDEO_PROMPT_MAX_LENGTH)
+    provider_id: str = "comfly"
+    model: str = "veo3-fast"
+    duration: int = 5
+    aspect_ratio: str = "16:9"
+    resolution: str = ""
+    size: str = ""
+    images: List[AIReference] = []
+    videos: List[str] = []
+    enhance_prompt: bool = False
+    enable_upsample: bool = False
+    watermark: bool = False
+    seed: Optional[int] = None
+    camerafixed: bool = False
+    return_last_frame: bool = False
+    generate_audio: bool = False
+
+
+class ApiProviderPayload(BaseModel):
+    id: str = ""
+    name: str = ""
+    base_url: str = ""
+    protocol: str = "openai"
+    enabled: bool = True
+    primary: bool = False
+    image_models: List[str] = []
+    chat_models: List[str] = []
+    video_models: List[str] = []
+    ms_loras: List[Dict[str, Any]] = []
+    ms_defaults_version: int = 0
+    api_key: Optional[str] = None
+
+
+class ChatRequest(BaseModel):
+    conversation_id: str = ""
+    message: str = Field(min_length=1, max_length=config.LLM_MESSAGE_MAX_LENGTH)
+    model: str = ""
+    image_model: str = ""
+    mode: str = "chat"
+    size: str = "1024x1024"
+    quality: str = "auto"
+    reference_images: List[AIReference] = []
+    provider: str = "comfly"
+    ms_model: str = ""
+
+
+class MsGenerateRequest(BaseModel):
+    prompt: str
+    api_key: str = ""
+    model: str = "black-forest-labs/FLUX.2-klein-9B"
+    image_urls: List[str] = []
+    width: int = 0
+    height: int = 0
+    size: str = ""
+    loras: Optional[Any] = None
+    client_id: Optional[str] = None
+
+
+class CanvasLLMRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=config.LLM_MESSAGE_MAX_LENGTH)
+    system_prompt: str = "You are a helpful assistant."
+    model: str = ""
+    messages: List[Dict[str, Any]] = []
+    provider: str = "comfly"
+    ms_model: str = ""
+    images: List[str] = []   # 可以是 /output/*.png、/assets/*.png 本地路径 或 http(s) URL 或 data URL
+
+
+class ConversationCreateRequest(BaseModel):
+    title: str = "新对话"
+
+
+class CanvasCreateRequest(BaseModel):
+    title: str = "未命名画布"
+    icon: str = "🧩"
+
+
+class CanvasSaveRequest(BaseModel):
+    title: str = "未命名画布"
+    icon: str = "🧩"
+    nodes: List[Dict[str, Any]] = []
+    connections: List[Dict[str, Any]] = []
+    viewport: Dict[str, Any] = {}
+    logs: List[Dict[str, Any]] = []
+
+
+class TestConnectionPayload(BaseModel):
+    base_url: str = ""
+    api_key: str = ""
+    provider_id: str = ""
+
+
+class ComfyInstancesPayload(BaseModel):
+    instances: List[str] = []
+
+
+class WorkflowField(BaseModel):
+    id: str
+    node: str = ""
+    input: str = ""
+    name: str = ""
+    type: str = "text"
+    default: Any = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    step: Optional[float] = None
+    options: List[str] = []
+
+
+class WorkflowConfig(BaseModel):
+    title: str = ""
+    fields: List[WorkflowField] = []
+    mini_cards: Dict[str, Any] = {}
+
+
+class WorkflowUploadRequest(BaseModel):
+    name: str
+    workflow: Dict[str, Any]
+
+
+class WorkflowRunRequest(BaseModel):
+    fields: Dict[str, Any] = {}
+    config: WorkflowConfig
+    client_id: str = ""

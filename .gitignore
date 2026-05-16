@@ -7,6 +7,9 @@ __pycache__/
 build/
 dist/
 
+#backup folder
+.git.backup-pre-filter/
+
 # Virtual environments
 .venv/
 venv/
