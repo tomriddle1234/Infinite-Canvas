@@ -53,6 +53,27 @@ FIELD_LABELS = {
 }
 
 
+def friendly_validation_error(errors):
+    parts = []
+    for err in errors or []:
+        loc = [str(item) for item in err.get("loc", []) if item != "body"]
+        field = loc[-1] if loc else ""
+        label = FIELD_LABELS.get(field, field or "请求参数")
+        ctx = err.get("ctx") or {}
+        limit = ctx.get("limit_value") or ctx.get("max_length") or ctx.get("min_length")
+        err_type = str(err.get("type") or "")
+        msg = str(err.get("msg") or "")
+        if "max_length" in err_type or "at most" in msg:
+            parts.append(
+                f"{label}过长：当前内容超过后端上限 {limit} 个字符。请拆分为多个提示词节点，或先用 LLM 节点压缩后再生成。"
+            )
+        elif "min_length" in err_type:
+            parts.append(f"{label}不能为空。")
+        else:
+            parts.append(f"{label}格式不正确：{msg}")
+    return "\n".join(parts) or "请求参数不正确。"
+
+
 def selected_model(requested, fallback):
     """校验并返回模型名；用于阻止注入与防止字符越界。"""
     model = (requested or fallback).strip()

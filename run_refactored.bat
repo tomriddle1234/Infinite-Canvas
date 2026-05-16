@@ -26,13 +26,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Starting Infinite-Canvas (env: %CONDA_ENV%)...
+echo Starting Infinite-Canvas refactored app (env: %CONDA_ENV%)...
 echo Visit: http://127.0.0.1:3000/
 echo Press Ctrl+C to stop.
 echo.
 
 start "" powershell -WindowStyle Hidden -Command "Start-Sleep -Seconds 3; Start-Process 'http://127.0.0.1:3000/'"
-python main.py
+python main_refactored.py
 
 echo.
 echo Server stopped.

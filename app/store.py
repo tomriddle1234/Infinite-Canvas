@@ -51,6 +51,50 @@ def save_to_history(record: dict) -> None:
             json.dump(history[:5000], f, ensure_ascii=False, indent=4)
 
 
+def load_history(history_type: str = None) -> list:
+    if not os.path.exists(config.HISTORY_FILE):
+        return []
+    try:
+        with open(config.HISTORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as exc:
+        print(f"读取历史文件失败: {exc}")
+        return []
+
+    if history_type:
+        data = [item for item in data if item.get("type", "zimage") == history_type]
+    data = [item for item in data if item.get("images") and len(item["images"]) > 0]
+    data.sort(key=lambda item: float(item.get("timestamp", 0) or 0), reverse=True)
+    return data
+
+
+def delete_history(timestamp: float):
+    if not os.path.exists(config.HISTORY_FILE):
+        return None
+
+    target_record = None
+    with config.HISTORY_LOCK:
+        with open(config.HISTORY_FILE, "r", encoding="utf-8") as f:
+            history = json.load(f)
+
+        new_history = []
+        for item in history:
+            item_ts = item.get("timestamp", 0)
+            if (
+                isinstance(timestamp, (int, float))
+                and isinstance(item_ts, (int, float))
+                and abs(float(item_ts) - float(timestamp)) < 0.001
+            ) or str(item_ts) == str(timestamp):
+                target_record = item
+                continue
+            new_history.append(item)
+
+        if target_record is not None:
+            with open(config.HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(new_history, f, ensure_ascii=False, indent=4)
+    return target_record
+
+
 # --- 对话 ---
 
 def user_dir(user_id: str) -> str:
