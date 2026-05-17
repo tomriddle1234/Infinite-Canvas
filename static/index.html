@@ -554,6 +554,14 @@
                     </svg>
                     <span class="side-pill-text" data-i18n="common.comfyuiSettings">ComfyUI 设置</span>
                 </button>
+                <button class="side-pill" onclick="switchUI(this, 'about')" type="button" title="关于">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span class="side-pill-text">关于</span>
+                </button>
             </div>
 
             <div class="author-box">
@@ -598,6 +606,7 @@
             <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20260514-provider-chat-models" scrolling="yes"></iframe>
             <iframe id="frame-api-settings" data-src="/static/api-settings.html?v=20260514-provider-protocol" scrolling="yes"></iframe>
             <iframe id="frame-comfyui-settings" data-src="/static/comfyui-settings.html?v=20260515-workflow-refresh" scrolling="yes"></iframe>
+            <iframe id="frame-about" data-src="/static/about.html?v=20260517-about" scrolling="yes"></iframe>
 
             <div class="nano-monitor" id="nano-monitor">
                 <div class="stat-group">
