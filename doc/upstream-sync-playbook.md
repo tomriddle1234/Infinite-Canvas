@@ -168,6 +168,30 @@ errors 必须为 0。
 
 ## 7. 同步日志（按时间倒序，每次同步追加一节，不要删旧的）
 
+### 2026-05-17（下午） — 同步上游 5/17 下午追加更新
+
+上游最新 commit：`e0c838c Add files via upload`（2026-05-17 13:53 +0800；上一次同步基线是 `8afea2f` 09:25 +0800）。
+上游本批改动总量：`main.py +33/-8`、`static/api-settings.html +9/-1`、`static/index.html +1/-1`，只有**一个功能改动**。
+
+拉取了：
+- **§H**（`cb81885`+`e0c838c`）API 设置页"未保存就能拉模型"：
+  - 后端新增 `POST /api/providers/fetch-models`（接收 `TestConnectionPayload`，按表单当前 base_url/api_key 拉取，api_key 为空且 provider_id 已存在时回落到 env）→ 落进 `app/routes/provider.py`，**不写回 `main.py`**。
+  - 抽出共享 helper `_fetch_models_from_upstream(base_url, api_key)`，GET 与 POST 共用；原 `GET /api/providers/{id}/fetch-models` 改用 `providers.get_api_provider_exact()`（新加到 `app/providers.py`）—— 不再静默 fallback 到首选 provider，避免新增平台没保存时拉错模型清单。
+  - 前端 `fetchModels()` 改成 POST 调新端点，前置 `syncEditor()` + "请先填写请求地址" 校验。
+  - `static/index.html` iframe 缓存破坏版本：`?v=20260514-provider-protocol` → `?v=20260517-provider-fetch-form2`。
+
+跳过：
+- 无（上游本批没有 CDN/affiliate 类需要"翻译"的内容）。
+
+验证情况：
+- ✅ `python _check_ast.py`（临时脚本）通过——`app/routes/{canvas,generate,provider}.py`、`app/providers.py`、`app/models.py`、`app/ws.py`、`main_refactored.py` 全部语法 OK。
+- ⚠️ **当前 worktree 跑在不同机器上**（用户 `AMD-WS`，无 `OFX_dev` conda env、无 `node`），所以 `tests/smoke_refactored_app.py` / `tests/unit_seedream_seedance.py` / 内联 JS `new Function` 校验**未跑**。下次回到 DAN 主机上的 `OFX_dev` 环境，建议跑一遍这三项确认无回归。
+
+未端到端验证（需用户手动跑）：
+- API 设置页新增一个 provider（不保存）→ 填 base_url + api_key → 点「拉取模型」，应能拉到清单。
+- 已保存的 provider → 同样点「拉取模型」，应仍可工作（走相同的 POST 端点）。
+- 旧的 `GET /api/providers/{id}/fetch-models` 直接 curl 已保存 provider 仍应可用（保留作向后兼容）。
+
 ### 2026-05-17 — 同步上游 5/15-5/17 更新
 
 上游最新 commit：`8afea2f Add files via upload`（2026-05-17 01:25 UTC）。

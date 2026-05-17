@@ -238,6 +238,21 @@ def get_api_provider(provider_id: str = "comfly") -> dict:
     return provider
 
 
+def get_api_provider_exact(provider_id: str) -> dict:
+    """严格按 id 查找 provider，找不到直接报错；不像 get_api_provider 会兜底到首选。
+
+    用于 API 设置页"已保存平台"路径，避免静默拉错平台的模型清单。
+    """
+    providers = load_api_providers()
+    target = (provider_id or "").strip().lower()
+    provider = next((p for p in providers if p["id"] == target), None)
+    if not provider:
+        raise HTTPException(status_code=400, detail=f"未找到 API 平台：{target or '(empty)'}。新增平台未保存时请使用当前表单拉取模型。")
+    if not provider.get("enabled", True):
+        raise HTTPException(status_code=400, detail=f"API 平台已禁用：{provider.get('name') or target}")
+    return provider
+
+
 # --- 协议判断 / 请求头 ---
 
 def provider_protocol(provider) -> str:

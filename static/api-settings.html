@@ -611,11 +611,19 @@
         async function fetchModels(){
             const item = provider();
             if(!item) return;
+            syncEditor();
             const btn = document.getElementById('fetchModelsBtn');
+            const baseUrl = baseInput.value.trim();
+            const apiKey = keyInput.value.trim();
+            if(!baseUrl){ alert('请先填写请求地址'); return; }
             if(btn){ btn.disabled = true; btn.querySelector('span').textContent = tr('api.fetchingModels') || '拉取中...'; }
             setStatus(tr('api.fetchingModels') || '正在从上游拉取模型列表...');
             try {
-                const data = await fetch(`/api/providers/${encodeURIComponent(item.id)}/fetch-models`).then(async r => {
+                const data = await fetch('/api/providers/fetch-models', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({base_url:baseUrl, api_key:apiKey, provider_id:item.id})
+                }).then(async r => {
                     if(!r.ok) throw new Error((await r.json()).detail || (tr('api.urlInvalid') || '拉取失败'));
                     return r.json();
                 });

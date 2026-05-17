@@ -237,16 +237,16 @@ async def probe_async_endpoint(payload: TestConnectionPayload):
         raise HTTPException(status_code=502, detail=str(e)[:300])
 
 
-@router.get("/api/providers/{provider_id}/fetch-models")
-async def fetch_upstream_models(provider_id: str):
-    """从上游 OpenAI 兼容接口拉取 /v1/models 列表，按名称智能分类为 image/chat/video。"""
-    provider = providers.get_api_provider(provider_id)
-    base_url = (provider.get("base_url") or "").rstrip("/")
+async def _fetch_models_from_upstream(base_url: str, api_key: str) -> dict:
+    """从 OpenAI 兼容 /v1/models 端点拉取模型，并按名称做轻量分类。GET 与 POST 端点共用。"""
+    base_url = (base_url or "").strip().rstrip("/")
     if not base_url:
-        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 Base URL")
-    api_key = os.getenv(providers.provider_key_env(provider["id"]), "")
+        raise HTTPException(status_code=400, detail="请先填写请求地址")
+    if not re.match(r"^https?://", base_url):
+        raise HTTPException(status_code=400, detail="请求地址必须以 http:// 或 https:// 开头")
+    api_key = (api_key or "").strip()
     if not api_key:
-        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
+        raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
     url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -267,3 +267,22 @@ async def fetch_upstream_models(provider_id: str):
         "video_models": grouped["video"],
         "all": ids,
     }
+
+
+@router.post("/api/providers/fetch-models")
+async def fetch_upstream_models_from_payload(payload: TestConnectionPayload):
+    """按页面当前表单值拉取模型，支持新增平台未保存时直接使用临时 Base URL / Key。"""
+    api_key = (payload.api_key or "").strip()
+    if not api_key and payload.provider_id:
+        api_key = os.getenv(providers.provider_key_env(payload.provider_id), "")
+    return await _fetch_models_from_upstream(payload.base_url, api_key)
+
+
+@router.get("/api/providers/{provider_id}/fetch-models")
+async def fetch_upstream_models(provider_id: str):
+    """从已保存的上游 OpenAI 兼容接口拉取 /v1/models 列表，按名称智能分类为 image/chat/video。"""
+    provider = providers.get_api_provider_exact(provider_id)
+    api_key = os.getenv(providers.provider_key_env(provider["id"]), "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
+    return await _fetch_models_from_upstream(provider.get("base_url") or "", api_key)
