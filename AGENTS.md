@@ -8,6 +8,12 @@ This file defines the default project instructions for any new agent conversatio
 - Treat [.agents/rules/cmdrule.md](.agents/rules/cmdrule.md) as the source of truth for command execution on this project.
 - Do not ask the user to remind you to load rules if they are already present in this repository.
 
+## Upstream Sync Rule
+
+- This repository is a heavily-customized fork of `hero8152/Infinite-Canvas` with **no shared git history** with upstream.
+- When the user asks to "merge / sync / pull in upstream / 拉原作者的更新", **read [doc/upstream-sync-playbook.md](doc/upstream-sync-playbook.md) before doing anything else**.
+- Do **not** run `git merge upstream/main`, `git rebase upstream/main`, or `git cherry-pick <upstream-sha>` — they will fail or produce garbage. The playbook explains the content-based diff workflow that actually works and lists the user customizations that must not be reverted.
+
 ## Windows Command Rule
 
 - Before running Python, pip, or server-launch commands on Windows, use the environment activation flow defined in `cmdrule.md`.
