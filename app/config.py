@@ -7,13 +7,26 @@
 
 import os
 import re
+import sys
 import uuid
 from threading import Lock
 from fastapi import HTTPException
 
 # --- 路径常量 ---
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def _resolve_base_dir():
+    env_base_dir = os.environ.get("INFINITE_CANVAS_BASE_DIR")
+    if env_base_dir:
+        return os.path.abspath(env_base_dir)
+    if getattr(sys, "frozen", False) or "__compiled__" in globals():
+        exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        if os.path.basename(exe_dir).lower() == "runtime":
+            return os.path.dirname(exe_dir)
+        return exe_dir
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+BASE_DIR = _resolve_base_dir()
 WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
 WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "Z-Image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
