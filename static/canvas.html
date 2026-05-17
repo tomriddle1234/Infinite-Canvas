@@ -193,6 +193,10 @@
         .loop-count-input { width:48px; height:30px; border:1px solid var(--line-2); border-radius:10px; background:var(--card-solid); color:var(--text); outline:none; padding:0 8px; font-size:13px; font-weight:900; text-align:center; }
         .loop-toggle { height:30px; flex:0 0 auto; border-radius:999px; padding:0 10px; display:flex; align-items:center; gap:6px; border:1px solid var(--line-2); background:var(--card-solid); color:var(--muted); font-size:11px; font-weight:850; white-space:nowrap; }
         .loop-toggle.active { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
+        .loop-image-panel { display:flex; flex-direction:column; gap:8px; padding:9px 10px; border:1px dashed var(--line-2); border-radius:14px; background:var(--soft); }
+        .loop-image-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
+        .loop-image-row .loop-count-label { flex:0 0 auto; }
+        .loop-image-hint { min-width:0; color:var(--muted); font-size:11px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .loop-mode { flex:0 0 auto; }
         .loop-mode button { min-width:36px; height:24px; padding:0 8px; font-size:10px; }
         .loop-start-row { display:flex; align-items:center; gap:6px; justify-content:flex-end; padding-top:2px; }
@@ -3850,13 +3854,44 @@
         }
         function autoSizeLoopNode(node, opening){
             if(!node) return;
-            if(opening){
+            const needsTall = (node.showPrompt && node.imageInput) ? 390 : (node.showPrompt ? 290 : (node.imageInput ? 240 : 0));
+            if(opening || needsTall){
                 node.w = Math.max(Number(node.w || 0), 340);
-                node.h = Math.max(Number(node.h || 0), 290);
+                if(needsTall) node.h = Math.max(Number(node.h || 0), needsTall);
             } else {
                 node.w = Math.min(Number(node.w || 340), 340);
                 delete node.h;
             }
+        }
+        function imageRefsFromNode(n){
+            if(!n) return [];
+            if(n.type === 'image' && n.url) return [{url:n.url, name:n.name || 'image', role:n.role || ''}];
+            if(n.type === 'group'){
+                return (n.items || [])
+                    .map(id => nodes.find(x => x.id === id))
+                    .filter(x => x?.type === 'image' && x?.url)
+                    .map(img => ({url:img.url, name:img.name || 'image', role:img.role || ''}));
+            }
+            if(n.type === 'output'){
+                return (n.images || [])
+                    .map(outputUrlValue)
+                    .filter(url => url && !isVideoUrl(url))
+                    .map((url, i) => ({url, name:`output-${i + 1}.png`}));
+            }
+            return [];
+        }
+        function loopInputImageRefs(node, ctx=loopContext){
+            if(!node?.imageInput) return [];
+            const allRefs = connections
+                .filter(c => c.to === node.id)
+                .flatMap(c => imageRefsFromNode(nodes.find(n => n.id === c.from)))
+                .filter(ref => ref?.url);
+            if(!allRefs.length) return [];
+            const startBase = Math.max(1, Number(node.loopStart) || 1);
+            const batchSize = Math.max(1, Math.min(100, Number(node.imageBatchSize) || 1));
+            const currentIndex = Math.max(1, Number(ctx?.index || startBase) || startBase);
+            const start = Math.max(0, currentIndex - 1);
+            return allRefs.slice(start, start + batchSize);
         }
         function promptTextLength(text){
             return Array.from(String(text || '')).length;
@@ -3880,18 +3915,33 @@
             node.loopStart = Math.max(1, Number(node.loopStart) || 1);
             node.mode = node.mode === 'parallel' ? 'parallel' : 'serial';
             node.showPrompt = Boolean(node.showPrompt);
+            node.imageInput = Boolean(node.imageInput);
+            node.imageBatchSize = Math.max(1, Math.min(100, Number(node.imageBatchSize) || 1));
+            const imageInputCount = loopInputImageRefs(node, {index:node.loopStart}).length;
             wrap.innerHTML = `
                 <div class="loop-count-row">
                     <div class="loop-count-group">
                         <span class="loop-count-label">${tr('canvas.loopCount')}</span>
                         <input class="loop-count-input" type="number" min="1" max="100" step="1" value="${node.count}">
                     </div>
-                    <button class="loop-toggle ${node.showPrompt ? 'active' : ''}" type="button"><i data-lucide="text-cursor-input" class="w-3.5 h-3.5"></i>${tr('canvas.loopPromptToggle')}</button>
+                    <div class="loop-toggle-row" style="display:flex;gap:6px;align-items:center;">
+                        <button class="loop-toggle loop-image-toggle ${node.imageInput ? 'active' : ''}" type="button"><i data-lucide="image" class="w-3.5 h-3.5"></i>${tr('canvas.loopImageToggle')}</button>
+                        <button class="loop-toggle loop-prompt-toggle ${node.showPrompt ? 'active' : ''}" type="button"><i data-lucide="text-cursor-input" class="w-3.5 h-3.5"></i>${tr('canvas.loopPromptToggle')}</button>
+                    </div>
                     <div class="seg loop-mode">
                         <button type="button" data-loop-mode="serial" class="${node.mode !== 'parallel' ? 'active' : ''}">${tr('canvas.loopSerial')}</button>
                         <button type="button" data-loop-mode="parallel" class="${node.mode === 'parallel' ? 'active' : ''}">${tr('canvas.loopParallel')}</button>
                     </div>
                 </div>
+                ${node.imageInput ? `<div class="loop-image-panel">
+                    <div class="loop-image-row">
+                        <span class="loop-count-label">${tr('canvas.loopImageStart')}</span>
+                        <input class="loop-count-input loop-image-start-input" type="number" min="1" max="9999" step="1" value="${node.loopStart}">
+                        <span class="loop-count-label">${tr('canvas.loopBatchSize')}</span>
+                        <input class="loop-count-input loop-batch-input" type="number" min="1" max="100" step="1" value="${node.imageBatchSize}">
+                    </div>
+                    <div class="loop-image-hint">${imageInputCount ? trf('canvas.loopImageWillOutput', {n:imageInputCount}) : tr('canvas.loopImageEmpty')}</div>
+                </div>` : ''}
                 ${node.showPrompt ? `<div class="loop-prompt-panel">
                     <div class="loop-field">
                         <textarea class="loop-variable" placeholder="${tr('canvas.loopVariablePlaceholder')}">${escapeHtml(node.variablePrompt || '')}</textarea>
@@ -3909,7 +3959,49 @@
             `;
             const countInput = wrap.querySelector('.loop-count-input');
             const variable = wrap.querySelector('.loop-variable');
-            const toggle = wrap.querySelector('.loop-toggle');
+            const toggle = wrap.querySelector('.loop-prompt-toggle');
+            const imageToggle = wrap.querySelector('.loop-image-toggle');
+            const imageStartInput = wrap.querySelector('.loop-image-start-input');
+            const batchInput = wrap.querySelector('.loop-batch-input');
+            const refreshImageHint = () => {
+                const hint = wrap.querySelector('.loop-image-hint');
+                if(!hint) return;
+                const count = loopInputImageRefs(node, {index:node.loopStart}).length;
+                hint.textContent = count ? trf('canvas.loopImageWillOutput', {n:count}) : tr('canvas.loopImageEmpty');
+            };
+            if(imageStartInput){
+                imageStartInput.onmousedown = e => e.stopPropagation();
+                imageStartInput.onclick = e => e.stopPropagation();
+                imageStartInput.oninput = e => {
+                    node.loopStart = Math.max(1, Number(e.target.value) || 1);
+                    refreshImageHint();
+                    scheduleSave();
+                };
+            }
+            if(batchInput){
+                batchInput.onmousedown = e => e.stopPropagation();
+                batchInput.onclick = e => e.stopPropagation();
+                batchInput.oninput = e => {
+                    node.imageBatchSize = Math.max(1, Math.min(100, Number(e.target.value) || 1));
+                    e.target.value = node.imageBatchSize;
+                    refreshImageHint();
+                    scheduleSave();
+                };
+            }
+            if(imageToggle){
+                imageToggle.onclick = e => {
+                    e.stopPropagation();
+                    node.imageInput = !node.imageInput;
+                    if(node.imageInput){
+                        node.imageBatchSize = Math.max(1, Math.min(100, Number(node.imageBatchSize) || 1));
+                    }
+                    autoSizeLoopNode(node, node.imageInput || node.showPrompt);
+                    render();
+                    scheduleSave();
+                    syncGeneratorInputs();
+                    refreshGeneratorInputViews();
+                };
+            }
             wrap.querySelectorAll('textarea').forEach(textarea => {
                 textarea.onwheel = e => e.stopPropagation();
             });
@@ -5175,6 +5267,18 @@
                 if(n.type === 'prompt') return {id:n.id, type:'prompt', label:(n.text || '提示词').slice(0, 32), refs:[], prompt:n.text || ''};
                 if(n.type === 'loop') {
                     const prompt = renderLoopPrompt(n);
+                    const refs = loopInputImageRefs(n);
+                    if(refs.length){
+                        const currentIndex = Math.max(1, Number(loopContext?.index || n.loopStart || 1) || 1);
+                        return refs.map((ref, i) => ({
+                            id:`${n.id}:image:${currentIndex + i}:${ref.url}`,
+                            type:'loopImage',
+                            label:trf('canvas.loopImageLabel', {n:currentIndex + i}),
+                            preview:ref.url,
+                            refs:[ref],
+                            prompt:i === 0 ? prompt : ''
+                        }));
+                    }
                     return {id:n.id, type:'loop', label:`${tr('canvas.loopNode')} ${loopCount(n)}x`, refs:[], prompt};
                 }
                 if(n.type === 'promptGroup') {
@@ -7132,6 +7236,7 @@
             const from = nodes.find(n => n.id === fromId);
             const to = nodes.find(n => n.id === toId);
             if(!from || !to) return false;
+            if(to.type === 'loop') return Boolean(to.imageInput) && ['image','group','output'].includes(from.type);
             if(['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(from.type)) return to.type === 'output';
             if(to.type === 'llm') return ['prompt','loop','promptGroup','llm','image','group','output'].includes(from.type);
             if(from.type === 'llm') return ['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(to.type);
