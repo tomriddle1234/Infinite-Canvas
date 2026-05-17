@@ -183,6 +183,7 @@ class CanvasSaveRequest(BaseModel):
     connections: List[Dict[str, Any]] = []
     viewport: Dict[str, Any] = {}
     logs: List[Dict[str, Any]] = []
+    base_updated_at: Optional[int] = None
 
 
 class TestConnectionPayload(BaseModel):

@@ -2,7 +2,7 @@
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from .. import store
 from ..models import CanvasCreateRequest, CanvasSaveRequest
@@ -25,6 +25,17 @@ async def create_canvas(payload: CanvasCreateRequest):
     return {"canvas": store.new_canvas(payload.title, payload.icon)}
 
 
+@router.get("/api/canvases/{canvas_id}/meta")
+async def get_canvas_meta(canvas_id: str):
+    canvas = store.load_canvas(canvas_id)
+    return {
+        "id": canvas.get("id"),
+        "updated_at": canvas.get("updated_at", 0),
+        "title": canvas.get("title", "未命名画布"),
+        "icon": canvas.get("icon", "layers"),
+    }
+
+
 @router.get("/api/canvases/{canvas_id}")
 async def get_canvas(canvas_id: str):
     return {"canvas": store.load_canvas(canvas_id)}
@@ -33,6 +44,13 @@ async def get_canvas(canvas_id: str):
 @router.put("/api/canvases/{canvas_id}")
 async def update_canvas(canvas_id: str, payload: CanvasSaveRequest):
     canvas = store.load_canvas(canvas_id)
+    current_updated_at = int(canvas.get("updated_at") or 0)
+    if payload.base_updated_at and current_updated_at and int(payload.base_updated_at) < current_updated_at:
+        raise HTTPException(status_code=409, detail={
+            "message": "画布已被其他页面更新，已拒绝旧版本覆盖。",
+            "canvas": canvas,
+            "updated_at": current_updated_at,
+        })
     canvas["title"] = (payload.title or canvas.get("title") or "未命名画布")[:80]
     canvas["icon"] = (payload.icon or canvas.get("icon") or "layers")[:32]
     canvas["nodes"] = payload.nodes
