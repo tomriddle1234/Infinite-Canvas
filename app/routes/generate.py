@@ -19,6 +19,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
+from threading import Lock
+from typing import Any, Dict
 
 import httpx
 import requests
@@ -183,8 +186,12 @@ async def node_seedance_status(payload: SeedanceStatusRequest):
 
 # ---------------- 在线生图 ----------------
 
-@router.post("/api/online-image")
-async def online_image(payload: OnlineImageRequest):
+# 异步画布图任务的进程内状态。重启即清空，与上游一致。
+CANVAS_TASKS: Dict[str, Dict[str, Any]] = {}
+CANVAS_TASK_LOCK = Lock()
+
+
+async def build_online_image_result(payload: OnlineImageRequest) -> dict:
     provider = providers.get_api_provider(payload.provider_id)
     default_model = (provider.get("image_models") or [config.IMAGE_MODEL])[0]
     model = config.selected_model(payload.model, default_model)
@@ -229,6 +236,65 @@ async def online_image(payload: OnlineImageRequest):
     if ws.GLOBAL_LOOP:
         asyncio.run_coroutine_threadsafe(ws.manager.broadcast_new_image(result), ws.GLOBAL_LOOP)
     return result
+
+
+@router.post("/api/online-image")
+async def online_image(payload: OnlineImageRequest):
+    return await build_online_image_result(payload)
+
+
+async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest) -> None:
+    with CANVAS_TASK_LOCK:
+        if task_id in CANVAS_TASKS:
+            CANVAS_TASKS[task_id]["status"] = "running"
+            CANVAS_TASKS[task_id]["updated_at"] = time.time()
+    try:
+        result = await build_online_image_result(payload)
+        with CANVAS_TASK_LOCK:
+            if task_id in CANVAS_TASKS:
+                CANVAS_TASKS[task_id].update({
+                    "status": "succeeded",
+                    "result": result,
+                    "error": "",
+                    "updated_at": time.time(),
+                })
+    except Exception as exc:
+        detail = getattr(exc, "detail", None) or str(exc)
+        status_code = getattr(exc, "status_code", 500)
+        with CANVAS_TASK_LOCK:
+            if task_id in CANVAS_TASKS:
+                CANVAS_TASKS[task_id].update({
+                    "status": "failed",
+                    "error": str(detail),
+                    "status_code": status_code,
+                    "updated_at": time.time(),
+                })
+
+
+@router.post("/api/canvas-image-tasks")
+async def create_canvas_image_task(payload: OnlineImageRequest):
+    task_id = f"canvas_img_{uuid.uuid4().hex}"
+    with CANVAS_TASK_LOCK:
+        CANVAS_TASKS[task_id] = {
+            "id": task_id,
+            "type": "online-image",
+            "status": "queued",
+            "created_at": time.time(),
+            "updated_at": time.time(),
+            "result": None,
+            "error": "",
+        }
+    asyncio.create_task(run_canvas_image_task(task_id, payload))
+    return {"task_id": task_id, "status": "queued"}
+
+
+@router.get("/api/canvas-image-tasks/{task_id}")
+async def get_canvas_image_task(task_id: str):
+    with CANVAS_TASK_LOCK:
+        task = dict(CANVAS_TASKS.get(task_id) or {})
+    if not task:
+        raise HTTPException(status_code=404, detail="画布任务不存在，可能服务已重启或任务已过期")
+    return task
 
 
 # ---------------- 视频生成 ----------------
