@@ -754,6 +754,7 @@
             <div id="dropOverlay" class="drop-overlay" data-i18n="canvas.dropImage">拖放图片到画布</div>
             <div id="selectionBox" class="selection-box"></div>
             <div id="selectionHub" class="selection-hub"></div>
+            <div id="outputNodeMenu" class="create-menu"></div>
             <div id="createMenu" class="create-menu">
                 <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
                 <button class="menu-btn" onclick="menuAdd('prompt')"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
@@ -985,6 +986,7 @@
         const linkControlsEl = document.getElementById('linkControls');
         const dropOverlay = document.getElementById('dropOverlay');
         const createMenu = document.getElementById('createMenu');
+        const outputNodeMenu = document.getElementById('outputNodeMenu');
         const selectionBox = document.getElementById('selectionBox');
         const selectionHub = document.getElementById('selectionHub');
         const gateStatus = document.getElementById('gateStatus');
@@ -2855,6 +2857,117 @@
             refreshIcons();
         }
         function closeCreateMenu(){ createMenu.classList.remove('open'); }
+        function outputImageUrls(node){
+            return (node?.images || []).map(outputUrlValue).filter(url => url && !isVideoUrl(url));
+        }
+        function createInputGroupFromOutput(node, point){
+            const urls = outputImageUrls(node);
+            if(!node || !urls.length) return null;
+            const cols = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(urls.length))));
+            const cardW = 260;
+            const cardH = 336;
+            const gap = 24;
+            const base = point || {x:Number(node.x || 0), y:Number(node.y || 0)};
+            const imageNodes = urls.map((url, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const img = {
+                    id:uid('img'),
+                    type:'image',
+                    x:base.x + 24 + col * (cardW + gap),
+                    y:base.y + 58 + row * (cardH + gap),
+                    w:cardW,
+                    h:cardH,
+                    url,
+                    name:outputImageName(url)
+                };
+                nodes.push(img);
+                return img;
+            });
+            const rows = Math.ceil(urls.length / cols);
+            const group = {
+                id:uid('grp'),
+                type:'group',
+                x:base.x,
+                y:base.y,
+                w:cols * cardW + (cols - 1) * gap + 48,
+                h:rows * cardH + (rows - 1) * gap + 90,
+                items:imageNodes.map(img => img.id)
+            };
+            nodes.push(group);
+            return group;
+        }
+        function openOutputNodeMenu(nodeId, clientX, clientY){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || node.type !== 'output') return;
+            closeCreateMenu();
+            const imageCount = outputImageUrls(node).length;
+            outputNodeMenu.innerHTML = `
+                <button class="menu-btn" data-output-convert="${escapeAttr(nodeId)}" ${imageCount ? '' : 'disabled'}><i data-lucide="replace" class="w-4 h-4"></i><span>${tr('canvas.outputConvertToInputGroup')}</span></button>
+                <button class="menu-btn" data-output-copy="${escapeAttr(nodeId)}" ${imageCount ? '' : 'disabled'}><i data-lucide="copy-plus" class="w-4 h-4"></i><span>${tr('canvas.outputCopyToInputGroup')}</span></button>
+            `;
+            const menuWidth = 260;
+            outputNodeMenu.style.left = `${Math.max(10, Math.min(window.innerWidth - menuWidth - 10, clientX))}px`;
+            outputNodeMenu.style.top = `${clientY}px`;
+            outputNodeMenu.classList.add('open');
+            const convertBtn = outputNodeMenu.querySelector('[data-output-convert]');
+            if(convertBtn){
+                convertBtn.onclick = e => {
+                    e.stopPropagation();
+                    convertOutputNodeToInputGroup(nodeId);
+                    closeOutputNodeMenu();
+                };
+            }
+            const copyBtn = outputNodeMenu.querySelector('[data-output-copy]');
+            if(copyBtn){
+                copyBtn.onclick = e => {
+                    e.stopPropagation();
+                    copyOutputNodeToInputGroup(nodeId);
+                    closeOutputNodeMenu();
+                };
+            }
+            refreshIcons();
+        }
+        function closeOutputNodeMenu(){
+            outputNodeMenu.classList.remove('open');
+            outputNodeMenu.innerHTML = '';
+        }
+        function convertOutputNodeToInputGroup(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || node.type !== 'output') return;
+            if(!outputImageUrls(node).length) return;
+            pushUndo();
+            const downstream = connections.filter(c => c.from === nodeId).map(c => c.to);
+            const group = createInputGroupFromOutput(node, {x:Number(node.x || 0), y:Number(node.y || 0)});
+            if(!group) return;
+            nodes = nodes.filter(n => n.id !== nodeId);
+            connections = connections.filter(c => c.from !== nodeId && c.to !== nodeId);
+            downstream.forEach(toId => {
+                if(canConnect(group.id, toId) && !connections.some(c => c.from === group.id && c.to === toId)){
+                    connections.push({id:uid('c'), from:group.id, to:toId});
+                }
+            });
+            selected.clear();
+            selected.add(group.id);
+            syncGeneratorInputs();
+            refreshGeneratorInputViews();
+            render();
+            scheduleSave();
+        }
+        function copyOutputNodeToInputGroup(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || node.type !== 'output') return;
+            if(!outputImageUrls(node).length) return;
+            pushUndo();
+            const group = createInputGroupFromOutput(node, {x:Number(node.x || 0) + 36, y:Number(node.y || 0) + 36});
+            if(!group) return;
+            selected.clear();
+            selected.add(group.id);
+            syncGeneratorInputs();
+            refreshGeneratorInputViews();
+            render();
+            scheduleSave();
+        }
         function menuAdd(type){
             closeCreateMenu();
             if(type === 'image') addImageNode(menuPoint);
@@ -3799,6 +3912,13 @@
                 if(e.button !== 0 || !isNodeDragSurface(e.target)) return;
                 startNodeDrag(e, node);
             };
+            if(node.type === 'output'){
+                el.oncontextmenu = e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openOutputNodeMenu(node.id, e.clientX, e.clientY);
+                };
+            }
             const canInput = ['generator','gptimage','seedream','seedance','comfy','output','llm','msgen','video'].includes(node.type);
             const canOutput = ['image','prompt','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
@@ -7504,6 +7624,7 @@
             if(document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
             if(e.target !== board && e.target !== world && e.target !== nodesEl && e.target !== linksEl) return;
             closeCreateMenu();
+            closeOutputNodeMenu();
             if(e.ctrlKey || e.metaKey){
                 e.preventDefault();
                 startSelection(e);
