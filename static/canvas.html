@@ -700,18 +700,18 @@
                 <p id="saveState" style="display:none" data-i18n="canvas.chooseFirst">请选择或新建画布</p>
             </div>
             <div class="panel toolbar editor-only">
-                <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
                 <button class="tool-btn" onclick="addPromptNode()"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
+                <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
+                <button class="tool-btn" onclick="addSeedreamNode()"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
+                <button class="tool-btn" onclick="addGptImageNode()"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
+                <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
                 <button class="tool-btn" onclick="addLoopNode()"><i data-lucide="repeat-2" class="w-4 h-4"></i><span data-i18n="canvas.loop">循环</span></button>
+                <button class="tool-btn" onclick="addOutputNode()"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
+                <button class="tool-btn" onclick="addVideoNode()"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerate">视频生成</span></button>
                 <button class="tool-btn" onclick="addLLMNode()"><i data-lucide="message-square-text" class="w-4 h-4"></i>LLM</button>
                 <button class="tool-btn" onclick="addGeneratorNode()"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
-                <button class="tool-btn" onclick="addGptImageNode()"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
-                <button class="tool-btn" onclick="addSeedreamNode()"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="tool-btn" onclick="addMsGenNode()"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.msGenerate">MS生成</span></button>
-                <button class="tool-btn" onclick="addVideoNode()"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerate">视频生成</span></button>
-                <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
                 <button class="tool-btn" onclick="addComfyNode()"><i data-lucide="workflow" class="w-4 h-4"></i>ComfyUI</button>
-                <button class="tool-btn" onclick="addOutputNode()"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
                 <button class="tool-btn" onclick="groupSelectedImages()"><i data-lucide="group" class="w-4 h-4"></i><span data-i18n="canvas.group">分组</span></button>
                 <button class="tool-btn" onclick="openCanvasLog()"><i data-lucide="list-todo" class="w-4 h-4"></i><span data-i18n="canvas.logs">日志</span></button>
             </div>
@@ -756,18 +756,18 @@
             <div id="selectionHub" class="selection-hub"></div>
             <div id="outputNodeMenu" class="create-menu"></div>
             <div id="createMenu" class="create-menu">
-                <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
                 <button class="menu-btn" onclick="menuAdd('prompt')"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
+                <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
+                <button class="menu-btn" onclick="menuAdd('seedream')"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
+                <button class="menu-btn" onclick="menuAdd('gptimage')"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
+                <button class="menu-btn" onclick="menuAdd('seedance')"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
                 <button class="menu-btn" onclick="menuAdd('loop')"><i data-lucide="repeat-2" class="w-4 h-4"></i><span data-i18n="canvas.loopNode">循环节点</span></button>
+                <button class="menu-btn" onclick="menuAdd('output')"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
+                <button class="menu-btn" onclick="menuAdd('video')"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerateNode">视频生成</span></button>
                 <button class="menu-btn" onclick="menuAdd('llm')"><i data-lucide="message-square-text" class="w-4 h-4"></i><span data-i18n="canvas.llmNode">LLM 节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('generator')"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
-                <button class="menu-btn" onclick="menuAdd('gptimage')"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
-                <button class="menu-btn" onclick="menuAdd('seedream')"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="menu-btn" onclick="menuAdd('msgen')"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.modelscopeGenerate">Modelscope生成</span></button>
-                <button class="menu-btn" onclick="menuAdd('video')"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerateNode">视频生成</span></button>
-                <button class="menu-btn" onclick="menuAdd('seedance')"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
                 <button class="menu-btn" onclick="menuAdd('comfy')"><i data-lucide="workflow" class="w-4 h-4"></i><span data-i18n="canvas.comfyGenerate">ComfyUI 生成</span></button>
-                <button class="menu-btn" onclick="menuAdd('output')"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
             </div>
             <div id="world" class="world">
                 <svg id="links" class="links"></svg>
