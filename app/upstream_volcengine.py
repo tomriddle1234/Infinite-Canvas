@@ -5,6 +5,7 @@ import os
 import time
 
 from fastapi import HTTPException
+from volcenginesdkarkruntime import Ark
 
 from . import config, imageproc
 
@@ -17,10 +18,6 @@ def _client():
     key = (config.VOLCENGINE_ARK_API_KEY or "").strip()
     if not key:
         raise HTTPException(status_code=400, detail="未配置 VOLCENGINE_ARK_API_KEY，请先在 API 设置中填写。")
-    try:
-        from volcenginesdkarkruntime import Ark
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="缺少火山 Ark SDK，请先安装 requirements.txt 中的 volcengine-python-sdk[ark]。") from exc
     return Ark(api_key=key, base_url=config.VOLCENGINE_ARK_BASE_URL)
 
 
