@@ -1055,6 +1055,12 @@
         let pendingDeleteCanvasId = null;
         let pendingPurgeCanvasId = null;
         let emojiPickerCanvasId = null;
+        let lastCanvasUpdatedAt = 0;
+        let applyingRemoteCanvas = false;
+        let remoteSyncBusy = false;
+        let remoteSyncInterval = null;
+        let remoteSyncTimer = null;
+        let savingCanvasNow = false;
         let models = {gpt:'gpt-image-2', nano:'nano-banana-pro'};
         let imageModels = ['gpt-image-2', 'nano-banana-pro'];
         let chatModels = ['gpt-4o-mini'];
@@ -1556,21 +1562,113 @@
         async function saveCanvas(){
             if(!canvas) return;
             sanitizeConnections();
+            savingCanvasNow = true;
             try {
+                const baseUpdatedAt = Number(lastCanvasUpdatedAt || canvas.updated_at || 0);
                 const res = await fetch(`/api/canvases/${canvas.id}`, {
                     method:'PUT',
                     headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({ title:canvas.title, icon:canvas.icon || '🧩', nodes, connections, viewport, logs:canvas.logs || [] })
+                    body:JSON.stringify({ title:canvas.title, icon:canvas.icon || '🧩', nodes, connections, viewport, logs:canvas.logs || [], base_updated_at: baseUpdatedAt })
                 });
+                if(res.status === 409){
+                    const conflict = await res.json().catch(() => ({}));
+                    const remote = conflict?.detail?.canvas;
+                    if(remote) applyRemoteCanvasData(remote);
+                    setStatus('Synced');
+                    return;
+                }
                 if(!res.ok) throw new Error('save failed');
-                canvas.updated_at = Date.now();
+                const data = await res.json().catch(() => ({}));
+                const savedAt = Number(data?.canvas?.updated_at || Date.now());
+                canvas.updated_at = savedAt;
+                lastCanvasUpdatedAt = savedAt;
                 if(currentCanvasTime) currentCanvasTime.textContent = formatCanvasTime(canvas.updated_at);
                 setStatus('Saved');
                 loadCanvasList(false);
             } catch(e) {
                 setStatus('Save failed');
                 console.error(e);
+            } finally {
+                savingCanvasNow = false;
             }
+        }
+        function applyRemoteCanvasData(remote){
+            if(!remote || !canvas || remote.id !== canvas.id) return;
+            applyingRemoteCanvas = true;
+            try {
+                canvas = remote;
+                canvas.logs = canvas.logs || [];
+                nodes = canvas.nodes || [];
+                connections = canvas.connections || [];
+                viewport = canvas.viewport || {x:0, y:0, scale:1};
+                lastCanvasUpdatedAt = Number(canvas.updated_at || Date.now());
+                nodes.forEach(n => { if(n.running) n.running = false; });
+                sanitizeConnections();
+                pruneMissingComfyWorkflows();
+                selected.clear();
+                renderCanvasList();
+                render();
+                if(currentCanvasTitle) currentCanvasTitle.textContent = canvas.title || tr('canvas.untitled');
+                if(currentCanvasTime) currentCanvasTime.textContent = formatCanvasTime(canvas.updated_at || canvas.created_at);
+                setStatus('Synced');
+            } finally {
+                applyingRemoteCanvas = false;
+            }
+        }
+        async function syncRemoteCanvasNow(){
+            if(!canvas) return;
+            try {
+                const res = await fetch(`/api/canvases/${canvas.id}`);
+                if(!res.ok) throw new Error(tr('canvas.openFailed'));
+                const data = await res.json();
+                const remote = data.canvas;
+                if(Number(remote?.updated_at || 0) >= Number(lastCanvasUpdatedAt || 0)){
+                    applyRemoteCanvasData(remote);
+                }
+            } catch(e) {
+                console.error(e);
+                setStatus('Sync failed');
+            }
+        }
+        async function checkRemoteCanvasVersion(){
+            if(!canvas || applyingRemoteCanvas || remoteSyncBusy) return;
+            if(document.hidden) return;
+            remoteSyncBusy = true;
+            try {
+                const res = await fetch(`/api/canvases/${canvas.id}/meta`);
+                if(!res.ok) throw new Error('meta failed');
+                const meta = await res.json();
+                const remoteUpdatedAt = Number(meta.updated_at || 0);
+                if(remoteUpdatedAt > Number(lastCanvasUpdatedAt || 0)){
+                    await syncRemoteCanvasNow();
+                }
+            } catch(e) {
+                /* 轮询失败下一轮再试 */
+            } finally {
+                remoteSyncBusy = false;
+            }
+        }
+        function startCanvasRemotePolling(){
+            stopCanvasRemotePolling();
+            remoteSyncInterval = setInterval(checkRemoteCanvasVersion, 2500);
+        }
+        function stopCanvasRemotePolling(){
+            if(remoteSyncInterval){
+                clearInterval(remoteSyncInterval);
+                remoteSyncInterval = null;
+            }
+        }
+        function handleCanvasUpdatedMessage(data){
+            if(!canvas || !data || data.type !== 'canvas_updated') return;
+            if(data.client_id && data.client_id === CLIENT_ID) return;
+            if(data.canvas_id !== canvas.id) return;
+            const remoteUpdatedAt = Number(data.updated_at || 0);
+            if(remoteUpdatedAt && remoteUpdatedAt <= Number(lastCanvasUpdatedAt || 0)) return;
+            clearTimeout(saveTimer);
+            saveTimer = null;
+            clearTimeout(remoteSyncTimer);
+            remoteSyncTimer = setTimeout(syncRemoteCanvasNow, savingCanvasNow ? 700 : 120);
+            setStatus('Syncing...');
         }
 
         async function loadConfig(){
@@ -1604,8 +1702,17 @@
                     pruneMissingComfyWorkflows();
                     if(typeof render === 'function') render();
                 }
+                if(e.data?.type === 'canvas_updated'){
+                    handleCanvasUpdatedMessage(e.data);
+                }
             };
         } catch(e) { /* 不支持 BroadcastChannel 的旧浏览器忽略 */ }
+        window.addEventListener('message', event => {
+            if(event.data?.type === 'canvas_updated') handleCanvasUpdatedMessage(event.data);
+        });
+        document.addEventListener('visibilitychange', () => {
+            if(!document.hidden && canvas) syncRemoteCanvasNow();
+        });
         function msChatModelOptions(selected){
             // 单一数据源：从 API 设置里 modelscope 平台的 chat_models 取
             const msProvider = apiProviders.find(p => p.id === 'modelscope');
@@ -1790,6 +1897,7 @@
                 nodes = canvas.nodes || [];
                 connections = canvas.connections || [];
                 viewport = canvas.viewport || {x:0, y:0, scale:1};
+                lastCanvasUpdatedAt = Number(canvas.updated_at || Date.now());
                 sanitizeConnections();
                 selected.clear();
                 setCanvasMode(true);
@@ -1798,6 +1906,7 @@
                 setCreateMode(false);
                 await loadCanvasList(false);
                 renderCanvasList();
+                startCanvasRemotePolling();
             } catch(e) {
                 setStatus(tr('canvas.createFailed'));
                 console.error(e);
@@ -1918,6 +2027,7 @@
                 nodes = canvas.nodes || [];
                 connections = canvas.connections || [];
                 viewport = canvas.viewport || {x:0, y:0, scale:1};
+                lastCanvasUpdatedAt = Number(canvas.updated_at || Date.now());
                 nodes.forEach(n => { if(n.running) n.running = false; });
                 sanitizeConnections();
                 pruneMissingComfyWorkflows();
@@ -1925,6 +2035,7 @@
                 setCanvasMode(true);
                 renderCanvasList();
                 render();
+                startCanvasRemotePolling();
                 setStatus('Ready');
             } catch(e) {
                 setStatus(tr('canvas.openFailed'));
@@ -1934,6 +2045,7 @@
         async function returnToCanvasManager(){
             clearTimeout(saveTimer);
             if(canvas) await saveCanvas();
+            stopCanvasRemotePolling();
             canvas = null;
             nodes = [];
             connections = [];
