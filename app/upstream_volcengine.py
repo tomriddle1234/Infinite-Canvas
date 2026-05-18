@@ -6,6 +6,7 @@ import time
 
 from fastapi import HTTPException
 from volcenginesdkarkruntime import Ark
+from volcenginesdkarkruntime._exceptions import ArkAPIConnectionError, ArkAPITimeoutError
 
 from . import config, imageproc
 
@@ -76,6 +77,18 @@ def _to_dict(obj):
     return {"value": str(obj)}
 
 
+def _connection_error_detail(prefix: str, exc: Exception) -> str:
+    detail = str(exc)
+    cause = exc.__cause__
+    if cause is not None:
+        cause_text = str(cause)
+        if cause_text:
+            detail = f"{detail}; underlying={type(cause).__name__}: {cause_text}"
+        else:
+            detail = f"{detail}; underlying={type(cause).__name__}"
+    return f"{prefix}: {detail}"
+
+
 def _seedream_images(raw):
     images = []
     for item in _read_attr(raw, "data") or []:
@@ -109,14 +122,19 @@ def generate_seedream_once(payload, index: int = 0) -> tuple[list[dict], dict]:
     raw_items = []
     images = []
     try:
-        stream = client.images.generate(**body, stream=True)
-        for event in stream:
-            raw_items.append(_to_dict(event))
-            images.extend(_seedream_images(event))
-    except TypeError:
-        raw = client.images.generate(**body)
-        raw_items.append(_to_dict(raw))
-        images.extend(_seedream_images(raw))
+        try:
+            stream = client.images.generate(**body, stream=True)
+            for event in stream:
+                raw_items.append(_to_dict(event))
+                images.extend(_seedream_images(event))
+        except TypeError:
+            raw = client.images.generate(**body)
+            raw_items.append(_to_dict(raw))
+            images.extend(_seedream_images(raw))
+    except ArkAPITimeoutError as exc:
+        raise HTTPException(status_code=502, detail=_connection_error_detail("Seedream 请求超时", exc)) from exc
+    except ArkAPIConnectionError as exc:
+        raise HTTPException(status_code=502, detail=_connection_error_detail("Seedream 连接火山 Ark 失败", exc)) from exc
     if not images:
         raise HTTPException(status_code=502, detail=f"Seedream 未返回图片：{raw_items[-1] if raw_items else '{}'}")
     return images, {"events": raw_items, "model": model, "size": body["size"]}
@@ -185,7 +203,12 @@ def submit_seedance(payload) -> dict:
     }
     if payload.seed is not None:
         body["seed"] = int(payload.seed)
-    task = client.content_generation.tasks.create(**body)
+    try:
+        task = client.content_generation.tasks.create(**body)
+    except ArkAPITimeoutError as exc:
+        raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 请求超时", exc)) from exc
+    except ArkAPIConnectionError as exc:
+        raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 连接火山 Ark 失败", exc)) from exc
     raw = _to_dict(task)
     task_id = _read_attr(task, "id") or raw.get("id") or raw.get("task_id")
     if not task_id:
@@ -216,7 +239,12 @@ def poll_seedance(task_ids: list[str]) -> dict:
     failed = []
     pending = []
     for task_id in [item for item in task_ids if item]:
-        task = client.content_generation.tasks.get(task_id=task_id)
+        try:
+            task = client.content_generation.tasks.get(task_id=task_id)
+        except ArkAPITimeoutError as exc:
+            raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 查询超时", exc)) from exc
+        except ArkAPIConnectionError as exc:
+            raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 连接火山 Ark 失败", exc)) from exc
         raw = _to_dict(task)
         status = str(_read_attr(task, "status") or raw.get("status") or raw.get("task_status") or "").lower()
         tasks.append(raw)

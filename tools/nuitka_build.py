@@ -36,12 +36,12 @@ STANDALONE_STAGING = BUILD_DIR / "main_refactored.dist"
 ONEFILE_STAGING = BUILD_DIR / f"{APP_NAME}.exe"
 MANIFEST = BUILD_DIR / "manifest.json"
 
-PYTHON_SOURCE_PATTERNS = (
+NUITKA_COMPILE_ARGS_VERSION = 2
+
+PYTHON_COMPILE_PATTERNS = (
     "main_refactored.py",
     "app/**/*.py",
     "requirements.txt",
-    "run_nuitka.bat",
-    "tools/nuitka_build.py",
 )
 
 STATIC_DIRS = ("static", "workflows")
@@ -57,7 +57,7 @@ def rel(path: Path) -> str:
 def iter_source_files() -> list[Path]:
     seen: set[Path] = set()
     files: list[Path] = []
-    for pattern in PYTHON_SOURCE_PATTERNS:
+    for pattern in PYTHON_COMPILE_PATTERNS:
         for path in ROOT.glob(pattern):
             if path.is_file() and path not in seen:
                 seen.add(path)
@@ -78,7 +78,7 @@ def source_signature(mode: str) -> dict[str, object]:
         "mode": mode,
         "entry": rel(ENTRY),
         "python": {rel(path): hash_file(path) for path in iter_source_files()},
-        "nuitka_args_version": 2,
+        "nuitka_args_version": NUITKA_COMPILE_ARGS_VERSION,
     }
 
 
@@ -94,6 +94,19 @@ def load_manifest() -> dict[str, object]:
 def save_manifest(signature: dict[str, object]) -> None:
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(signature, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def manifest_matches_compile_inputs(manifest: dict[str, object], signature: dict[str, object]) -> bool:
+    if not manifest:
+        return False
+    for key in ("mode", "entry", "nuitka_args_version"):
+        if manifest.get(key) != signature.get(key):
+            return False
+    current = signature.get("python")
+    previous = manifest.get("python")
+    if not isinstance(current, dict) or not isinstance(previous, dict):
+        return False
+    return all(previous.get(path) == digest for path, digest in current.items())
 
 
 def ensure_nuitka(skip_pip: bool) -> None:
@@ -131,6 +144,17 @@ def sync_external_assets() -> None:
     for name in STATIC_DIRS:
         copy_tree(ROOT / name, FINAL_DIR / name)
 
+    try:
+        import certifi
+
+        cafile = Path(certifi.where())
+    except Exception:
+        cafile = None
+    if cafile and cafile.exists():
+        cert_dir = FINAL_DIR / "certs"
+        cert_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(cafile, cert_dir / "cacert.pem")
+
     api_env = ROOT / "API" / ".env"
     if api_env.exists():
         api_dir = FINAL_DIR / "API"
@@ -158,10 +182,12 @@ def write_launcher(mode: str) -> None:
         "setlocal",
         'cd /d "%~dp0"',
         f"set INFINITE_CANVAS_BASE_DIR=%~dp0",
+        "if exist \"%~dp0certs\\cacert.pem\" set SSL_CERT_FILE=%~dp0certs\\cacert.pem",
+        "if exist \"%~dp0certs\\cacert.pem\" set REQUESTS_CA_BUNDLE=%~dp0certs\\cacert.pem",
         f"echo Starting {APP_NAME} ...",
         "echo Visit http://127.0.0.1:3000/ (browser will open automatically)",
         "echo Press Ctrl+C to stop.",
-        'start "" powershell -WindowStyle Hidden -Command "Start-Sleep -Seconds 3; Start-Process \'http://127.0.0.1:3000/\'"',
+        'start "" /min cmd /c "timeout /t 3 /nobreak >nul & start "" http://127.0.0.1:3000/"',
         f'"{exe_path}"',
     ]
     (FINAL_DIR / "Start.bat").write_text("\r\n".join(lines) + "\r\n", encoding="ascii")
@@ -284,7 +310,7 @@ def main() -> int:
     signature = source_signature(mode)
     manifest = load_manifest()
     expected_exe = FINAL_DIR / f"{APP_NAME}.exe" if mode == "onefile" else RUNTIME_DIR / f"{APP_NAME}.exe"
-    needs_compile = args.force or manifest != signature or not expected_exe.exists()
+    needs_compile = args.force or not manifest_matches_compile_inputs(manifest, signature) or not expected_exe.exists()
 
     if needs_compile:
         run_nuitka(mode)

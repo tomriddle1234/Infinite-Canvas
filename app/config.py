@@ -27,6 +27,28 @@ def _resolve_base_dir():
 
 
 BASE_DIR = _resolve_base_dir()
+
+
+def _configure_ssl_cert_file():
+    if os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE"):
+        return
+    bundled_cafile = os.path.join(BASE_DIR, "certs", "cacert.pem")
+    if os.path.exists(bundled_cafile):
+        os.environ.setdefault("SSL_CERT_FILE", bundled_cafile)
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", bundled_cafile)
+        return
+    try:
+        import certifi
+
+        cafile = certifi.where()
+    except Exception:
+        return
+    if cafile and os.path.exists(cafile):
+        os.environ.setdefault("SSL_CERT_FILE", cafile)
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", cafile)
+
+
+_configure_ssl_cert_file()
 WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
 WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "Z-Image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
