@@ -122,6 +122,8 @@ class ApiProviderPayload(BaseModel):
     name: str = ""
     base_url: str = ""
     protocol: str = "openai"
+    image_generation_endpoint: str = ""
+    image_edit_endpoint: str = ""
     enabled: bool = True
     primary: bool = False
     image_models: List[str] = []
@@ -130,6 +132,7 @@ class ApiProviderPayload(BaseModel):
     ms_loras: List[Dict[str, Any]] = []
     ms_defaults_version: int = 0
     api_key: Optional[str] = None
+    clear_key: bool = False
 
 
 class ChatRequest(BaseModel):
@@ -186,6 +189,15 @@ class CanvasSaveRequest(BaseModel):
     base_updated_at: Optional[int] = None
 
 
+class CanvasAssetCheckRequest(BaseModel):
+    urls: List[str] = []
+
+
+class CanvasAssetDownloadRequest(BaseModel):
+    urls: List[str] = []
+    filename: str = "canvas-output-images.zip"
+
+
 class TestConnectionPayload(BaseModel):
     base_url: str = ""
     api_key: str = ""
@@ -207,6 +219,7 @@ class WorkflowField(BaseModel):
     max: Optional[float] = None
     step: Optional[float] = None
     options: List[str] = []
+    random_enabled: bool = False
 
 
 class WorkflowConfig(BaseModel):

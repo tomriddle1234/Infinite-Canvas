@@ -309,6 +309,8 @@ async def canvas_video(payload: CanvasVideoRequest):
     if not api_key:
         raise HTTPException(status_code=400, detail=f"未配置 {provider.get('name') or provider['id']} 的 API Key，请在 API 设置中填写。")
     is_apimart = providers.is_apimart_provider(provider)
+    requested_model = config.selected_model(payload.model, "veo3-fast")
+    is_veo31 = is_apimart and upstream.is_apimart_veo31_model(requested_model)
     submit_url = (
         f"{base_url}/videos/generations" if is_apimart and base_url.endswith("/v1")
         else f"{base_url}/v1/videos/generations" if is_apimart
@@ -321,41 +323,76 @@ async def canvas_video(payload: CanvasVideoRequest):
             if is_apimart:
                 # APIMart 只接受 http/https 或 asset:// URL，先上传本地图片取回网络 URL
                 image_with_roles = []
-                for ref in payload.images[:9]:
+                invalid_images = []
+                apimart_model = upstream.apimart_veo31_model(requested_model) if is_veo31 else ""
+                if apimart_model == "veo3.1-lite" and payload.images:
+                    raise HTTPException(status_code=400, detail="veo3.1-lite 不支持图片输入，请改用 veo3.1-fast 或 veo3.1-quality。")
+                image_limit = 0 if apimart_model == "veo3.1-lite" else (3 if is_veo31 else 9)
+                for ref in payload.images[:image_limit]:
                     if not ref.url:
                         continue
                     role = str(ref.role or "").strip()
-                    if role in {"first_frame", "last_frame", "reference_image"}:
+                    if not is_veo31 and role in {"first_frame", "last_frame", "reference_image"}:
                         up_url = await upstream.upload_image_for_apimart(client, provider, ref.url)
-                        if up_url:
+                        if upstream.valid_apimart_video_image_input(up_url):
                             image_with_roles.append({"url": up_url, "role": role})
+                        else:
+                            reason = up_url[4:] if isinstance(up_url, str) and up_url.startswith("ERR:") else "未知错误"
+                            invalid_images.append((ref.url, reason))
                 image_payload = []
                 if not image_with_roles:
-                    for ref in payload.images[:9]:
+                    for ref in payload.images[:image_limit]:
                         if not ref.url:
                             continue
                         up_url = await upstream.upload_image_for_apimart(client, provider, ref.url)
-                        if up_url:
+                        if upstream.valid_apimart_video_image_input(up_url):
                             image_payload.append(up_url)
-                body = {
-                    "prompt": payload.prompt,
-                    "model": config.selected_model(payload.model, "doubao-seedance-2.0"),
-                    "duration": payload.duration,
-                    "size": upstream.apimart_video_size(payload.aspect_ratio or payload.size),
-                    "resolution": payload.resolution or "480p",
-                }
-                if image_with_roles:
-                    body["image_with_roles"] = image_with_roles
-                elif image_payload:
-                    body["image_urls"] = image_payload[:9]
-                if payload.videos:
-                    body["video_urls"] = [v for v in payload.videos if v][:3]
-                if payload.seed is not None:
-                    body["seed"] = payload.seed
-                if payload.return_last_frame:
-                    body["return_last_frame"] = True
-                if payload.generate_audio:
-                    body["generate_audio"] = True
+                        else:
+                            reason = up_url[4:] if isinstance(up_url, str) and up_url.startswith("ERR:") else "未知错误"
+                            invalid_images.append((ref.url, reason))
+                if payload.images and not image_with_roles and not image_payload:
+                    first_url, first_reason = invalid_images[0] if invalid_images else ("", "未知错误")
+                    raise HTTPException(status_code=400, detail=f"输入图片无法转换为视频接口支持的格式：{first_url[:120]}\n原因：{first_reason}")
+                if is_veo31:
+                    model = apimart_model
+                    body = {
+                        "prompt": payload.prompt,
+                        "model": model,
+                        "duration": 8,
+                        "aspect_ratio": upstream.apimart_veo31_aspect(payload.aspect_ratio),
+                        "resolution": upstream.apimart_veo31_resolution(payload.resolution),
+                    }
+                    if image_payload and model != "veo3.1-lite":
+                        video_images = image_payload[:3]
+                        if model == "veo3.1-quality" and len(video_images) > 2:
+                            video_images = video_images[:2]
+                        body["image_urls"] = video_images
+                        if len(video_images) == 2:
+                            body["generation_type"] = "frame"
+                        elif len(video_images) >= 3 and model != "veo3.1-quality":
+                            body["generation_type"] = "reference"
+                    if model != "veo3.1-lite":
+                        body["official_fallback"] = False
+                else:
+                    body = {
+                        "prompt": payload.prompt,
+                        "model": config.selected_model(payload.model, "doubao-seedance-2.0"),
+                        "duration": payload.duration,
+                        "size": upstream.apimart_video_size(payload.aspect_ratio or payload.size),
+                        "resolution": payload.resolution or "480p",
+                    }
+                    if image_with_roles:
+                        body["image_with_roles"] = image_with_roles
+                    elif image_payload:
+                        body["image_urls"] = image_payload[:9]
+                    if payload.videos:
+                        body["video_urls"] = [v for v in payload.videos if v][:3]
+                    if payload.seed is not None:
+                        body["seed"] = payload.seed
+                    if payload.return_last_frame:
+                        body["return_last_frame"] = True
+                    if payload.generate_audio:
+                        body["generate_audio"] = True
             else:
                 # 非 APIMart：data URL 方式
                 image_payload = []

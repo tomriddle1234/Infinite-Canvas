@@ -82,12 +82,15 @@ async def save_providers(payload: List[ApiProviderPayload]):
     env_updates = {}
     raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
     for item in payload:
-        provider = providers.normalize_provider(item.dict(exclude={"api_key"}))
+        provider = providers.normalize_provider(item.model_dump(exclude={"api_key", "clear_key"}))
         if any(existing["id"] == provider["id"] for existing in normalized):
             raise HTTPException(status_code=400, detail=f"API 平台 ID 重复：{provider['id']}")
         normalized.append(provider)
-        if item.api_key is not None:
-            env_updates[providers.provider_key_env(provider["id"])] = item.api_key.strip()
+        key_env = providers.provider_key_env(provider["id"])
+        if item.clear_key:
+            env_updates[key_env] = ""
+        elif item.api_key is not None and item.api_key.strip():
+            env_updates[key_env] = item.api_key.strip()
         if provider["id"] == "comfly":
             env_updates["COMFLY_BASE_URL"] = provider["base_url"]
             env_updates["IMAGE_MODELS"] = ",".join(provider["image_models"])

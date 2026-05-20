@@ -128,7 +128,7 @@
         .node-card.expanded .node-chev { transform:rotate(180deg); }
         .node-inputs { display:none; padding:14px 18px; flex-direction:column; gap:10px; }
         .node-card.expanded .node-inputs { display:flex; }
-        .input-row { display:grid; grid-template-columns:36px minmax(0,1fr) 120px 140px; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:11px; background:var(--soft); }
+        .input-row { display:grid; grid-template-columns:36px minmax(0,1fr) 120px 140px; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:11px; background:var(--soft); min-width:0; }
         body.studio-theme-dark .input-row { background:var(--soft); border-color:var(--line-strong); }
         .input-row.is-active { border-color:var(--text); background:var(--panel); }
         body.studio-theme-dark .input-row.is-active { background:var(--soft); border-color:#f5f6f8; }
@@ -143,10 +143,10 @@
         body.studio-theme-dark .small-input { background:var(--soft); border-color:var(--line-strong); }
         .small-select { width:100%; height:30px; padding:0 8px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); outline:none; font-size:12px; font-weight:650; cursor:pointer; }
         body.studio-theme-dark .small-select { background:var(--soft); border-color:var(--line-strong); }
-        .extras-row { grid-column:1/-1; display:none; gap:8px; padding-top:8px; border-top:1px dashed var(--line); }
+        .extras-row { grid-column:1/-1; display:none; gap:8px; padding-top:8px; border-top:1px dashed var(--line); flex-wrap:wrap; min-width:0; max-width:100%; }
         .input-row.has-extras .extras-row { display:flex; }
-        .extra-pair { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); font-weight:700; }
-        .extra-pair input, .extra-pair textarea { width:80px; }
+        .extra-pair { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); font-weight:700; flex:1 1 92px; min-width:92px; }
+        .extra-pair input, .extra-pair textarea { width:100%; min-width:0; }
         .extras-row textarea { width:100%; height:60px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); outline:none; font-size:12px; font-weight:650; font-family:inherit; resize:vertical; }
         .dropdown-opt-row { display:flex; align-items:center; gap:6px; padding:4px; border-radius:7px; background:var(--panel); border:1px solid var(--line); }
         body.studio-theme-dark .dropdown-opt-row { background:var(--soft); border-color:var(--line-strong); }
@@ -182,6 +182,17 @@
         .pfield-slider { display:flex; align-items:center; gap:10px; }
         .pfield-slider input[type=range] { flex:1; accent-color:var(--text); }
         .pfield-slider-val { min-width:42px; text-align:right; font-size:12.5px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
+        .pfield-random-row { display:grid; grid-template-columns:minmax(0,1fr) 34px; gap:7px; align-items:center; }
+        .pfield-random-row .pfield-slider { min-width:0; }
+        .random-btn { width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:var(--panel); color:var(--muted); display:flex; align-items:center; justify-content:center; transition:all .15s ease; }
+        .random-btn:hover { border-color:var(--text); color:var(--text); background:var(--soft); }
+        .random-btn.active { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+        .random-btn.active:hover { filter:brightness(.96); }
+        body.studio-theme-dark .random-btn { background:var(--soft); border-color:var(--line-strong); }
+        body.studio-theme-dark .random-btn.active { background:#f5f6f8; border-color:#f5f6f8; color:#0e1014; }
+        .random-toggle { height:30px; padding:0 9px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--muted); display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; cursor:pointer; }
+        .random-toggle input { accent-color:var(--text); }
+        body.studio-theme-dark .random-toggle { background:var(--soft); border-color:var(--line-strong); }
         .pfield-bool { display:flex; align-items:center; gap:10px; }
         .pfield-bool-track { position:relative; width:36px; height:20px; border-radius:999px; background:var(--soft); border:1px solid var(--line-strong); cursor:pointer; transition:background .15s ease; }
         .pfield-bool-track.on { background:var(--accent); }
@@ -462,6 +473,7 @@
         let currentWorkflow = null;     // 原始 JSON
         let currentConfig = null;       // { title, fields:[...] }
         let isBuiltin = false;
+        let previewRandomActive = {};
         let previewValues = {};         // field_id -> 发给后端的值（图片：comfy 文件名）
         let previewImageUrls = {};      // field_id -> 浏览器可显示的本地 URL（仅图片字段）
         let runResult = null;           // url 或 null
@@ -612,6 +624,7 @@
                 currentConfig.fields.forEach(f => {
                     if(f.default !== undefined && f.default !== null) previewValues[f.id] = f.default;
                 });
+                previewRandomActive = {};
                 runResult = null;
                 graphView = { k: 1, x: 0, y: 0 };
                 miniView = { k: 1, x: 0, y: 0 };
@@ -634,6 +647,7 @@
             if(existing){
                 currentConfig.fields = currentConfig.fields.filter(f => f !== existing);
                 delete previewValues[existing.id];
+                delete previewRandomActive[existing.id];
             } else {
                 const nodeData = currentWorkflow[node];
                 const rawValue = nodeData?.inputs?.[input];
@@ -652,6 +666,7 @@
                         f.max = Math.max(rawValue * 2, 10);
                         f.step = rawValue > 0 && rawValue < 5 ? 0.1 : 1;
                     }
+                    if(type === 'number') f.random_enabled = false;
                 }
                 currentConfig.fields.push(f);
                 if(f.default !== undefined && f.default !== null) previewValues[f.id] = f.default;
@@ -699,10 +714,17 @@
             f[key] = value;
             if(key === 'type'){
                 previewValues[fieldId] = (value === 'boolean') ? false : (value === 'number' || value === 'slider' ? 0 : '');
+                f.random_enabled = value === 'number' ? !!f.random_enabled : false;
+                delete previewRandomActive[fieldId];
+            }
+            if(key === 'random_enabled'){
+                delete previewRandomActive[fieldId];
             }
             // 改名字 / 类型时不需要整页重渲染，浮窗自身刷新即可
-            if(key === 'name' || key === 'min' || key === 'max' || key === 'step' || key === 'default' || key === 'options'){
+            if(key === 'name' || key === 'min' || key === 'max' || key === 'step' || key === 'default' || key === 'options' || key === 'random_enabled'){
                 renderPreview();
+                if(workspaceMode === 'canvas') renderMiniCanvasPreview(miniCanvasHost, true);
+                if(popupNodeId === f.node) refreshPopupBody();
                 return;
             }
             renderEditor();
@@ -1083,11 +1105,15 @@
 
         function renderExtras(f){
             if(f.type === 'slider' || f.type === 'number'){
+                const randomToggle = f.type === 'number'
+                    ? `<label class="random-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${f.random_enabled === true ? 'checked' : ''} onchange="updateField('${f.id}','random_enabled',this.checked)">???</label>`
+                    : '';
                 return `<div class="extras-row">
                     <div class="extra-pair">min<input class="small-input" type="number" value="${f.min ?? ''}" oninput="updateField('${f.id}','min',this.value===''?null:parseFloat(this.value))"></div>
                     <div class="extra-pair">max<input class="small-input" type="number" value="${f.max ?? ''}" oninput="updateField('${f.id}','max',this.value===''?null:parseFloat(this.value))"></div>
                     <div class="extra-pair">step<input class="small-input" type="number" value="${f.step ?? ''}" oninput="updateField('${f.id}','step',this.value===''?null:parseFloat(this.value))"></div>
                     <div class="extra-pair">${tr('comfy.defaultValue')}<input class="small-input" type="number" value="${f.default ?? ''}" oninput="updateField('${f.id}','default',this.value===''?null:parseFloat(this.value))"></div>
+                    ${randomToggle}
                 </div>`;
             }
             if(f.type === 'dropdown'){
@@ -1154,6 +1180,58 @@
             const valSpan = document.querySelector(`[data-slider-val="${fieldId}"]`);
             if(valSpan) valSpan.textContent = value;
         }
+        function randomValueForField(f){
+            const isFloat = Number(f.step) > 0 && Number(f.step) < 1;
+            let min = Number.isFinite(Number(f.min)) ? Number(f.min) : null;
+            let max = Number.isFinite(Number(f.max)) ? Number(f.max) : null;
+            const name = `${f.input || ''} ${f.name || ''}`.toLowerCase();
+            const looksSeed = name.includes('seed') || name.includes('noise') || name.includes('??') || name.includes('?');
+            if(min === null) min = looksSeed ? 1 : 0;
+            if(max === null || max <= min) max = looksSeed ? 1000000000000000 : 999999;
+            let value = min + Math.random() * (max - min);
+            if(isFloat){
+                const precision = Math.min(8, Math.max(1, String(f.step).split('.')[1]?.length || 2));
+                value = Number(value.toFixed(precision));
+            } else {
+                value = Math.floor(value);
+            }
+            return value;
+        }
+
+        function fieldSupportsRandom(f){
+            return !!f && f.type === 'number' && f.random_enabled === true;
+        }
+
+        function isPreviewRandomActive(fieldId){
+            return previewRandomActive[fieldId] !== false;
+        }
+
+        function randomButtonHtml(f){
+            if(!fieldSupportsRandom(f)) return '';
+            const active = isPreviewRandomActive(f.id);
+            const title = active ? '??????????' : '??????????';
+            return `<button class="random-btn ${active ? 'active' : ''}" type="button" onclick="togglePreviewRandom('${f.id}')" title="${title}"><i data-lucide="dice-5" class="w-4 h-4"></i></button>`;
+        }
+
+        function togglePreviewRandom(fieldId){
+            const f = currentConfig?.fields?.find(x => x.id === fieldId);
+            if(!fieldSupportsRandom(f)) return;
+            previewRandomActive[fieldId] = !isPreviewRandomActive(fieldId);
+            renderPreview();
+            if(workspaceMode === 'canvas') renderMiniCanvasPreview(miniCanvasHost, true);
+        }
+
+        function applyActiveRandomValues(fields){
+            const out = {...fields};
+            currentConfig?.fields?.forEach(f => {
+                if(fieldSupportsRandom(f) && isPreviewRandomActive(f.id)){
+                    const value = randomValueForField(f);
+                    out[f.id] = value;
+                    previewValues[f.id] = value;
+                }
+            });
+            return out;
+        }
 
         function openImagePreview(url){
             const box = document.getElementById('imageLightbox');
@@ -1196,14 +1274,15 @@
                 return `<div class="pfield">${label}<textarea class="pfield-textarea" oninput="setPreviewValue('${f.id}',this.value)">${escapeHtml(v)}</textarea></div>`;
             }
             if(f.type === 'number'){
-                return `<div class="pfield">${label}<input class="pfield-input" type="number" value="${escapeAttr(v)}" oninput="setPreviewValue('${f.id}',parseFloat(this.value)||0)"></div>`;
+                const randomBtn = randomButtonHtml(f);
+                return `<div class="pfield">${label}<div class="pfield-random-row" style="${randomBtn ? '' : 'grid-template-columns:1fr'}"><input class="pfield-input" type="number" value="${escapeAttr(v)}" oninput="setPreviewValue('${f.id}',parseFloat(this.value)||0)">${randomBtn}</div></div>`;
             }
             if(f.type === 'slider'){
                 const min = f.min ?? 0, max = f.max ?? 10, step = f.step ?? 1;
-                return `<div class="pfield">${label}<div class="pfield-slider">
+                return `<div class="pfield">${label}<div class="pfield-random-row" style="grid-template-columns:1fr"><div class="pfield-slider">
                     <input type="range" min="${min}" max="${max}" step="${step}" value="${escapeAttr(v)}" oninput="setPreviewValue('${f.id}',parseFloat(this.value))">
                     <span class="pfield-slider-val" data-slider-val="${f.id}">${v}</span>
-                </div></div>`;
+                </div></div></div>`;
             }
             if(f.type === 'dropdown'){
                 const opts = (f.options || []).map(o => `<option value="${escapeAttr(o)}" ${String(v)===String(o)?'selected':''}>${escapeHtml(o)}</option>`).join('');
@@ -1335,14 +1414,15 @@
                 return `<div class="pfield">${label}<textarea class="mini-textarea" oninput="setPreviewValue('${f.id}',this.value)">${escapeHtml(v)}</textarea></div>`;
             }
             if(f.type === 'number'){
-                return `<div class="pfield">${label}<input class="mini-input" type="number" value="${escapeAttr(v)}" oninput="setPreviewValue('${f.id}',parseFloat(this.value)||0)"></div>`;
+                const randomBtn = randomButtonHtml(f);
+                return `<div class="pfield">${label}<div class="pfield-random-row" style="${randomBtn ? '' : 'grid-template-columns:1fr'}"><input class="mini-input" type="number" value="${escapeAttr(v)}" oninput="setPreviewValue('${f.id}',parseFloat(this.value)||0)">${randomBtn}</div></div>`;
             }
             if(f.type === 'slider'){
                 const min = f.min ?? 0, max = f.max ?? 10, step = f.step ?? 1;
-                return `<div class="pfield">${label}<div class="pfield-slider">
+                return `<div class="pfield">${label}<div class="pfield-random-row" style="grid-template-columns:1fr"><div class="pfield-slider">
                     <input type="range" min="${min}" max="${max}" step="${step}" value="${escapeAttr(v)}" oninput="setPreviewValue('${f.id}',parseFloat(this.value))">
                     <span class="pfield-slider-val" data-slider-val="${f.id}">${v}</span>
-                </div></div>`;
+                </div></div></div>`;
             }
             if(f.type === 'dropdown'){
                 const opts = (f.options || []).map(o => `<option value="${escapeAttr(o)}" ${String(v)===String(o)?'selected':''}>${escapeHtml(o)}</option>`).join('');
@@ -1504,7 +1584,8 @@
             if(btn){ btn.disabled = true; btn.querySelector('span').textContent = tr('comfy.runningTest'); }
             setStatus(tr('comfy.runningTest'));
             try {
-                const runFields = workspaceMode === 'canvas' ? fieldsFromMiniCanvas() : previewValues;
+                const baseFields = workspaceMode === 'canvas' ? fieldsFromMiniCanvas() : {...previewValues};
+                const runFields = applyActiveRandomValues(baseFields);
                 const res = await fetch(`/api/workflows/${encodeURIComponent(selectedName)}/run`, {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},

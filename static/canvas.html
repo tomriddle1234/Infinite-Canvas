@@ -62,7 +62,15 @@
         .canvas-restore:hover { background:#ecfdf5; color:#059669; border-color:#a7f3d0; }
         .canvas-item.active .canvas-delete { background:rgba(255,255,255,.14); color:#fff; border-color:rgba(255,255,255,.18); opacity:1; }
         .canvas-item.active .canvas-delete:hover { background:rgba(248,113,113,.22); color:#fecaca; }
-        .toolbar { padding:10px; display:flex; gap:8px; align-items:center; }
+        .toolbar { padding:6px; display:flex; gap:6px; align-items:center; border-radius:18px; }
+        .toolbar-items { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+        .toolbar.collapsed .toolbar-items { display:none; }
+        .toolbar-fixed { display:flex; gap:6px; align-items:center; }
+        .toolbar-toggle i { transition:transform .18s var(--ease); }
+        .toolbar.collapsed .toolbar-toggle i { transform:rotate(180deg); }
+        .toolbar .toolbar-toggle { width:24px; height:25px; min-width:24px; padding:0; border-radius:10px; }
+        .toolbar .toolbar-log { width:auto; height:38px; min-width:38px; padding:0 12px; }
+        .toolbar.collapsed { padding:5px; }
         .tool-btn { height:38px; min-width:38px; padding:0 12px; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:7px; color:var(--muted); background:var(--card-solid); border:1px solid var(--line); font-size:11px; font-weight:700; transition:all .2s var(--ease); pointer-events:auto; }
         .tool-btn:hover { background:var(--soft-2); color:var(--text); }
         .theme-toggle.active { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
@@ -71,6 +79,8 @@
         body.canvas-knife .node,
         body.canvas-knife .link-hit { cursor:crosshair !important; }
         body.canvas-knife .node { outline:1px dashed rgba(220,38,38,.45); outline-offset:4px; }
+        body.canvas-board-pan,
+        body.canvas-board-pan * { cursor:grabbing !important; user-select:none !important; }
         .world { position:absolute; left:0; top:0; width:6000px; height:4000px; transform-origin:0 0; }
         .links { position:absolute; inset:0; width:6000px; height:4000px; overflow:visible; pointer-events:none; z-index:1; }
         .link { stroke:var(--faint); stroke-width:2.5; fill:none; opacity:.82; pointer-events:none; }
@@ -226,13 +236,20 @@
         .node.sized.generator-node .input-list { flex:1; min-height:64px; max-height:none; }
         .node.sized.generator-node .gen-btn { margin-top:auto; }
         .gen-settings { display:flex; flex-direction:column; gap:8px; margin-top:12px; margin-bottom:12px; padding:10px; border:1px solid var(--line-2); border-radius:16px; background:linear-gradient(180deg, var(--card-solid), var(--soft)); box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 8px 20px var(--shadow); }
-        .gen-settings-row { display:flex; align-items:center; gap:8px; min-width:0; }
+        .gen-settings-row { display:flex; align-items:center; gap:6px; min-width:0; flex-wrap:wrap; }
         .gen-settings-row .model-select { flex:1; min-width:0; }
-        .gen-settings-row .ratio { flex:1; min-width:74px; }
-        .gen-settings-row .resolution { flex:1; min-width:74px; }
+        .gen-settings-row .ratio { flex:1 1 68px; min-width:62px; }
+        .gen-settings-row .resolution { flex:1 1 64px; min-width:58px; }
+        .gen-settings-row .quality-select { flex:1 1 76px; min-width:68px; }
         .gen-settings-row .field { flex:1; min-width:0; }
+        .gen-settings-row.api-size-row .gen-count-row { margin-left:auto; }
         .setting-title { color:var(--faint); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
         .setting-input { width:100%; height:32px; border:1px solid var(--line-2); border-radius:12px; background:var(--card-solid); color:var(--text); outline:none; padding:0 10px; font-size:12px; font-weight:700; }
+        .comfy-random-field { display:grid; grid-template-columns:minmax(0,1fr) 34px; gap:7px; align-items:end; width:100%; }
+        .comfy-random-btn { width:32px; height:32px; min-width:32px; padding:0; border-radius:10px; background:var(--card-solid); color:var(--muted); }
+        .comfy-random-btn svg { width:18px; height:18px; stroke-width:2.2; }
+        .comfy-random-btn.active { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
+        .comfy-random-btn.active svg { fill:none; stroke:currentColor; }
         .setting-check { height:32px; padding:0 10px; border-radius:999px; display:flex; align-items:center; gap:7px; background:var(--card-solid); border:1px solid var(--line-2); color:var(--muted); font-size:11px; font-weight:800; white-space:nowrap; cursor:pointer; }
         .setting-check.active { background:var(--strong); border-color:var(--strong); color:var(--strong-text); }
         .setting-check input { accent-color:var(--strong); }
@@ -265,9 +282,12 @@
         .output-node { width:460px; --output-thumb-max:180px; --output-thumb-min:150px; }
         .output-node .node-body { overscroll-behavior:contain; }
         .output-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(var(--output-thumb-min), var(--output-thumb-max))); gap:10px; justify-content:start; align-content:start; }
+        .output-grid.grid-layout { grid-template-columns:repeat(var(--grid-cols), minmax(0, 1fr)); justify-content:stretch; }
         .node.sized.output-node .output-grid { min-height:100%; grid-auto-rows:auto; }
         .output-img-wrap { position:relative; width:100%; max-width:var(--output-thumb-max); aspect-ratio:1; cursor:zoom-in; }
         .output-img-wrap:hover { transform:none; }
+        .missing-asset { width:100%; height:100%; min-height:72px; border-radius:16px; border:1px dashed var(--line-2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:repeating-linear-gradient(135deg, var(--soft), var(--soft) 8px, var(--card-solid) 8px, var(--card-solid) 16px); color:var(--faint); font-size:10px; font-weight:800; text-align:center; user-select:none; cursor:default; }
+        .missing-asset.compact { min-height:38px; gap:3px; font-size:9px; }
         .output-del { position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.9); border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#64748b; opacity:0; transition:opacity .15s var(--ease); cursor:pointer; z-index:4; font-size:15px; line-height:1; }
         .output-img-wrap:hover .output-del { opacity:1; }
         .output-del:hover { color:#dc2626; border-color:#fecaca; background:#fff5f5; }
@@ -483,6 +503,9 @@
         .grid-gap-control { display:flex; align-items:center; gap:8px; color:#64748b; font-size:11px; font-weight:800; min-width:250px; }
         .grid-gap-control input[type="range"] { width:160px; }
         .grid-gap-value { min-width:42px; height:24px; padding:0 8px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:#111827; color:#fff; font-size:11px; font-weight:900; font-variant-numeric:tabular-nums; }
+        .grid-preset-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .grid-preset-btn { height:28px; padding:0 9px; border-radius:999px; border:1px solid rgba(203,213,225,.9); background:#fff; color:#64748b; font-size:11px; font-weight:850; }
+        .grid-preset-btn:hover { background:#111827; border-color:#111827; color:#fff; }
         .image-edit-stage { flex:1; min-height:0; border-radius:20px; background:#f8fafc; border:1px solid #edf2f7; overflow:auto; }
         .image-edit-stage-inner { min-width:100%; min-height:100%; width:max-content; height:max-content; display:flex; align-items:center; justify-content:center; padding:18px; box-sizing:border-box; margin:auto; }
         .image-edit-stage.overflow-x .image-edit-stage-inner { justify-content:flex-start; }
@@ -554,6 +577,8 @@
         .theme-dark .image-edit-tools input[type="range"]::-moz-range-track { background:#334155; box-shadow:inset 0 0 0 1px rgba(148,163,184,.12); }
         .theme-dark .image-edit-tools input[type="range"]::-moz-range-thumb { background:#e2e8f0; border-color:#0f172a; box-shadow:0 1px 5px rgba(0,0,0,.38); }
         .theme-dark .grid-gap-value { background:#e2e8f0; color:#0f172a; }
+        .theme-dark .grid-preset-btn { background:#0f172a; border-color:#334155; color:#cbd5e1; }
+        .theme-dark .grid-preset-btn:hover { background:#d8dee9; border-color:#d8dee9; color:#0f172a; }
         .theme-dark .image-edit-mode button.active { background:#d8dee9; color:#0f172a; }
         .theme-dark .output-lightbox { background:rgba(2,6,23,.66); }
         .theme-dark .output-preview { background:#020617; border-color:rgba(148,163,184,.24); box-shadow:0 30px 90px rgba(0,0,0,.45); }
@@ -699,7 +724,7 @@
                 </div>
                 <p id="saveState" style="display:none" data-i18n="canvas.chooseFirst">请选择或新建画布</p>
             </div>
-            <div class="panel toolbar editor-only">
+            <div id="quickToolbar" class="panel toolbar editor-only">
                 <button class="tool-btn" onclick="addPromptNode()"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
                 <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
                 <button class="tool-btn" onclick="addSeedreamNode()"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
@@ -774,6 +799,11 @@
                 <div id="linkControls" class="link-controls"></div>
                 <div id="nodes"></div>
             </div>
+            <div id="minimap" class="minimap" title="导航地图">
+                <div id="minimapContent" class="minimap-content">
+                    <div id="minimapViewport" class="minimap-viewport"></div>
+                </div>
+            </div>
         </div>
         <div class="hint editor-only" data-i18n="canvas.hint">拖拽画布移动，Ctrl 框选多选，拖动选中节点可一起移动。图片/提示词节点右下端口拖线到生成节点。</div>
         <div id="outputLightbox" class="output-lightbox" onclick="closeOutputLightbox()">
@@ -833,16 +863,33 @@
                 </div>
                 <div id="imageMaskTools" class="image-edit-tools">
                     <label><span data-i18n="canvas.brushSize">笔刷</span> <input id="maskBrushSize" type="range" min="4" max="160" value="42"></label>
+                    <button id="maskUndoBtn" class="image-edit-btn secondary" type="button" onclick="undoEditDrawing()" title="撤销"><i data-lucide="undo-2" class="w-4 h-4"></i></button>
+                    <button id="maskRedoBtn" class="image-edit-btn secondary" type="button" onclick="redoEditDrawing()" title="恢复"><i data-lucide="redo-2" class="w-4 h-4"></i></button>
                     <button class="image-edit-btn secondary" type="button" onclick="clearEditDrawing()"><i data-lucide="eraser" class="w-4 h-4"></i><span data-i18n="canvas.clear">清空</span></button>
                     <span class="image-edit-sub" data-i18n="canvas.maskHint">白色区域为要编辑的遮罩</span>
                 </div>
                 <div id="imageBrushTools" class="image-edit-tools">
+                    <button class="image-edit-btn primary" type="button" data-brush-tool="free" onclick="setBrushTool('free')" title="自由画笔"><i data-lucide="paintbrush" class="w-4 h-4"></i></button>
+                    <button class="image-edit-btn secondary" type="button" data-brush-tool="rect" onclick="setBrushTool('rect')" title="矩形"><i data-lucide="square" class="w-4 h-4"></i></button>
+                    <button class="image-edit-btn secondary" type="button" data-brush-tool="ellipse" onclick="setBrushTool('ellipse')" title="椭圆"><i data-lucide="circle" class="w-4 h-4"></i></button>
+                    <button class="image-edit-btn secondary" type="button" data-brush-tool="label" onclick="setBrushTool('label')" title="数字标签"><i data-lucide="list-ordered" class="w-4 h-4"></i></button>
                     <label><span data-i18n="canvas.color">颜色</span> <input id="paintBrushColor" type="color" value="#ff2d55"></label>
                     <label><span data-i18n="canvas.brushSize">笔刷</span> <input id="paintBrushSize" type="range" min="2" max="80" value="14"></label>
+                    <button id="brushUndoBtn" class="image-edit-btn secondary" type="button" onclick="undoEditDrawing()" title="撤销"><i data-lucide="undo-2" class="w-4 h-4"></i></button>
+                    <button id="brushRedoBtn" class="image-edit-btn secondary" type="button" onclick="redoEditDrawing()" title="恢复"><i data-lucide="redo-2" class="w-4 h-4"></i></button>
                     <button class="image-edit-btn secondary" type="button" onclick="clearEditDrawing()"><i data-lucide="eraser" class="w-4 h-4"></i><span data-i18n="canvas.clear">清空</span></button>
                 </div>
                 <div id="imageGridTools" class="image-edit-tools">
                     <button id="gridCustomToggle" class="image-edit-btn secondary" type="button" onclick="toggleGridCustomMode()" data-i18n="canvas.gridCustom" data-i18n-title="canvas.gridCustomTitle" title="自由放置切割线">自定义</button>
+                    <div class="grid-preset-row">
+                        <span class="image-edit-sub" data-i18n="canvas.gridPresets">预设</span>
+                        <button class="grid-preset-btn" type="button" onclick="applyGridPreset(1, 2)">1×2</button>
+                        <button class="grid-preset-btn" type="button" onclick="applyGridPreset(2, 1)">2×1</button>
+                        <button class="grid-preset-btn" type="button" onclick="applyGridPreset(2, 2)">2×2</button>
+                        <button class="grid-preset-btn" type="button" onclick="applyGridPreset(2, 3)">2×3</button>
+                        <button class="grid-preset-btn" type="button" onclick="applyGridPreset(3, 2)">3×2</button>
+                        <button class="grid-preset-btn" type="button" onclick="applyGridPreset(3, 3)">3×3</button>
+                    </div>
                     <span id="gridRegularControls" style="display:contents">
                         <label><span data-i18n="canvas.gridHLines">横向线</span> <input id="gridHorizontalLines" type="number" min="0" max="20" value="2"></label>
                         <label><span data-i18n="canvas.gridVLines">竖向线</span> <input id="gridVerticalLines" type="number" min="0" max="20" value="2"></label>
@@ -982,6 +1029,9 @@
         const board = document.getElementById('board');
         const world = document.getElementById('world');
         const nodesEl = document.getElementById('nodes');
+        const minimap = document.getElementById('minimap');
+        const minimapContent = document.getElementById('minimapContent');
+        let minimapViewport = document.getElementById('minimapViewport');
         const linksEl = document.getElementById('links');
         const linkControlsEl = document.getElementById('linkControls');
         const dropOverlay = document.getElementById('dropOverlay');
@@ -1043,6 +1093,9 @@
         let viewport = {x: -1800, y: -1000, scale: 1};
         let dragNode = null;
         let dragBoard = null;
+        let minimapDrag = false;
+        let minimapState = null;
+        let minimapRenderQueued = false;
         let resizeNode = null;
         let llmPaneDrag = null;
         let tempLink = null;
@@ -1073,6 +1126,7 @@
         let videoModels = [];
         let msChatModels = [];
         let apiProviders = [];
+        let comfyBackendCount = 1;
         let comfyWorkflows = [];
         let comfyWorkflowCache = {};
         let managedProviderId = 'comfly';
@@ -1099,15 +1153,21 @@
         let loopContext = null;
         let clipboard = null;
         let lastMouseBoard = {x: 0, y: 0};
+        let lastImagePasteAt = 0;
         let undoStack = [];
         const UNDO_MAX = 30;
         const cascadeRunningIds = new Set();
         const cascadeStopIds = new Set();
         const cascadeSerialIds = new Set(); // 记录以串行循环模式启动的运行，用于停止按钮
+        const missingAssetUrls = new Set();
         let cropState = null;
         let cropDrag = null;
         let imageEditMode = 'crop';
         let editDrawState = null;
+        let editDrawUndoStack = [];
+        let editDrawRedoStack = [];
+        let brushTool = 'free';
+        let brushLabelCounter = 1;
         let gridCustomMode = false;
         let gridCustomLines = []; // [{type:'h'|'v', pos:0-1}] 相对图片尺寸的分数位置
         let gridCustomOrientation = 'h'; // 当前点击放置方向
@@ -1168,6 +1228,24 @@
             const dark = theme === 'dark';
             document.body.classList.toggle('theme-dark', dark);
             shell.classList.toggle('theme-dark', dark);
+        }
+        function applyQuickToolbarState(){
+            const toolbar = document.getElementById('quickToolbar');
+            if(!toolbar) return;
+            const collapsed = localStorage.getItem(QUICK_TOOLBAR_COLLAPSED_KEY) === '1';
+            toolbar.classList.toggle('collapsed', collapsed);
+            const btn = toolbar.querySelector('.toolbar-toggle');
+            if(btn){
+                btn.title = collapsed ? '??????' : '??????';
+                btn.setAttribute('aria-label', btn.title);
+            }
+            refreshIcons();
+        }
+        function toggleQuickToolbar(){
+            const toolbar = document.getElementById('quickToolbar');
+            const next = !toolbar?.classList.contains('collapsed');
+            localStorage.setItem(QUICK_TOOLBAR_COLLAPSED_KEY, next ? '1' : '0');
+            applyQuickToolbarState();
         }
         function loadLocalModelLists(){
             try {
@@ -1316,6 +1394,10 @@
             if(value === 'nano') return models.nano;
             return value || allImageModels(managedProviderId)[0] || models.gpt;
         }
+        function normalizedImageQuality(value){
+            const quality = String(value || 'auto').trim().toLowerCase();
+            return ['low','medium','high'].includes(quality) ? quality : '';
+        }
         function resolveChatModel(value, providerId=''){
             const providerModels = providerId ? providerChatModels(providerId) : [];
             return value || providerModels[0] || allChatModels()[0] || chatModels[0] || 'gpt-4o-mini';
@@ -1422,10 +1504,34 @@
             const match = String(value || '').trim().match(/^(\d+)\s*[xX*]\s*(\d+)$/);
             return match ? {width:match[1], height:match[2]} : null;
         }
+        function gcdInt(a, b){
+            a = Math.abs(Math.round(Number(a) || 0));
+            b = Math.abs(Math.round(Number(b) || 0));
+            while(b){ const t = b; b = a % b; a = t; }
+            return a || 1;
+        }
+        function ratioPartsFromDimensions(width, height){
+            const w = Math.max(1, Math.round(Number(width) || 1));
+            const h = Math.max(1, Math.round(Number(height) || 1));
+            const target = w / h;
+            let best = {width:1, height:1, score:Infinity};
+            const maxPart = 21;
+            for(let rw = 1; rw <= maxPart; rw++){
+                for(let rh = 1; rh <= maxPart; rh++){
+                    const ratio = rw / rh;
+                    const relativeError = Math.abs(ratio - target) / target;
+                    const complexityPenalty = Math.max(rw, rh) * 0.0008;
+                    const score = relativeError + complexityPenalty;
+                    if(score < best.score) best = {width:rw, height:rh, score};
+                }
+            }
+            const g = gcdInt(best.width, best.height);
+            return {width:best.width / g, height:best.height / g};
+        }
         function apiImageSize(ratioValue, resolutionValue, customRatioValue = '', customSizeValue = ''){
             if(resolutionValue === 'custom') return String(customSizeValue || '').trim();
             const resolutionKey = resolutionValue || '1k';
-            if(ratioValue === 'custom'){
+            if(ratioValue === 'custom' || ratioValue === 'source'){
                 const parsed = parseRatioValue(customRatioValue);
                 const longSide = RES_LONG_SIDE[resolutionKey] || 1024;
                 if(parsed){
@@ -1524,7 +1630,93 @@
             const rect = board.getBoundingClientRect();
             return { x:(clientX - rect.left - viewport.x) / viewport.scale, y:(clientY - rect.top - viewport.y) / viewport.scale };
         }
-        function applyViewport(){ world.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`; }
+        function applyViewport(){
+            world.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
+            scheduleMinimapRender();
+        }
+        function estimatedNodeRect(n){
+            const el = nodesEl?.querySelector?.(`.node[data-id="${CSS.escape(n.id)}"]`);
+            const size = defaultNodeSize(n.type);
+            const w = el?.offsetWidth || n.w || size.w || 260;
+            const h = el?.offsetHeight || n.h || size.h || 160;
+            return {x:n.x || 0, y:n.y || 0, w, h};
+        }
+        function currentWorldViewRect(){
+            const rect = board.getBoundingClientRect();
+            const scale = viewport.scale || 1;
+            return {
+                x:-viewport.x / scale,
+                y:-viewport.y / scale,
+                w:rect.width / scale,
+                h:rect.height / scale
+            };
+        }
+        function minimapBounds(){
+            const rects = (nodes || []).map(estimatedNodeRect);
+            rects.push(currentWorldViewRect());
+            if(!rects.length) return {x:0, y:0, w:1000, h:700};
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            rects.forEach(r => {
+                minX = Math.min(minX, r.x);
+                minY = Math.min(minY, r.y);
+                maxX = Math.max(maxX, r.x + r.w);
+                maxY = Math.max(maxY, r.y + r.h);
+            });
+            const pad = Math.max(240, Math.max(maxX - minX, maxY - minY) * 0.08);
+            return {x:minX - pad, y:minY - pad, w:Math.max(1, maxX - minX + pad * 2), h:Math.max(1, maxY - minY + pad * 2)};
+        }
+        function scheduleMinimapRender(){
+            if(minimapRenderQueued) return;
+            minimapRenderQueued = true;
+            requestAnimationFrame(() => {
+                minimapRenderQueued = false;
+                renderMinimap();
+            });
+        }
+        function renderMinimap(){
+            if(!minimapContent || !minimapViewport) return;
+            const bounds = minimapBounds();
+            const cw = minimapContent.clientWidth || 172;
+            const ch = minimapContent.clientHeight || 110;
+            const scale = Math.min(cw / bounds.w, ch / bounds.h);
+            const mapW = bounds.w * scale;
+            const mapH = bounds.h * scale;
+            const ox = (cw - mapW) / 2;
+            const oy = (ch - mapH) / 2;
+            minimapState = {bounds, scale, ox, oy, cw, ch};
+            const nodeHtml = (nodes || []).map(n => {
+                const r = estimatedNodeRect(n);
+                return `<div class="minimap-node ${selected.has(n.id) ? 'selected' : ''}" style="left:${ox + (r.x - bounds.x) * scale}px;top:${oy + (r.y - bounds.y) * scale}px;width:${Math.max(3, r.w * scale)}px;height:${Math.max(3, r.h * scale)}px"></div>`;
+            }).join('');
+            minimapContent.innerHTML = `${nodeHtml}${nodes?.length ? '' : '<div class="minimap-empty">EMPTY</div>'}<div id="minimapViewport" class="minimap-viewport"></div>`;
+            minimapViewport = document.getElementById('minimapViewport');
+            updateMinimapViewport();
+        }
+        function updateMinimapViewport(){
+            if(!minimapViewport || !minimapState) return;
+            const r = currentWorldViewRect();
+            const {bounds, scale, ox, oy} = minimapState;
+            minimapViewport.style.left = `${ox + (r.x - bounds.x) * scale}px`;
+            minimapViewport.style.top = `${oy + (r.y - bounds.y) * scale}px`;
+            minimapViewport.style.width = `${Math.max(8, r.w * scale)}px`;
+            minimapViewport.style.height = `${Math.max(8, r.h * scale)}px`;
+        }
+        function minimapEventToWorld(e){
+            if(!minimapState) renderMinimap();
+            const state = minimapState;
+            const rect = minimapContent.getBoundingClientRect();
+            const x = (e.clientX - rect.left - state.ox) / state.scale + state.bounds.x;
+            const y = (e.clientY - rect.top - state.oy) / state.scale + state.bounds.y;
+            return {x, y};
+        }
+        function centerViewportOnWorldPoint(point){
+            const rect = board.getBoundingClientRect();
+            viewport.x = rect.width / 2 - point.x * viewport.scale;
+            viewport.y = rect.height / 2 - point.y * viewport.scale;
+            applyViewport();
+            renderLinks();
+            renderSelectionHub();
+        }
         function refreshGeometry(){
             renderLinks();
             renderSelectionHub();
@@ -1611,6 +1803,7 @@
                 nodes.forEach(n => { if(n.running) n.running = false; });
                 sanitizeConnections();
                 pruneMissingComfyWorkflows();
+                refreshMissingCanvasAssets().then(() => render());
                 selected.clear();
                 renderCanvasList();
                 render();
@@ -1619,6 +1812,44 @@
                 setStatus('Synced');
             } finally {
                 applyingRemoteCanvas = false;
+            }
+        }
+        function canvasLocalAssetUrls(){
+            const urls = new Set();
+            const add = value => {
+                const url = outputUrlValue(value);
+                if(url && (url.startsWith('/output/') || url.startsWith('/assets/'))) urls.add(url);
+            };
+            nodes.forEach(node => {
+                if(node.url) add(node.url);
+                (node.images || []).forEach(add);
+                (node.generatedOutputs || []).forEach(add);
+                Object.entries(node.imageComparisons || {}).forEach(([key, value]) => {
+                    add(key);
+                    add(value);
+                });
+            });
+            (canvas?.logs || []).forEach(log => {
+                (log.outputs || []).forEach(add);
+                (log.refs || []).forEach(add);
+                (log.run?.refs || []).forEach(add);
+            });
+            return [...urls];
+        }
+        async function refreshMissingCanvasAssets(){
+            missingAssetUrls.clear();
+            const urls = canvasLocalAssetUrls();
+            if(!urls.length) return;
+            try {
+                const data = await fetch('/api/canvas-assets/check', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({urls})
+                }).then(r => r.json());
+                const exists = data.exists || {};
+                Object.entries(exists).forEach(([url, ok]) => { if(!ok) missingAssetUrls.add(url); });
+            } catch(e) {
+                console.warn('canvas asset check failed', e);
             }
         }
         async function syncRemoteCanvasNow(){
@@ -1685,6 +1916,7 @@
                 chatModels = cfg.chat_models?.length ? cfg.chat_models : chatModels;
                 videoModels = cfg.video_models?.length ? cfg.video_models : DEFAULT_VIDEO_MODELS;
                 msChatModels = cfg.ms_chat_models?.length ? cfg.ms_chat_models : msChatModels;
+                comfyBackendCount = Math.max(1, (cfg.comfy_instances || []).length || 1);
                 apiProviders = Array.isArray(cfg.api_providers) && cfg.api_providers.length ? cfg.api_providers : defaultApiProviders();
                 models.nano = imageModels.find(m => m.toLowerCase().includes('nano')) || 'nano-banana-pro';
                 models.gpt = imageModels.find(m => !m.toLowerCase().includes('nano')) || cfg.image_model || 'gpt-image-2';
@@ -2037,6 +2269,7 @@
                 nodes.forEach(n => { if(n.running) n.running = false; });
                 sanitizeConnections();
                 pruneMissingComfyWorkflows();
+                await refreshMissingCanvasAssets();
                 selected.clear();
                 setCanvasMode(true);
                 renderCanvasList();
@@ -2174,7 +2407,7 @@
         document.querySelectorAll('[data-image-edit-mode]').forEach(btn => {
             btn.addEventListener('click', event => {
                 event.stopPropagation();
-                setImageEditMode(btn.dataset.imageEditMode || 'crop');
+                setImageEditMode(btn.dataset.imageEditMode || 'crop', true);
             });
         });
         document.getElementById('editDrawCanvas').addEventListener('pointerdown', beginEditDraw);
@@ -2412,13 +2645,12 @@
                                 <option value="1k">1K</option>
                                 <option value="2k">2K</option>
                                 <option value="4k">4K</option>
-                                <option value="custom">${tr('canvas.custom')}</option>
-                            </select>
-                            <select class="select-lite ratio compact-select" data-field="msRatio">
-                                <option value="">${tr('canvas.emptyRatio')}</option>
-                                <option value="square">1:1</option>
-                                <option value="portrait">2:3</option>
-                                <option value="landscape">3:2</option>
+                            <option value="custom">${tr('canvas.custom')}</option>
+                        </select>
+                        <select class="select-lite ratio compact-select" data-field="msRatio">
+                            <option value="square">1:1</option>
+                            <option value="portrait">2:3</option>
+                            <option value="landscape">3:2</option>
                                 <option value="portrait43">3:4</option>
                                 <option value="landscape43">4:3</option>
                                 <option value="story">9:16</option>
@@ -2538,7 +2770,8 @@
                     node.msCustomHeight = node.msCustomHeight || parsed?.height || '';
                 }
                 const syncMsCustomSizeControls = () => {
-                    msRatioSelect.value = node.msRatio ?? 'square';
+                    const ratioValue = node.msRatio && [...msRatioSelect.options].some(opt => opt.value === node.msRatio) ? node.msRatio : 'square';
+                    msRatioSelect.value = ratioValue;
                     msResolutionSelect.value = node.msResolution || '1k';
                     msRatioSelect.disabled = node.msResolution === 'custom';
                     msCustomRatioRow.style.display = node.msRatio === 'custom' ? 'flex' : 'none';
@@ -2860,6 +3093,36 @@
         function outputImageUrls(node){
             return (node?.images || []).map(outputUrlValue).filter(url => url && !isVideoUrl(url));
         }
+        function outputDownloadableImageUrls(node){
+            return outputImageUrls(node).filter(url => !isMissingAssetUrl(url) && (url.startsWith('/output/') || url.startsWith('/assets/')));
+        }
+        async function downloadOutputNodeImages(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            const urls = outputDownloadableImageUrls(node);
+            if(!urls.length){
+                alert(tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片');
+                return;
+            }
+            try {
+                const res = await fetch('/api/canvas-assets/download', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({urls, filename:`${node?.name || node?.id || 'output'}-images.zip`})
+                });
+                if(!res.ok) throw new Error(await responseErrorMessage(res, tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片'));
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                const href = URL.createObjectURL(blob);
+                a.href = href;
+                a.download = `${node?.id || 'output'}-images.zip`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(href), 1200);
+            } catch(err) {
+                alert(err.message || tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片');
+            }
+        }
         function createInputGroupFromOutput(node, point){
             const urls = outputImageUrls(node);
             if(!node || !urls.length) return null;
@@ -2997,6 +3260,27 @@
             render();
             scheduleSave();
         }
+        function imageUrlFromDataTransfer(dataTransfer){
+            if(!dataTransfer) return '';
+            const values = [
+                dataTransfer.getData?.('text/uri-list') || '',
+                dataTransfer.getData?.('text/plain') || ''
+            ].join('\n');
+            const html = dataTransfer.getData?.('text/html') || '';
+            const htmlMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+            const candidates = [
+                htmlMatch?.[1] || '',
+                ...values.split(/\r?\n/)
+            ].map(s => String(s || '').trim()).filter(Boolean);
+            return candidates.find(s => /^https?:\/\/.+/i.test(s) || /^data:image\//i.test(s) || /^blob:/i.test(s)) || '';
+        }
+        function createImageCardFromUrl(url, point, name='image'){
+            if(!ensureCanvas() || !url || isVideoUrl(url)) return;
+            const p = point || defaultPoint(0, 0);
+            nodes.push({id:uid('img'), type:'image', x:p.x, y:p.y, url, name:name || outputImageName(url)});
+            render();
+            scheduleSave();
+        }
         async function fillImageNode(nodeId, files){
             if(!ensureCanvas()) return;
             const imgs = [...files].filter(file => file.type.startsWith('image/'));
@@ -3083,7 +3367,67 @@
         }
         function clearEditDrawing(){
             const canvasEl = editDrawCanvas();
+            pushEditDrawHistory();
             canvasEl.getContext('2d').clearRect(0, 0, canvasEl.width, canvasEl.height);
+            syncEditDrawingHistoryButtons();
+        }
+        function editDrawSnapshot(){
+            const canvasEl = editDrawCanvas();
+            return canvasEl.getContext('2d').getImageData(0, 0, canvasEl.width, canvasEl.height);
+        }
+        function restoreEditDrawSnapshot(snapshot){
+            if(!snapshot) return;
+            const canvasEl = editDrawCanvas();
+            canvasEl.getContext('2d').putImageData(snapshot, 0, 0);
+        }
+        function pushEditDrawHistory(){
+            const canvasEl = editDrawCanvas();
+            if(!canvasEl?.width || !canvasEl?.height) return;
+            editDrawUndoStack.push(editDrawSnapshot());
+            if(editDrawUndoStack.length > 40) editDrawUndoStack.shift();
+            editDrawRedoStack = [];
+            syncEditDrawingHistoryButtons();
+        }
+        function syncEditDrawingHistoryButtons(){
+            ['maskUndoBtn','brushUndoBtn'].forEach(id => {
+                const btn = document.getElementById(id);
+                if(btn) btn.disabled = !editDrawUndoStack.length;
+            });
+            ['maskRedoBtn','brushRedoBtn'].forEach(id => {
+                const btn = document.getElementById(id);
+                if(btn) btn.disabled = !editDrawRedoStack.length;
+            });
+        }
+        function undoEditDrawing(){
+            if(!editDrawUndoStack.length) return;
+            editDrawRedoStack.push(editDrawSnapshot());
+            restoreEditDrawSnapshot(editDrawUndoStack.pop());
+            syncEditDrawingHistoryButtons();
+        }
+        function redoEditDrawing(){
+            if(!editDrawRedoStack.length) return;
+            editDrawUndoStack.push(editDrawSnapshot());
+            restoreEditDrawSnapshot(editDrawRedoStack.pop());
+            syncEditDrawingHistoryButtons();
+        }
+        function setBrushTool(tool){
+            brushTool = ['free','rect','ellipse','label'].includes(tool) ? tool : 'free';
+            document.querySelectorAll('[data-brush-tool]').forEach(btn => {
+                const active = btn.dataset.brushTool === brushTool;
+                btn.classList.toggle('primary', active);
+                btn.classList.toggle('secondary', !active);
+            });
+            refreshIcons();
+        }
+        function applyGridPreset(rows, cols){
+            const h = Math.max(0, Number(rows || 1) - 1);
+            const v = Math.max(0, Number(cols || 1) - 1);
+            const hInput = document.getElementById('gridHorizontalLines');
+            const vInput = document.getElementById('gridVerticalLines');
+            if(hInput) hInput.value = String(h);
+            if(vInput) vInput.value = String(v);
+            gridCustomMode = false;
+            refreshGridSplitPreview();
         }
         function editDrawPoint(event){
             const canvasEl = editDrawCanvas();
@@ -3122,6 +3466,52 @@
             const id = imageEditMode === 'mask' ? 'maskBrushSize' : 'paintBrushSize';
             return Number(document.getElementById(id)?.value || 20);
         }
+        function brushColor(){
+            return document.getElementById('paintBrushColor')?.value || '#ff2d55';
+        }
+        function setupDrawStyle(ctx){
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = editBrushSize();
+            ctx.strokeStyle = imageEditMode === 'mask' ? 'rgba(255,255,255,0.78)' : brushColor();
+            ctx.fillStyle = imageEditMode === 'mask' ? 'rgba(255,255,255,0.78)' : brushColor();
+            ctx.globalCompositeOperation = 'source-over';
+        }
+        function circledNumber(n){
+            if(n >= 1 && n <= 20) return String.fromCharCode(0x2460 + n - 1);
+            return String(n);
+        }
+        function drawBrushShape(ctx, start, end, preview=false){
+            setupDrawStyle(ctx);
+            const x = Math.min(start.x, end.x);
+            const y = Math.min(start.y, end.y);
+            const w = Math.abs(end.x - start.x);
+            const h = Math.abs(end.y - start.y);
+            if(brushTool === 'rect'){
+                ctx.strokeRect(x, y, w, h);
+            } else if(brushTool === 'ellipse'){
+                ctx.beginPath();
+                ctx.ellipse(x + w / 2, y + h / 2, Math.max(1, w / 2), Math.max(1, h / 2), 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        function drawNumberLabel(point){
+            const canvasEl = editDrawCanvas();
+            const ctx = canvasEl.getContext('2d');
+            const size = Math.max(18, editBrushSize() * 2.2);
+            const text = circledNumber(brushLabelCounter++);
+            setupDrawStyle(ctx);
+            ctx.save();
+            ctx.font = `900 ${size}px Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = Math.max(3, size / 8);
+            ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+            ctx.strokeText(text, point.x, point.y);
+            ctx.fillStyle = brushColor();
+            ctx.fillText(text, point.x, point.y);
+            ctx.restore();
+        }
         function beginEditDraw(event){
             if(imageEditMode === 'crop') return;
             if(imageEditMode === 'grid'){
@@ -3156,16 +3546,20 @@
             canvasEl.setPointerCapture?.(event.pointerId);
             const ctx = canvasEl.getContext('2d');
             const p = editDrawPoint(event);
-            editDrawState = {x:p.x, y:p.y, pointerId:event.pointerId};
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.lineWidth = editBrushSize();
-            ctx.strokeStyle = imageEditMode === 'mask' ? 'rgba(255,255,255,0.78)' : (document.getElementById('paintBrushColor')?.value || '#ff2d55');
-            ctx.globalCompositeOperation = 'source-over';
+            pushEditDrawHistory();
+            if(imageEditMode === 'brush' && brushTool === 'label'){
+                drawNumberLabel(p);
+                editDrawState = null;
+                canvasEl.releasePointerCapture?.(event.pointerId);
+                syncEditDrawingHistoryButtons();
+                return;
+            }
+            editDrawState = {x:p.x, y:p.y, sx:p.x, sy:p.y, pointerId:event.pointerId, snapshot:(imageEditMode === 'brush' && brushTool !== 'free') ? editDrawSnapshot() : null};
+            setupDrawStyle(ctx);
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p.x + 0.01, p.y + 0.01);
-            ctx.stroke();
+            if(imageEditMode === 'mask' || brushTool === 'free') ctx.stroke();
         }
         function moveEditDraw(event){
             if(imageEditMode === 'grid' && gridCustomMode && gridCustomDrag){
@@ -3180,7 +3574,12 @@
             event.stopPropagation();
             const ctx = editDrawCanvas().getContext('2d');
             const p = editDrawPoint(event);
-            ctx.lineWidth = editBrushSize();
+            if(imageEditMode === 'brush' && brushTool !== 'free'){
+                restoreEditDrawSnapshot(editDrawState.snapshot);
+                drawBrushShape(ctx, {x:editDrawState.sx, y:editDrawState.sy}, p, true);
+                return;
+            }
+            setupDrawStyle(ctx);
             ctx.beginPath();
             ctx.moveTo(editDrawState.x, editDrawState.y);
             ctx.lineTo(p.x, p.y);
@@ -3193,6 +3592,7 @@
             if(gridCustomDrag && event?.pointerId != null) editDrawCanvas().releasePointerCapture?.(event.pointerId);
             editDrawState = null;
             gridCustomDrag = null;
+            syncEditDrawingHistoryButtons();
         }
         function editCanvasHasPixels(){
             const canvasEl = editDrawCanvas();
@@ -3476,6 +3876,7 @@
             imageEditZoom = 1.0;
             imageEditBaseW = 0;
             imageEditBaseH = 0;
+            imageEditModeTouched = false;
             const toggle = document.getElementById('gridCustomToggle');
             if(toggle){ toggle.classList.add('secondary'); toggle.classList.remove('primary'); }
             const custom = document.getElementById('gridCustomControls');
@@ -3500,9 +3901,10 @@
                 imageEditBaseH = img.clientHeight;
                 _updateZoomLabel();
                 resizeEditDrawCanvas();
-                clearEditDrawing();
+                resetEditDrawingHistory();
+                clearEditDrawing(true);
                 resetCropBox();
-                setImageEditMode('crop');
+                if(!imageEditModeTouched) setImageEditMode('crop');
                 syncImageEditOverflow();
                 refreshIcons();
             };
@@ -3520,14 +3922,16 @@
             img.style.height = '';
             img.style.maxWidth = '';
             img.style.maxHeight = '';
-            clearEditDrawing();
+            clearEditDrawing(true);
             cropState = null;
             cropDrag = null;
             editDrawState = null;
+            resetEditDrawingHistory();
             gridCustomDrag = null;
             imageEditZoom = 1.0;
             imageEditBaseW = 0;
             imageEditBaseH = 0;
+            imageEditModeTouched = false;
             document.getElementById('imageEditStage')?.classList.remove('overflowing', 'overflow-x', 'overflow-y');
             const cropCanvasEl = document.getElementById('cropCanvas');
             cropCanvasEl.classList.remove('grid-custom-h', 'grid-custom-v');
@@ -3733,6 +4137,7 @@
             return !isNodeControl(target) && !target.closest('.port, .resize-handle, .output-img-wrap');
         }
         function renderNode(node){
+            normalizeApiNodeLayout(node);
             const el = document.createElement('div');
             const size = defaultNodeSize(node.type);
             const hasFixedSize = Boolean(node.h || size.h);
@@ -3932,6 +4337,95 @@
             const inp = el.querySelector('.port.in');
             if(inp) inp.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in'); };
             return el;
+        }
+        function bindOutputWrap(wrap, node){
+            const img = wrap.querySelector('img');
+            const video = wrap.querySelector('video');
+            const del = wrap.querySelector('.output-del');
+            if(img){
+                img.draggable = true;
+                img.ondragstart = e => {
+                    e.stopPropagation();
+                    img.dataset.dragging = '1';
+                    setOutputDragPreview(e, img);
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('application/x-canvas-output-image', img.dataset.url);
+                    e.dataTransfer.setData('text/uri-list', img.dataset.url);
+                };
+                img.ondragend = () => setTimeout(() => { delete img.dataset.dragging; }, 0);
+                img.onclick = e => {
+                    e.stopPropagation();
+                    if(img.dataset.dragging) return;
+                    openOutputLightbox(img.dataset.url, node);
+                };
+            }
+            if(video){
+                video.onclick = e => {
+                    e.stopPropagation();
+                    openOutputLightbox(video.dataset.url, node);
+                };
+            }
+            if(del){
+                del.onmousedown = e => e.stopPropagation();
+                del.onclick = e => {
+                    e.stopPropagation();
+                    const pid = wrap.dataset.pendingId;
+                    if(pid){
+                        node._pending = (node._pending || []).filter(p => p.id !== pid);
+                    } else {
+                        const url = img?.dataset.url || video?.dataset.url || wrap.dataset.outputUrl || wrap.dataset.missingUrl || '';
+                        node.images = (node.images || []).filter(item => outputUrlValue(item) !== url);
+                        if(node.imageComparisons) delete node.imageComparisons[url];
+                        scheduleSave();
+                    }
+                    refreshNodes([node.id]);
+                };
+            }
+        }
+        function outputDomKeyForItem(item){
+            return `url:${outputUrlValue(item)}`;
+        }
+        function outputDomKeyForPending(pending){
+            return `pending:${pending?.id || ''}`;
+        }
+        function refreshOutputNodeContent(node){
+            const el = nodesEl.querySelector(`.output-node[data-id="${CSS.escape(node.id)}"]`);
+            const body = el?.querySelector('.node-body');
+            const grid = body?.querySelector('.output-grid');
+            if(!body || !grid) return false;
+            body.onwheel = e => { e.stopPropagation(); };
+            const layout = outputGridLayout(node);
+            grid.classList.toggle('grid-layout', !!layout);
+            if(layout) grid.style.setProperty('--grid-cols', String(Math.max(1, Number(layout.cols || 1))));
+            else grid.style.removeProperty('--grid-cols');
+            const items = [
+                ...(node.images || []).map(item => ({
+                    key:outputDomKeyForItem(item),
+                    html:renderOutputMedia(item, !!layout)
+                })),
+                ...(node._pending || []).map(p => ({
+                    key:outputDomKeyForPending(p),
+                    html:`<div class="output-img-wrap loading-wrap" data-pending-id="${escapeAttr(p.id)}"><span class="output-time-pill running">${formatRunDuration(nowMs() - Number(p.startedAt || nowMs()))}</span><div class="output-spinner"></div><button class="output-del" title="${tr('common.delete')}">?</button></div>`
+                }))
+            ];
+            const wanted = new Set(items.map(item => item.key));
+            [...grid.children].forEach(child => {
+                const key = child.dataset.pendingId ? outputDomKeyForPending({id:child.dataset.pendingId}) : `url:${child.dataset.outputUrl || child.dataset.missingUrl || child.querySelector('img,video')?.dataset.url || ''}`;
+                if(!wanted.has(key)) child.remove();
+                else child.dataset.outputKey = key;
+            });
+            items.forEach(item => {
+                let child = [...grid.children].find(el => el.dataset.outputKey === item.key);
+                if(!child){
+                    grid.insertAdjacentHTML('beforeend', item.html);
+                    child = grid.lastElementChild;
+                    child.dataset.outputKey = item.key;
+                    bindOutputWrap(child, node);
+                }
+                grid.appendChild(child);
+            });
+            refreshOutputTimer();
+            return true;
         }
         function defaultNodeSize(type){
             if(type === 'image') return {w:260, h:336};
@@ -4484,7 +4978,7 @@
                         <select class="select-lite provider-select">${providerOptions(node.apiProvider)}</select>
                         <select class="select-lite model-select">${imageModelOptions(node.model, node.apiProvider)}</select>
                     </div>
-                    <div class="gen-settings-row">
+                    <div class="gen-settings-row api-size-row">
                         <select class="select-lite resolution compact-select" data-field="resolution">
                             <option value="1k">1K</option>
                             <option value="2k">2K</option>
@@ -4492,7 +4986,6 @@
                             <option value="custom">${tr('canvas.custom')}</option>
                         </select>
                         <select class="select-lite ratio compact-select" data-field="ratio">
-                            <option value="">${tr('canvas.emptyRatio')}</option>
                             <option value="square">1:1</option>
                             <option value="portrait">2:3</option>
                             <option value="landscape">3:2</option>
@@ -4500,7 +4993,14 @@
                             <option value="landscape43">4:3</option>
                             <option value="story">9:16</option>
                             <option value="wide">16:9</option>
+                            <option value="source">${tr('canvas.adaptiveRatio')}</option>
                             <option value="custom">${tr('canvas.custom')}</option>
+                        </select>
+                        <select class="select-lite quality-select">
+                            <option value="auto">Q auto</option>
+                            <option value="low">Q low</option>
+                            <option value="medium">Q med</option>
+                            <option value="high">Q high</option>
                         </select>
                         <div class="gen-count-row">
                             <div class="gen-stepper">
@@ -4553,6 +5053,7 @@
                 const providerModels = providerImageModels(node.apiProvider);
                 if(!providerModels.includes(resolveImageModel(node.model))) node.model = providerModels[0] || '';
                 modelSelect.innerHTML = imageModelOptions(node.model, node.apiProvider);
+                syncQualityControls();
                 scheduleSave();
             };
             modelSelect.onmousedown = e => e.stopPropagation();
@@ -4577,6 +5078,11 @@
             const customHInput = wrap.querySelector('.custom-h-input');
             const fitSizeBtn = wrap.querySelector('.fit-size-btn');
             const referenceImages = ordered.flatMap(src => src.refs || []);
+            const syncQualityControls = () => {
+                qualitySelect.disabled = false;
+                if(!['auto','low','medium','high'].includes(String(node.quality || 'auto'))) node.quality = 'auto';
+                qualitySelect.value = node.quality || 'auto';
+            };
             const hydrateCustomParts = () => {
                 if((!node.customRatioWidth || !node.customRatioHeight) && node.customRatio) {
                     const raw = String(node.customRatio || '');
@@ -4593,24 +5099,72 @@
                 }
             };
             hydrateCustomParts();
+            let sourceRatioRequest = 0;
+            const updateSourceRatioFromFirstRef = async () => {
+                if(node.ratio !== 'source') return;
+                const ref = referenceImages.find(item => item.url);
+                const requestId = ++sourceRatioRequest;
+                if(!ref){
+                    node.customRatio = '';
+                    node.customRatioWidth = '';
+                    node.customRatioHeight = '';
+                    customRatioWInput.value = '';
+                    customRatioHInput.value = '';
+                    return;
+                }
+                try {
+                    const dims = await getImageDimensions(ref.url);
+                    if(requestId !== sourceRatioRequest || node.ratio !== 'source') return;
+                    const parts = ratioPartsFromDimensions(dims.width, dims.height);
+                    node.customRatioWidth = String(parts.width);
+                    node.customRatioHeight = String(parts.height);
+                    node.customRatio = `${parts.width}:${parts.height}`;
+                    customRatioWInput.value = node.customRatioWidth;
+                    customRatioHInput.value = node.customRatioHeight;
+                    scheduleSave();
+                } catch(_) {}
+            };
             const syncSizeControls = () => {
-                ratioSelect.value = node.ratio ?? 'square';
+                normalizeApiNodeSizeChoice(node);
+                const squareOption = ratioSelect.querySelector('option[value="square"]');
+                if(squareOption){
+                    squareOption.disabled = node.resolution === '4k';
+                    squareOption.title = node.resolution === '4k' ? '4K ??? 1:1' : '';
+                }
+                const ratioValue = node.ratio && [...ratioSelect.options].some(opt => opt.value === node.ratio) ? node.ratio : 'square';
+                ratioSelect.value = ratioValue;
                 resolutionSelect.value = node.resolution || '1k';
                 ratioSelect.disabled = node.resolution === 'custom';
-                customRatioRow.style.display = node.ratio === 'custom' ? 'flex' : 'none';
+                customRatioRow.style.display = (node.ratio === 'custom' || node.ratio === 'source') ? 'flex' : 'none';
                 customSizeRow.style.display = node.resolution === 'custom' ? 'flex' : 'none';
+                customRatioWInput.disabled = node.ratio === 'source';
+                customRatioHInput.disabled = node.ratio === 'source';
                 customRatioWInput.value = node.customRatioWidth || '';
                 customRatioHInput.value = node.customRatioHeight || '';
                 customWInput.value = node.customWidth || '';
                 customHInput.value = node.customHeight || '';
                 if(fitSizeBtn) fitSizeBtn.disabled = !referenceImages.some(ref => ref.url);
+                syncQualityControls();
+                if(node.ratio === 'source') updateSourceRatioFromFirstRef();
+            };
+            qualitySelect.onmousedown = e => e.stopPropagation();
+            qualitySelect.onclick = e => e.stopPropagation();
+            qualitySelect.onchange = e => {
+                e.stopPropagation();
+                node.quality = e.target.value;
+                scheduleSave();
             };
             ratioSelect.onmousedown = e => e.stopPropagation();
             ratioSelect.onclick = e => e.stopPropagation();
             ratioSelect.onchange = e => {
                 e.stopPropagation();
                 node.ratio = e.target.value;
-                if(node.ratio !== 'custom') {
+                normalizeApiNodeSizeChoice(node);
+                if(node.ratio !== 'custom' && node.ratio !== 'source') {
+                    node.customRatio = '';
+                    node.customRatioWidth = '';
+                    node.customRatioHeight = '';
+                } else if(node.ratio === 'source') {
                     node.customRatio = '';
                     node.customRatioWidth = '';
                     node.customRatioHeight = '';
@@ -4635,6 +5189,7 @@
                     node.customWidth = '';
                     node.customHeight = '';
                 }
+                normalizeApiNodeSizeChoice(node);
                 syncSizeControls();
                 scheduleSave();
             };
@@ -5124,6 +5679,38 @@
             if(node.comfyParams[field.id] !== undefined) return node.comfyParams[field.id];
             return field.default ?? (field.type === 'boolean' ? false : (field.type === 'number' || field.type === 'slider' ? 0 : ''));
         }
+        function comfyRandomEnabled(field){
+            return field?.type === 'number' && field.random_enabled === true;
+        }
+        function comfyRandomActive(node, fieldId){
+            node.comfyRandomActive = node.comfyRandomActive || {};
+            return node.comfyRandomActive[fieldId] !== false;
+        }
+        function comfyRandomValue(field){
+            const isFloat = Number(field.step) > 0 && Number(field.step) < 1;
+            let min = Number.isFinite(Number(field.min)) ? Number(field.min) : null;
+            let max = Number.isFinite(Number(field.max)) ? Number(field.max) : null;
+            const name = `${field.input || ''} ${field.name || ''}`.toLowerCase();
+            const looksSeed = name.includes('seed') || name.includes('noise') || name.includes('??') || name.includes('?');
+            if(min === null) min = looksSeed ? 1 : 0;
+            if(max === null || max <= min) max = looksSeed ? 1000000000000000 : 999999;
+            let value = min + Math.random() * (max - min);
+            if(isFloat){
+                const precision = Math.min(8, Math.max(1, String(field.step).split('.')[1]?.length || 2));
+                return Number(value.toFixed(precision));
+            }
+            return Math.floor(value);
+        }
+        function toggleComfyRandom(nodeId, fieldId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node) return;
+            const field = comfyFields(node).find(f => f.id === fieldId);
+            if(!comfyRandomEnabled(field)) return;
+            node.comfyRandomActive = node.comfyRandomActive || {};
+            node.comfyRandomActive[fieldId] = !comfyRandomActive(node, fieldId);
+            refreshNodes([node.id]);
+            scheduleSave();
+        }
         function renderComfyBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'comfy-body';
@@ -5187,7 +5774,8 @@
                 item.className = 'input-item';
                 item.draggable = true;
                 item.dataset.sourceId = src.id;
-                item.innerHTML = `<span class="input-index">${i + 1}</span>${src.preview ? `<img src="${src.preview}">` : '<i data-lucide="text" class="w-6 h-6 text-slate-400"></i>'}<span class="input-label">${tr('canvas.image')} ${i + 1}</span>`;
+                const previewHtml = src.preview && !isMissingAssetUrl(src.preview) ? `<img src="${escapeAttr(src.preview)}">` : (src.preview ? missingAssetHtml(src.preview, true) : '<i data-lucide="text" class="w-6 h-6 text-slate-400"></i>');
+                item.innerHTML = `<span class="input-index">${i + 1}</span>${previewHtml}<span class="input-label">${tr('canvas.image')} ${i + 1}</span>`;
                 item.ondragstart = e => {
                     e.stopPropagation();
                     internalDrag = true;
@@ -5270,6 +5858,13 @@
                 btn.onmousedown = e => e.stopPropagation();
                 btn.onclick = e => updateComfyField(node, btn, e);
             });
+            container.querySelectorAll('button[data-comfy-random]').forEach(btn => {
+                btn.onmousedown = e => e.stopPropagation();
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    toggleComfyRandom(node.id, btn.dataset.comfyRandom);
+                };
+            });
             container.querySelectorAll('input, select, textarea').forEach(input => {
                 input.onmousedown = e => e.stopPropagation();
                 input.onclick = e => e.stopPropagation();
@@ -5307,6 +5902,15 @@
                 </div>`;
             }
             const type = f.type === 'number' ? 'number' : 'text';
+            if(comfyRandomEnabled(f)){
+                const active = comfyRandomActive(node, f.id);
+                return `<div class="gen-settings-row">
+                    <div class="comfy-random-field">
+                        <label class="field"><div class="setting-title">${label}</div><input class="setting-input" type="number" data-comfy-param="${escapeHtml(f.id)}" data-comfy-type="number" value="${escapeHtml(value)}"></label>
+                        <button class="tool-btn comfy-random-btn ${active ? 'active' : ''}" type="button" data-comfy-random="${escapeHtml(f.id)}" title="${active ? '??????????' : '??????????'}" aria-label="${active ? '??????????' : '??????????'}"><i data-lucide="dice-5" class="w-4 h-4"></i></button>
+                    </div>
+                </div>`;
+            }
             return `<div class="gen-settings-row">
                 <label class="field" style="flex:1"><div class="setting-title">${label}</div><input class="setting-input" type="${type}" data-comfy-param="${escapeHtml(f.id)}" data-comfy-type="${escapeHtml(f.type || 'text')}" value="${escapeHtml(value)}"></label>
             </div>`;
@@ -6086,6 +6690,10 @@
                     settingFields.forEach(f => {
                         if(!f.node || !f.input) return;
                         params[f.node] = params[f.node] || {};
+                        if(comfyRandomEnabled(f) && comfyRandomActive(node, f.id)){
+                            node.comfyParams = node.comfyParams || {};
+                            node.comfyParams[f.id] = comfyRandomValue(f);
+                        }
                         params[f.node][f.input] = comfyParamValue(node, f);
                     });
                     const result = await fetch('/api/generate', {
@@ -6312,6 +6920,12 @@
             const loop = loops[loops.length - 1];
             return {node:loop, count:loopCount(loop), mode:loop.mode === 'parallel' ? 'parallel' : 'serial'};
         }
+        function cascadeUiNodeIds(targetId, order=null){
+            const ids = new Set([targetId, ...(order || computeCascadeOrder(targetId))]);
+            const loop = resolveCascadeLoop(targetId);
+            if(loop?.node?.id) ids.add(loop.node.id);
+            return [...ids].filter(Boolean);
+        }
         async function runNodeCascade(nodeId){
             const target = nodes.find(n => n.id === nodeId);
             if(!target) return;
@@ -6363,7 +6977,7 @@
                     node.runStatus = 'failed';
                     node.runError = err.message || String(err);
                     node._cascadeFailed = true;
-                    render();
+                    refreshNodes(cascadeUiNodeIds(nodeId, order));
                     return;
                 }
                 setTimeout(() => {
@@ -6371,11 +6985,12 @@
                         const n = nodes.find(x => x.id === id);
                         if(n && n.runStatus === 'done'){ n.runStatus = ''; n._cascadeIdx = ''; }
                     });
-                    render();
+                    refreshNodes(cascadeUiNodeIds(nodeId, order));
                 }, 3000);
                 return;
             }
             cascadeSerialIds.add(nodeId);
+            refreshNodes(cascadeUiNodeIds(nodeId, order));
             for(let round = 1; round <= totalRounds; round++){
                 if(cascadeStopIds.has(nodeId)){
                     cascadeStopIds.delete(nodeId);
@@ -6414,7 +7029,7 @@
                             const n2 = nodes.find(x => x.id === order[j]);
                             if(n2){ n2.runStatus = ''; n2._cascadeIdx = ''; }
                         }
-                        render();
+                        refreshNodes(cascadeUiNodeIds(nodeId, order.slice(i)));
                         return;
                     }
                 }
@@ -6454,7 +7069,7 @@
                     else if(node.type === 'llm') await runLLMNode(id, {cascade:true});
                     else if(node.type === 'video') await runVideoNode(id, {cascade:true});
                     node.runStatus = 'done';
-                    render();
+                    refreshNodes([id]);
                 } catch(err) {
                     node.runStatus = 'failed';
                     node.runError = err.message || String(err);
@@ -6472,13 +7087,13 @@
             const idx = order.indexOf(nodeId);
             const remain = idx >= 0 ? order.slice(idx) : [nodeId];
             try { await runOneCascadePass(remain); }
-            catch(err) { render(); return; }
+            catch(err) { refreshNodes(remain); return; }
             setTimeout(() => {
                 remain.forEach(id => {
                     const n = nodes.find(x => x.id === id);
                     if(n && n.runStatus === 'done'){ n.runStatus = ''; n._cascadeIdx = ''; }
                 });
-                render();
+                refreshNodes(remain);
             }, 3000);
         }
         function cancelCascade(nodeId){
@@ -6490,7 +7105,7 @@
                     n.runStatus = ''; n._cascadeIdx = ''; n.runError = ''; n._cascadeFailed = false;
                 }
             });
-            render();
+            refreshNodes(order);
         }
 
         async function runLLMChat(nodeId){
@@ -6554,6 +7169,12 @@
         function nowMs(){ return Date.now(); }
         function outputUrlValue(item){
             return typeof item === 'string' ? item : item?.url || '';
+        }
+        function isMissingAssetUrl(url){
+            return Boolean(url && missingAssetUrls.has(url));
+        }
+        function missingAssetHtml(url, compact=false){
+            return `<div class="missing-asset ${compact ? 'compact' : ''}" title="${escapeAttr(url || '')}"><i data-lucide="image-off" class="${compact ? 'w-4 h-4' : 'w-6 h-6'}"></i><span>${langIsEn() ? 'Missing file' : '????'}</span></div>`;
         }
         function outputMetaFor(url, out){
             const item = (out?.images || []).find(x => outputUrlValue(x) === url);
@@ -6653,6 +7274,7 @@
             logList.innerHTML = logs.length ? logs.map(log => {
                 const thumbs = (log.outputs || []).slice(0, 8).map(url => {
                     const safe = escapeAttr(url);
+                    if(isMissingAssetUrl(url)) return `<div class="missing-asset compact" data-url="${safe}"><i data-lucide="image-off" class="w-4 h-4"></i></div>`;
                     return isVideoUrl(url) ? `<video src="${safe}" data-url="${safe}" muted playsinline></video>` : `<img src="${safe}" data-url="${safe}" alt="output">`;
                 }).join('');
                 const date = new Date(log.createdAt || Date.now()).toLocaleString(window.StudioI18n?.lang() === 'en' ? 'en-US' : 'zh-CN');
@@ -6730,11 +7352,40 @@
         function collectRunMeta(out, id){
             return collectRunMetas(out, [id])[0] || {runMs:0, run:{}};
         }
-        function renderOutputMedia(item){
+        function mergeGeneratedOutputs(node, outputs, append=false){
+            if(!node) return;
+            const clean = (outputs || []).filter(url => url && !isVideoUrl(url));
+            if(!append){
+                node.generatedOutputs = clean;
+                return;
+            }
+            const seen = new Set(node.generatedOutputs || []);
+            node.generatedOutputs = [...(node.generatedOutputs || []), ...clean.filter(url => !seen.has(url) && seen.add(url))];
+        }
+        function outputGridLayout(node){
+            const images = node?.images || [];
+            if(!images.length || node?._pending?.length) return null;
+            const layout = node.outputLayout;
+            if(!layout || layout.type !== 'grid-split' || !layout.groupId) return null;
+            const allMatch = images.every(item => item && typeof item === 'object' && item.grid?.groupId === layout.groupId);
+            return allMatch ? layout : null;
+        }
+        function renderOutputGrid(node, pendingHtml=''){
+            const layout = outputGridLayout(node);
+            const gridClass = layout ? 'output-grid grid-layout' : 'output-grid';
+            const style = layout ? ` style="--grid-cols:${Math.max(1, Number(layout.cols || 1))}"` : '';
+            return `<div class="${gridClass}"${style}>${(node.images || []).map(item => renderOutputMedia(item, !!layout)).join('')}${pendingHtml}</div>`;
+        }
+        function renderOutputMedia(item, useGridLayout=false){
             const url = outputUrlValue(item);
             const safe = escapeAttr(url);
             const meta = item && typeof item === 'object' ? item : {};
+            const grid = useGridLayout ? (meta.grid || null) : null;
+            const gridStyle = grid ? ` style="grid-row:${Number(grid.row || 0) + 1};grid-column:${Number(grid.col || 0) + 1};aspect-ratio:${Math.max(1, Number(grid.w || 1))}/${Math.max(1, Number(grid.h || 1))}"` : '';
             const timePill = meta.runMs && !meta.viewed ? `<span class="output-time-pill">${formatRunDuration(meta.runMs)}</span>` : '';
+            if(isMissingAssetUrl(url)){
+                return `<div class="output-img-wrap" data-output-url="${safe}" data-missing-url="${safe}"${gridStyle}>${missingAssetHtml(url, true)}${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
+            }
             if(isVideoUrl(url)){
                 return `<div class="output-img-wrap"><video src="${safe}" data-url="${safe}" preload="metadata" muted playsinline></video>${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
@@ -6757,12 +7408,20 @@
             event.dataTransfer.setDragImage(wrap, Math.min(rect.width / 2, 120), Math.min(rect.height / 2, 120));
             setTimeout(() => wrap.remove(), 0);
         }
-        function appendOutputImages(out, images, compareRef, metas=[]){
+        function appendOutputImages(out, images, compareRef, metas=[], layout=null){
             const list = (images || []).filter(Boolean);
             if(!out || !list.length) return;
+            if(layout?.type === 'grid-split'){
+                out.images = [];
+                out.outputLayout = layout;
+            } else if(out.outputLayout) {
+                delete out.outputLayout;
+            }
             out.images = [...(out.images || []), ...list.map((url, i) => {
                 const meta = metas[i] || metas[0] || {};
-                return {url, viewed:false, runMs:meta.runMs || 0, run:meta.run || null};
+                const item = {url, viewed:false, runMs:meta.runMs || 0, run:meta.run || null};
+                if(meta.grid) item.grid = meta.grid;
+                return item;
             })];
             if(compareRef?.url){
                 out.imageComparisons = out.imageComparisons || {};
@@ -7273,6 +7932,7 @@
             });
             renderLinks();
             renderSelectionHub();
+            scheduleMinimapRender();
         }
         function startNodeResize(e, node){
             e.preventDefault();
@@ -7305,6 +7965,7 @@
             }
             renderLinks();
             renderSelectionHub();
+            scheduleMinimapRender();
         }
         function startLink(e, originId, originKind){
             e.stopPropagation();
@@ -7384,10 +8045,11 @@
             knifeNeedsRender = false;
             if(!event?.shiftKey) setKnifeMode(false);
             if(textSelectionGuard) textSelectionGuard.active = false;
-            document.body.classList.remove('canvas-node-drag', 'canvas-node-resize', 'canvas-selecting');
+            document.body.classList.remove('canvas-node-drag', 'canvas-node-resize', 'canvas-selecting', 'canvas-board-pan');
             window.onmousemove = null;
             window.onmouseup = null;
             if(shouldRenderKnife) render();
+            scheduleMinimapRender();
             scheduleSave();
         }
         function nodeRect(n){
@@ -7496,6 +8158,7 @@
             });
             renderLinks();
             renderSelectionHub();
+            scheduleMinimapRender();
         }
         function pathEl(x1,y1,x2,y2,cls){
             const p = document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -7615,9 +8278,46 @@
             const tag = target?.tagName;
             return tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable || target?.closest?.('select, option');
         }
+        minimap?.addEventListener('mousedown', e => {
+            if(!canvas || e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            minimapDrag = true;
+            centerViewportOnWorldPoint(minimapEventToWorld(e));
+            window.onmousemove = e2 => {
+                if(minimapDrag) centerViewportOnWorldPoint(minimapEventToWorld(e2));
+            };
+            window.onmouseup = () => {
+                minimapDrag = false;
+                window.onmousemove = null;
+                window.onmouseup = null;
+                scheduleSave();
+            };
+        });
+        function startBoardPan(e){
+            if(!canvas) return false;
+            if(isEditableTarget(e.target) || e.target.closest?.('#createMenu, #linkCreateMenu, #nodeInputMenu, #nodeOutputMenu, #imageNodeMenu, .minimap')) return false;
+            e.preventDefault();
+            e.stopPropagation();
+            closeCreateMenu();
+            if(document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+            dragBoard = {sx:e.clientX, sy:e.clientY, ox:viewport.x, oy:viewport.y};
+            document.body.classList.add('canvas-board-pan');
+            window.onmousemove = e2 => {
+                viewport.x = dragBoard.ox + e2.clientX - dragBoard.sx;
+                viewport.y = dragBoard.oy + e2.clientY - dragBoard.sy;
+                applyViewport();
+            };
+            window.onmouseup = endDrag;
+            return true;
+        }
 
         board.onmousedown = e => {
             if(!canvas) return;
+            if(e.button === 1){
+                startBoardPan(e);
+                return;
+            }
             if(e.button !== 0) return;
             if(startKnifeDrag(e)) return;
             // Dismiss any open native select dropdown
@@ -7634,9 +8334,7 @@
                 selected.clear();
                 refreshSelectionVisuals();
             }
-            dragBoard = {sx:e.clientX, sy:e.clientY, ox:viewport.x, oy:viewport.y};
-            window.onmousemove = e2 => { viewport.x = dragBoard.ox + e2.clientX - dragBoard.sx; viewport.y = dragBoard.oy + e2.clientY - dragBoard.sy; applyViewport(); };
-            window.onmouseup = endDrag;
+            startBoardPan(e);
         };
         board.addEventListener('mousemove', e => {
             const point = screenToWorld(e.clientX, e.clientY);
@@ -7673,39 +8371,42 @@
                 dropOverlay.classList.remove('active');
                 return;
             }
-            if(hasImageFiles(e.dataTransfer?.items) || hasOutputImageDrag(e.dataTransfer)){
+            if(hasImageDropData(e.dataTransfer) || hasOutputImageDrag(e.dataTransfer)){
                 e.preventDefault();
                 e.dataTransfer.dropEffect = hasOutputImageDrag(e.dataTransfer) ? 'copy' : 'move';
                 dropOverlay.classList.add('active');
             }
         });
-        board.addEventListener('dragleave', e => { if(e.target === board) dropOverlay.classList.remove('active'); });
+        board.addEventListener('dragleave', e => {
+            if(e.target === board || !board.contains(e.relatedTarget)) dropOverlay.classList.remove('active');
+        });
         board.addEventListener('drop', e => {
-            if(e.target.closest?.('.image-node')){
-                dropOverlay.classList.remove('active');
-                return;
-            }
+            e.preventDefault();
+            dropOverlay.classList.remove('active');
+            if(e.target.closest?.('.image-node')) return;
             if(hasOutputImageDrag(e.dataTransfer)) {
-                e.preventDefault();
-                dropOverlay.classList.remove('active');
                 createImageCardFromOutput(e.dataTransfer.getData('application/x-canvas-output-image'), screenToWorld(e.clientX, e.clientY));
                 return;
             }
             if(internalDrag || e.dataTransfer?.types?.includes('application/x-canvas-input')) {
-                e.preventDefault();
                 internalDrag = false;
-                dropOverlay.classList.remove('active');
                 return;
             }
-            if(!hasImageFiles(e.dataTransfer?.items)) return;
-            e.preventDefault();
-            dropOverlay.classList.remove('active');
-            uploadImages(e.dataTransfer.files, screenToWorld(e.clientX, e.clientY));
+            if(hasImageFiles(e.dataTransfer?.items)){
+                uploadImages(e.dataTransfer.files, screenToWorld(e.clientX, e.clientY));
+                return;
+            }
+            const droppedUrl = imageUrlFromDataTransfer(e.dataTransfer);
+            if(droppedUrl) createImageCardFromUrl(droppedUrl, screenToWorld(e.clientX, e.clientY), outputImageName(droppedUrl));
         });
+        window.addEventListener('dragend', () => dropOverlay.classList.remove('active'));
+        window.addEventListener('drop', () => dropOverlay.classList.remove('active'));
         window.addEventListener('paste', e => {
             if(!canvas) return;
             const files = [...(e.clipboardData?.items || [])].filter(x => x.kind === 'file' && x.type.startsWith('image/')).map(x => x.getAsFile());
             if(!files.length) return;
+            e.preventDefault();
+            lastImagePasteAt = Date.now();
             const blank = [...selected].map(id => nodes.find(n => n.id === id)).find(n => n?.type === 'image' && !n.url);
             if(blank) fillImageNode(blank.id, files);
             else uploadImages(files);
@@ -7729,7 +8430,14 @@
             if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 const tag = document.activeElement?.tagName;
                 if(tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
-                if(clipboard?.length) { e.preventDefault(); pasteNodes(); }
+                if(clipboard?.length) {
+                    const pasteRequestedAt = Date.now();
+                    setTimeout(() => {
+                        if(!canvas) return;
+                        if(lastImagePasteAt >= pasteRequestedAt) return;
+                        pasteNodes();
+                    }, 90);
+                }
             }
             if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                 const tag = document.activeElement?.tagName;
@@ -7778,12 +8486,19 @@
             scheduleSave();
         }
         function hasImageFiles(items){ return [...(items || [])].some(item => item.kind === 'file' && item.type.startsWith('image/')); }
+        function hasImageDropData(dataTransfer){
+            if(!dataTransfer) return false;
+            if(hasImageFiles(dataTransfer.items)) return true;
+            const types = [...(dataTransfer.types || [])];
+            return types.includes('text/uri-list') || types.includes('text/html') || types.includes('text/plain');
+        }
         function hasOutputImageDrag(dataTransfer){ return [...(dataTransfer?.types || [])].includes('application/x-canvas-output-image'); }
         function escapeHtml(str){ return String(str == null ? '' : str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
         function escapeAttr(str){ return escapeHtml(str); }
 
         window.onload = async () => {
             applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem(CANVAS_THEME_KEY) || 'light');
+            applyQuickToolbarState();
             if(window.StudioI18n) StudioI18n.apply();
             document.title = tr('canvas.title');
             initOutputCompareEvents();

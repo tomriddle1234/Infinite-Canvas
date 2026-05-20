@@ -114,7 +114,7 @@ def selected_model(requested, fallback):
     model = (requested or fallback).strip()
     if not model:
         raise HTTPException(status_code=400, detail="模型名称不能为空")
-    if len(model) > 120 or not re.fullmatch(r"[a-zA-Z0-9_.:/+-]+", model):
+    if len(model) > 240 or any(ord(ch) < 32 or ord(ch) == 127 for ch in model):
         raise HTTPException(status_code=400, detail=f"模型名称不合法：{model}")
     return model
 
@@ -252,7 +252,7 @@ IMAGE_MODELS = _model_list("IMAGE_MODELS", IMAGE_MODEL, ["nano-banana-pro"])
 VIDEO_MODELS = _model_list("VIDEO_MODELS", "veo3-fast", [
     "veo2", "veo2-fast", "veo2-pro",
     "veo3", "veo3-fast", "veo3-pro",
-    "veo3.1", "veo3.1-fast", "veo3.1-pro",
+    "veo3.1", "veo3.1-fast", "veo3.1-quality", "veo3.1-lite",
     "sora-2", "sora-2-pro",
     "wan2.6-t2v", "wan2.6-i2v",
     "wan2.5-t2v-preview", "wan2.5-i2v-preview",
@@ -283,7 +283,7 @@ def reload_env_globals():
     VIDEO_MODELS = _model_list("VIDEO_MODELS", "veo3-fast", [
         "veo2", "veo2-fast", "veo2-pro",
         "veo3", "veo3-fast", "veo3-pro",
-        "veo3.1", "veo3.1-fast", "veo3.1-pro",
+        "veo3.1", "veo3.1-fast", "veo3.1-quality", "veo3.1-lite",
         "sora-2", "sora-2-pro",
         "wan2.6-t2v", "wan2.6-i2v",
         "wan2.5-t2v-preview", "wan2.5-i2v-preview",

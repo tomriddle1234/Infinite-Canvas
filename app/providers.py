@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import urllib.parse
 
 from fastapi import HTTPException
 
@@ -111,6 +112,34 @@ def normalize_ms_loras(values):
     return normalized
 
 
+def normalize_endpoint_override(value, label):
+    endpoint = str(value or "").strip()
+    if not endpoint:
+        return ""
+    if len(endpoint) > 300 or re.search(r"\s", endpoint):
+        raise HTTPException(status_code=400, detail=f"{label} 不合法，请填写类似 /v1/images/edits 的路径")
+    if re.match(r"^https?://", endpoint, re.I):
+        return endpoint.rstrip("/")
+    if not endpoint.startswith("/"):
+        raise HTTPException(status_code=400, detail=f"{label} 需要以 /v1/... 开头，或填写完整 http(s) 地址")
+    return endpoint
+
+
+def provider_endpoint_url(provider, key, default_path):
+    base_url = str((provider or {}).get("base_url") or config.AI_BASE_URL).strip().rstrip("/")
+    override = str((provider or {}).get(key) or "").strip()
+    if override:
+        if re.match(r"^https?://", override, re.I):
+            return override.rstrip("/")
+        parsed = urllib.parse.urlsplit(base_url)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}{override}"
+        return override
+    if base_url.endswith("/v1") and default_path.startswith("/v1/"):
+        return f"{base_url}{default_path[3:]}"
+    return f"{base_url}{default_path}"
+
+
 def normalize_provider(item: dict) -> dict:
     provider_id = str(item.get("id") or "").strip().lower()
     if not config.PROVIDER_ID_RE.fullmatch(provider_id):
@@ -122,11 +151,15 @@ def normalize_provider(item: dict) -> dict:
     protocol = str(item.get("protocol") or "openai").strip().lower()
     if protocol not in {"openai", "apimart"}:
         protocol = "openai"
+    image_generation_endpoint = normalize_endpoint_override(item.get("image_generation_endpoint"), "文生图端口")
+    image_edit_endpoint = normalize_endpoint_override(item.get("image_edit_endpoint"), "图生图/编辑端口")
     return {
         "id": provider_id,
         "name": name,
         "base_url": base_url,
         "protocol": protocol,
+        "image_generation_endpoint": image_generation_endpoint,
+        "image_edit_endpoint": image_edit_endpoint,
         "enabled": bool(item.get("enabled", True)),
         "primary": bool(item.get("primary", False)),
         "image_models": model_list_from_values(item.get("image_models") or []),
@@ -146,6 +179,9 @@ def default_api_providers() -> list:
             "id": "modelscope",
             "name": "ModelScope",
             "base_url": config.MODELSCOPE_CHAT_BASE_URL,
+            "protocol": "openai",
+            "image_generation_endpoint": "",
+            "image_edit_endpoint": "",
             "enabled": True,
             "primary": False,
             "image_models": config.MODELSCOPE_DEFAULT_IMAGE_MODELS,

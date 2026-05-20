@@ -1,7 +1,11 @@
 """Public shell, media proxy, uploads, and history APIs."""
 
 import os
+import re
+import urllib.parse
 import uuid
+import zipfile
+from io import BytesIO
 from typing import List
 
 import requests
@@ -9,7 +13,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from .. import comfyui, config, imageproc, store
-from ..models import DeleteHistoryRequest
+from ..models import CanvasAssetCheckRequest, CanvasAssetDownloadRequest, DeleteHistoryRequest
 
 router = APIRouter()
 
@@ -42,6 +46,54 @@ def download_output(url: str, name: str = ""):
         raise HTTPException(status_code=404, detail="文件不存在")
     filename = os.path.basename(name) if name else os.path.basename(path)
     return FileResponse(path, media_type=imageproc.content_type_for_path(path), filename=filename)
+
+
+@router.post("/api/canvas-assets/check")
+async def check_canvas_assets(payload: CanvasAssetCheckRequest):
+    result = {}
+    for url in payload.urls[:3000]:
+        text = str(url or "").strip()
+        if not text:
+            continue
+        if text.startswith("/output/") or text.startswith("/assets/"):
+            result[text] = bool(imageproc.output_file_from_url(text))
+        else:
+            result[text] = True
+    return {"exists": result}
+
+
+@router.post("/api/canvas-assets/download")
+async def download_canvas_assets(payload: CanvasAssetDownloadRequest):
+    buffer = BytesIO()
+    used_names = set()
+    count = 0
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for url in payload.urls[:1000]:
+            text = str(url or "").strip()
+            if not text or not (text.startswith("/output/") or text.startswith("/assets/")):
+                continue
+            path = imageproc.output_file_from_url(text)
+            if not path or not os.path.isfile(path):
+                continue
+            base = os.path.basename(path) or f"image-{count + 1}.png"
+            name, ext = os.path.splitext(base)
+            archive_name = base
+            suffix = 2
+            while archive_name in used_names:
+                archive_name = f"{name}-{suffix}{ext}"
+                suffix += 1
+            used_names.add(archive_name)
+            zf.write(path, archive_name)
+            count += 1
+    if count <= 0:
+        raise HTTPException(status_code=404, detail="没有可下载的本地图片")
+    buffer.seek(0)
+    filename = re.sub(r'[\\/:*?"<>|]+', "_", payload.filename or "canvas-output-images.zip")
+    if not filename.lower().endswith(".zip"):
+        filename += ".zip"
+    encoded = urllib.parse.quote(filename)
+    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"}
+    return Response(buffer.getvalue(), media_type="application/zip", headers=headers)
 
 
 @router.post("/api/upload")

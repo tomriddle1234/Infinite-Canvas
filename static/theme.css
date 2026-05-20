@@ -1635,3 +1635,17 @@ body.studio-theme-dark .ios-switch input:checked + .ios-slider:before {
     background: #10141d !important;
     box-shadow: 0 2px 7px rgba(16,20,29,.22) !important;
 }
+
+html.studio-theme-dark body .shell .comfy-random-btn.active,
+body.studio-theme-dark .shell .comfy-random-btn.active {
+    background: #f8fafc !important;
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+    border-color: #f8fafc !important;
+}
+
+html.studio-theme-dark body .shell .comfy-random-btn.active svg,
+body.studio-theme-dark .shell .comfy-random-btn.active svg {
+    fill: none !important;
+    stroke: #0f172a !important;
+}
