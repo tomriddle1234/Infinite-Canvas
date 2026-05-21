@@ -352,7 +352,8 @@ async def canvas_video(payload: CanvasVideoRequest):
                             invalid_images.append((ref.url, reason))
                 if payload.images and not image_with_roles and not image_payload:
                     first_url, first_reason = invalid_images[0] if invalid_images else ("", "未知错误")
-                    raise HTTPException(status_code=400, detail=f"输入图片无法转换为视频接口支持的格式：{first_url[:120]}\n原因：{first_reason}")
+                    sample = upstream.invalid_video_image_preview(first_url)
+                    raise HTTPException(status_code=400, detail=f"输入图片无法转换为视频接口支持的格式：{sample}\n原因：{first_reason}\n请确认本地文件存在且不超过10MB；VEO3.1 需要图片是 APIMart 可访问的 http/https / asset:// / data URL。")
                 if is_veo31:
                     model = apimart_model
                     body = {

@@ -1203,6 +1203,7 @@
         const MANAGED_IMAGE_MODELS_KEY = 'canvas_image_models_ordered';
         const MANAGED_CHAT_MODELS_KEY = 'canvas_chat_models_ordered';
         const CANVAS_THEME_KEY = 'canvas_theme';
+        const QUICK_TOOLBAR_COLLAPSED_KEY = 'canvas_quick_toolbar_collapsed';
         const DEFAULT_VIDEO_MODELS = [
             // Veo
             'veo2', 'veo2-fast', 'veo2-pro',
@@ -6873,10 +6874,35 @@
             if(node.type === 'video') return runVideoNode(node.id, runOpts);
             return Promise.resolve();
         }
+        function runCascadeNodeWithLoopContext(node, ctx, opts={}){
+            const previous = loopContext;
+            loopContext = ctx || null;
+            const promise = runCascadeNodeByType(node, opts);
+            loopContext = previous;
+            return promise;
+        }
+        function cascadeParallelLimit(order, totalRounds){
+            const hasComfy = order.some(id => nodes.find(n => n.id === id)?.type === 'comfy');
+            if(hasComfy) return Math.max(1, Math.min(totalRounds, comfyBackendCount || 1));
+            return Math.max(1, Math.min(totalRounds, 6));
+        }
+        async function runLimitedCascadeRounds(rounds, limit, runner){
+            let next = 0;
+            const workers = Array.from({length:Math.max(1, Math.min(limit, rounds.length))}, async () => {
+                while(next < rounds.length){
+                    const round = rounds[next++];
+                    await runner(round);
+                }
+            });
+            return Promise.allSettled(workers);
+        }
+        function canvasRunTypes(){
+            return ['generator','msgen','comfy','llm','video'];
+        }
         function computeCascadeOrder(targetId){
             const visited = new Set();
             const order = [];
-            const GEN_TYPES = ['generator','msgen','comfy','llm','video'];
+            const GEN_TYPES = canvasRunTypes();
             function dfs(id){
                 if(visited.has(id)) return;
                 visited.add(id);
@@ -6926,50 +6952,65 @@
             if(loop?.node?.id) ids.add(loop.node.id);
             return [...ids].filter(Boolean);
         }
+        function requestCascadeStop(targetId){
+            if(!targetId) return;
+            cascadeStopIds.add(targetId);
+            refreshNodes(cascadeUiNodeIds(targetId));
+        }
         async function runNodeCascade(nodeId){
             const target = nodes.find(n => n.id === nodeId);
             if(!target) return;
             if(target.running){ alert('当前节点正在运行'); return; }
             cascadeRunningIds.add(nodeId);
-            render();
             const order = computeCascadeOrder(nodeId);
+            refreshNodes(cascadeUiNodeIds(nodeId, order));
             if(!order.length){ alert('没有可运行的生成节点'); return; }
             const loop = resolveCascadeLoop(nodeId);
             const totalRounds = loop?.count || 1;
             const startIdx = Math.max(1, Number(loop?.node?.loopStart) || 1);
-            const endIdx = startIdx + totalRounds - 1;
+            const loopBatchSize = loop?.node?.imageInput ? Math.max(1, Math.min(100, Number(loop?.node?.imageBatchSize) || 1)) : 1;
+            const endIdx = startIdx + (totalRounds - 1) * loopBatchSize;
+            order.forEach(id => {
+                const n = nodes.find(x => x.id === id);
+                if(n) n.generatedOutputs = [];
+            });
             if(loop?.mode === 'parallel' && totalRounds > 1){
+                cascadeSerialIds.add(nodeId);
                 order.forEach(id => {
                     const n = nodes.find(x => x.id === id);
                     if(n){ n.runStatus = 'queued'; n.runError = ''; n._cascadeFailed = false; n._cascadeIdx = `0/${totalRounds}`; }
                 });
-                render();
+                refreshNodes(cascadeUiNodeIds(nodeId, order));
                 let done = 0;
-                const tasks = Array.from({length:totalRounds}, async (_, idx) => {
-                    const index = startIdx + idx;
+                const rounds = Array.from({length:totalRounds}, (_, idx) => ({idx, index:startIdx + idx * loopBatchSize}));
+                const limit = cascadeParallelLimit(order, totalRounds);
+                const results = await runLimitedCascadeRounds(rounds, limit, async ({index}) => {
+                    if(cascadeStopIds.has(nodeId)) return;
                     const ctx = {index, total:endIdx, nodeId:loop.node.id};
                     for(let i = 0; i < order.length; i++){
+                        if(cascadeStopIds.has(nodeId)) return;
                         const id = order[i];
                         const node = nodes.find(n => n.id === id);
                         if(!node) continue;
                         node.runStatus = 'running';
                         node._cascadeIdx = `${order.indexOf(id)+1}/${order.length} · ${index}/${endIdx}`;
-                        render();
-                        loopContext = ctx;
-                        await runCascadeNodeByType(node);
+                        refreshNodes([id]);
+                        await runCascadeNodeWithLoopContext(node, ctx);
                         node.runStatus = 'done';
+                        refreshNodes([id]);
                     }
                     done += 1;
                     order.forEach(id => {
                         const n = nodes.find(x => x.id === id);
                         if(n) n._cascadeIdx = `${done}/${totalRounds}`;
                     });
-                    render();
+                    refreshNodes(order);
                 });
-                const results = await Promise.allSettled(tasks);
                 loopContext = null;
                 cascadeRunningIds.delete(nodeId);
                 cascadeStopIds.delete(nodeId);
+                cascadeSerialIds.delete(nodeId);
+                refreshNodes(cascadeUiNodeIds(nodeId, order));
                 const failed = results.find(r => r.status === 'rejected');
                 if(failed){
                     const err = failed.reason || new Error('parallel loop failed');
@@ -6998,25 +7039,26 @@
                     cascadeSerialIds.delete(nodeId);
                     loopContext = null;
                     order.forEach(id => { const n = nodes.find(x=>x.id===id); if(n){ n.runStatus=''; n._cascadeIdx=''; } });
-                    render();
+                    refreshNodes(cascadeUiNodeIds(nodeId, order));
                     return;
                 }
-                loopContext = loop ? {index:startIdx + round - 1, total:endIdx, nodeId:loop.node.id} : null;
+                const loopIndex = startIdx + (round - 1) * loopBatchSize;
+                loopContext = loop ? {index:loopIndex, total:endIdx, nodeId:loop.node.id} : null;
                 order.forEach(id => {
                     const n = nodes.find(x => x.id === id);
-                    if(n){ n.runStatus = 'queued'; n.runError = ''; n._cascadeFailed = false; n._cascadeIdx = `${order.indexOf(id)+1}/${order.length}${totalRounds > 1 ? ` · ${startIdx+round-1}/${endIdx}` : ''}`; }
+                    if(n){ n.runStatus = 'queued'; n.runError = ''; n._cascadeFailed = false; n._cascadeIdx = `${order.indexOf(id)+1}/${order.length}${totalRounds > 1 ? ` · ${loopIndex}/${endIdx}` : ''}`; }
                 });
-                render();
+                refreshNodes(cascadeUiNodeIds(nodeId, order));
                 for(let i = 0; i < order.length; i++){
                     const id = order[i];
                     const node = nodes.find(n => n.id === id);
                     if(!node) continue;
                     node.runStatus = 'running';
-                    render();
+                    refreshNodes([id]);
                     try {
-                        await runCascadeNodeByType(node);
+                        await runCascadeNodeWithLoopContext(node, loopContext);
                         node.runStatus = 'done';
-                        render();
+                        refreshNodes([id]);
                     } catch(err){
                         loopContext = null;
                         cascadeRunningIds.delete(nodeId);
@@ -7038,13 +7080,14 @@
             cascadeRunningIds.delete(nodeId);
             cascadeStopIds.delete(nodeId);
             cascadeSerialIds.delete(nodeId);
+            refreshNodes(cascadeUiNodeIds(nodeId, order));
             // 全部完成：3 秒后清除状态徽章
             setTimeout(() => {
                 order.forEach(id => {
                     const n = nodes.find(x => x.id === id);
                     if(n && n.runStatus === 'done'){ n.runStatus = ''; n._cascadeIdx = ''; }
                 });
-                render();
+                refreshNodes(cascadeUiNodeIds(nodeId, order));
             }, 3000);
         }
         async function runOneCascadePass(order, options={}){
@@ -8508,6 +8551,30 @@
             pruneMissingComfyWorkflows();
             await loadCanvasList(false);
             setCanvasMode(false);
+        };
+        const __originalAddNode = addNode;
+        addNode = function(node){
+            const before = Array.isArray(nodes) ? nodes.length : 0;
+            try {
+                return __originalAddNode(node);
+            } catch(err) {
+                console.error('addNode failed during render fallback', err);
+                if(Array.isArray(nodes) && node && !nodes.some(n => n.id === node.id)){
+                    nodes.push(node);
+                }
+                if(node?.id){
+                    selected.clear();
+                    selected.add(node.id);
+                    try {
+                        refreshNodes([node.id]);
+                        renderLinks();
+                        renderSelectionHub();
+                    } catch(refreshErr) {
+                        console.error('addNode fallback refresh failed', refreshErr);
+                    }
+                }
+                if(Array.isArray(nodes) && nodes.length > before) scheduleSave();
+            }
         };
     </script>
 </body>

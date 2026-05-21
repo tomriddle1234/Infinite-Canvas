@@ -190,6 +190,18 @@ async def upload_image_for_apimart(client, provider, ref_url: str) -> str:
 
 # --- ModelScope 异步生图（作为 provider 模式） ---
 
+def valid_video_image_input(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    value = value.strip()
+    return (
+        value.startswith("http://") or
+        value.startswith("https://") or
+        value.startswith("asset://") or
+        (value.startswith("data:image/") and ";base64," in value)
+    )
+
+
 def valid_apimart_video_image_input(value: str) -> bool:
     if not isinstance(value, str):
         return False
@@ -240,6 +252,13 @@ def apimart_upload_payload_from_bytes(data: bytes, mime: str, name_hint: str = "
                 return f"{name_hint}.jpg", payload, "image/jpeg"
             quality -= 8
     raise ValueError("data URL 图片超过 10MB，且压缩后仍无法满足 APIMart 限制")
+
+
+def invalid_video_image_preview(value: str) -> str:
+    text = str(value or "")
+    if text.startswith("data:"):
+        return text.split(";base64,", 1)[0] + ";base64,..."
+    return text[:120]
 
 
 def extract_apimart_asset_url(payload):
