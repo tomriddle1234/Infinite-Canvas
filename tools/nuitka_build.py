@@ -31,6 +31,7 @@ ENTRY = ROOT / "main_refactored.py"
 APP_NAME = "Infinite-Canvas"
 BUILD_DIR = ROOT / "build" / "nuitka"
 FINAL_DIR = ROOT / "dist" / APP_NAME
+PACKAGE_ZIP = ROOT / "dist" / f"{APP_NAME}.zip"
 RUNTIME_DIR = FINAL_DIR / "runtime"
 STANDALONE_STAGING = BUILD_DIR / "main_refactored.dist"
 ONEFILE_STAGING = BUILD_DIR / f"{APP_NAME}.exe"
@@ -45,9 +46,16 @@ PYTHON_COMPILE_PATTERNS = (
 )
 
 STATIC_DIRS = ("static", "workflows")
-RUNTIME_NAMES = {"API", "assets", "data", "output", "history.json", "global_config.json"}
+USER_RUNTIME_NAMES = {
+    "API",
+    "assets",
+    "data",
+    "output",
+    "history.json",
+    "global_config.json",
+}
 ROOT_CLUTTER_SUFFIXES = (".pyd", ".dll", ".exe", ".lib", ".cat", ".manifest")
-PRESERVE_FINAL_NAMES = RUNTIME_NAMES | {"runtime", "static", "workflows", "Start.bat", "README.txt"}
+PRESERVE_FINAL_NAMES = {"runtime", "static", "workflows", "Start.bat", "README.txt", "certs"}
 
 
 def rel(path: Path) -> str:
@@ -155,12 +163,21 @@ def sync_external_assets() -> None:
         cert_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(cafile, cert_dir / "cacert.pem")
 
-    api_env = ROOT / "API" / ".env"
-    if api_env.exists():
-        api_dir = FINAL_DIR / "API"
-        api_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(api_env, api_dir / ".env")
-        print("Copied local API/.env into the build.")
+    remove_user_runtime_artifacts()
+
+
+def remove_user_runtime_artifacts() -> None:
+    """Keep release folders safe to unzip over an existing user install.
+
+    API keys, provider settings, canvases, chats, generated assets, and history
+    are runtime state. They must never be shipped in an update package because
+    extracting the package over an existing install would overwrite the user's
+    own state.
+    """
+    if not FINAL_DIR.exists():
+        return
+    for name in USER_RUNTIME_NAMES:
+        remove_path(FINAL_DIR / name)
 
 
 def clean_old_flat_runtime_files() -> None:
@@ -209,15 +226,28 @@ That lets frontend-only changes be copied into this folder without rebuilding
 the Python executable.
 
 Runtime data is created next to Start.bat on first run:
+  API\\.env
   output\\
   assets\\
   data\\
   history.json
   global_config.json
 
-API keys: edit API\\.env in this folder.
+Update packages intentionally do not include runtime data or settings. To update
+an existing portable install, extract this folder over the old one; the user's
+API keys, API provider settings, canvases, generated assets, and history remain
+in place because they are not present in this package.
+
+For a fresh install, launch once and configure API keys from the UI.
 """
     (FINAL_DIR / "README.txt").write_text(text, encoding="utf-8")
+
+
+def write_package_zip() -> None:
+    remove_user_runtime_artifacts()
+    remove_path(PACKAGE_ZIP)
+    archive_base = PACKAGE_ZIP.with_suffix("")
+    shutil.make_archive(str(archive_base), "zip", root_dir=FINAL_DIR.parent, base_dir=FINAL_DIR.name)
 
 
 def nuitka_common_args() -> list[str]:
@@ -319,14 +349,17 @@ def main() -> int:
     else:
         print(f"Nuitka skipped: Python sources unchanged for {mode} build.")
 
+    remove_user_runtime_artifacts()
     sync_external_assets()
     write_launcher(mode)
     write_readme(mode)
+    write_package_zip()
 
     print()
     print("=" * 60)
     print("BUILD DONE")
     print(f"Folder : {FINAL_DIR}")
+    print(f"Zip    : {PACKAGE_ZIP}")
     print(f"Launch : {FINAL_DIR / 'Start.bat'}")
     if not needs_compile:
         print("Only static/workflow/API files were refreshed.")

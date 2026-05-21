@@ -82,6 +82,12 @@
         body.canvas-board-pan,
         body.canvas-board-pan * { cursor:grabbing !important; user-select:none !important; }
         .world { position:absolute; left:0; top:0; width:6000px; height:4000px; transform-origin:0 0; }
+        .minimap { position:absolute; right:22px; bottom:22px; z-index:28; width:190px; height:126px; padding:8px; border:1px solid var(--line); border-radius:16px; background:var(--panel); box-shadow:0 16px 44px var(--shadow); backdrop-filter:blur(16px); pointer-events:auto; }
+        .minimap-content { position:relative; width:100%; height:100%; overflow:hidden; border-radius:10px; background:var(--soft); border:1px solid var(--line-2); }
+        .minimap-node { position:absolute; min-width:3px; min-height:3px; border-radius:2px; background:var(--muted); opacity:.62; }
+        .minimap-node.selected { background:var(--strong); opacity:.95; }
+        .minimap-viewport { position:absolute; border:1.5px solid var(--strong); border-radius:4px; background:rgba(255,255,255,.18); box-shadow:0 0 0 1px rgba(255,255,255,.35); pointer-events:none; }
+        .minimap-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:10px; font-weight:900; letter-spacing:.16em; }
         .links { position:absolute; inset:0; width:6000px; height:4000px; overflow:visible; pointer-events:none; z-index:1; }
         .link { stroke:var(--faint); stroke-width:2.5; fill:none; opacity:.82; pointer-events:none; }
         .link.temp { stroke:var(--strong); stroke-dasharray:6 6; }
@@ -1120,6 +1126,13 @@
         let remoteSyncInterval = null;
         let remoteSyncTimer = null;
         let savingCanvasNow = false;
+        let localCanvasDirty = false;
+        let canvasDirtyToken = 0;
+        let deferredRemoteCanvasSync = false;
+        let deferredCanvasRender = false;
+        let deferredCanvasRenderFull = false;
+        let deferredCanvasRenderIds = new Set();
+        let deferredCanvasRenderTimer = null;
         let models = {gpt:'gpt-image-2', nano:'nano-banana-pro'};
         let imageModels = ['gpt-image-2', 'nano-banana-pro'];
         let chatModels = ['gpt-4o-mini'];
@@ -1547,6 +1560,16 @@
             const ratioKey = ratioValue && SIZE_MAP[ratioValue] ? ratioValue : 'square';
             return SIZE_MAP[ratioKey]?.[resolutionKey] || SIZE_MAP.square[resolutionKey] || SIZE_MAP.square['1k'];
         }
+        function normalizeApiNodeSizeChoice(node){
+            if(!node) return;
+            if(node.resolution === '4k' && (node.ratio || 'square') === 'square'){
+                node.ratio = 'wide';
+            }
+        }
+        function normalizeApiNodeLayout(node){
+            if(!node || node.type !== 'generator') return;
+            if(Number(node.w || 0) === 418) node.w = 380;
+        }
         function imageModelOptions(selectedModel, providerId){
             const models = allImageModels(providerId);
             if(!models.length){
@@ -1627,11 +1650,58 @@
             }
             refreshIcons();
         }
+        const VIEWPORT_MIN_SCALE = 0.12;
+        const VIEWPORT_MAX_SCALE = 4;
+        const CANVAS_COORD_LIMIT = 200000;
+        function finiteNumber(value, fallback=0){
+            const n = Number(value);
+            return Number.isFinite(n) ? n : fallback;
+        }
+        function clampNumber(value, min, max, fallback=0){
+            const n = finiteNumber(value, fallback);
+            return Math.max(min, Math.min(max, n));
+        }
+        function normalizeViewportState(){
+            viewport = viewport && typeof viewport === 'object' ? viewport : {x:-1800, y:-1000, scale:1};
+            const rawX = Number(viewport.x);
+            const rawY = Number(viewport.y);
+            const rawScale = Number(viewport.scale);
+            if(!Number.isFinite(rawX) || !Number.isFinite(rawY) || Math.abs(rawX) > CANVAS_COORD_LIMIT || Math.abs(rawY) > CANVAS_COORD_LIMIT){
+                viewport.x = -1800;
+                viewport.y = -1000;
+            } else {
+                viewport.x = rawX;
+                viewport.y = rawY;
+            }
+            viewport.scale = Number.isFinite(rawScale) ? clampNumber(rawScale, VIEWPORT_MIN_SCALE, VIEWPORT_MAX_SCALE, 1) : 1;
+        }
+        function normalizeCanvasNodes(){
+            const base = currentWorldViewRect();
+            let repaired = 0;
+            (nodes || []).forEach((node, index) => {
+                const x = Number(node.x);
+                const y = Number(node.y);
+                if(!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > CANVAS_COORD_LIMIT || Math.abs(y) > CANVAS_COORD_LIMIT){
+                    node.x = Math.round(base.x + 120 + (repaired % 4) * 420);
+                    node.y = Math.round(base.y + 120 + Math.floor(repaired / 4) * 260);
+                    repaired += 1;
+                }
+                node.w = node.w == null ? node.w : clampNumber(node.w, 160, 2400, defaultNodeSize(node.type).w || 260);
+                node.h = node.h == null ? node.h : clampNumber(node.h, 96, 2400, defaultNodeSize(node.type).h || 160);
+            });
+            return repaired;
+        }
+        function normalizeCanvasState(){
+            normalizeViewportState();
+            return normalizeCanvasNodes();
+        }
         function screenToWorld(clientX, clientY){
             const rect = board.getBoundingClientRect();
+            normalizeViewportState();
             return { x:(clientX - rect.left - viewport.x) / viewport.scale, y:(clientY - rect.top - viewport.y) / viewport.scale };
         }
         function applyViewport(){
+            normalizeViewportState();
             world.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
             scheduleMinimapRender();
         }
@@ -1728,8 +1798,28 @@
                 requestAnimationFrame(refreshGeometry);
             });
         }
+        function hasActiveCanvasWork(){
+            return nodes.some(n =>
+                n.running || n.checking ||
+                ['queued','submitted','checking','running'].includes(String(n.runStatus || '')) ||
+                (n.type === 'output' && (n._pending || []).length)
+            );
+        }
+        function isEditingCanvasText(){
+            const active = document.activeElement;
+            return !!active && nodesEl.contains(active) && ['TEXTAREA','INPUT','SELECT'].includes(active.tagName);
+        }
+        function shouldDeferRemoteCanvasSync(){
+            return localCanvasDirty || savingCanvasNow || hasActiveCanvasWork() || isEditingCanvasText() || isCanvasInteractionActive();
+        }
+        function markCanvasDirty(){
+            if(!canvas) return;
+            localCanvasDirty = true;
+            canvasDirtyToken += 1;
+        }
         function scheduleSave(){
             if(!canvas) return;
+            markCanvasDirty();
             setStatus('Saving...');
             clearTimeout(saveTimer);
             saveTimer = setTimeout(saveCanvas, 500);
@@ -1758,10 +1848,16 @@
                 outputTimer = null;
             }
         }
-        async function saveCanvas(){
+        async function saveCanvas(retryAfterConflict=false){
             if(!canvas) return;
+            saveTimer = null;
+            normalizeCanvasState();
             sanitizeConnections();
+            canvas.nodes = nodes;
+            canvas.connections = connections;
+            canvas.viewport = viewport;
             savingCanvasNow = true;
+            const savingToken = canvasDirtyToken;
             try {
                 const baseUpdatedAt = Number(lastCanvasUpdatedAt || canvas.updated_at || 0);
                 const res = await fetch(`/api/canvases/${canvas.id}`, {
@@ -1772,8 +1868,22 @@
                 if(res.status === 409){
                     const conflict = await res.json().catch(() => ({}));
                     const remote = conflict?.detail?.canvas;
-                    if(remote) applyRemoteCanvasData(remote);
-                    setStatus('Synced');
+                    if(remote && (localCanvasDirty || hasActiveCanvasWork())){
+                        lastCanvasUpdatedAt = Number(remote.updated_at || lastCanvasUpdatedAt || Date.now());
+                        canvas.updated_at = lastCanvasUpdatedAt;
+                        if(!retryAfterConflict) await saveCanvas(true);
+                        else {
+                            clearTimeout(saveTimer);
+                            saveTimer = setTimeout(saveCanvas, 1000);
+                            setStatus('Saving...');
+                        }
+                        return;
+                    } else if(remote) {
+                        applyRemoteCanvasData(remote);
+                        setStatus('Synced');
+                        return;
+                    }
+                    setStatus('Save conflict');
                     return;
                 }
                 if(!res.ok) throw new Error('save failed');
@@ -1781,6 +1891,7 @@
                 const savedAt = Number(data?.canvas?.updated_at || Date.now());
                 canvas.updated_at = savedAt;
                 lastCanvasUpdatedAt = savedAt;
+                if(savingToken === canvasDirtyToken) localCanvasDirty = false;
                 if(currentCanvasTime) currentCanvasTime.textContent = formatCanvasTime(canvas.updated_at);
                 setStatus('Saved');
                 loadCanvasList(false);
@@ -1789,10 +1900,19 @@
                 console.error(e);
             } finally {
                 savingCanvasNow = false;
+                if(deferredRemoteCanvasSync && !shouldDeferRemoteCanvasSync()){
+                    deferredRemoteCanvasSync = false;
+                    clearTimeout(remoteSyncTimer);
+                    remoteSyncTimer = setTimeout(syncRemoteCanvasNow, 120);
+                }
             }
         }
         function applyRemoteCanvasData(remote){
             if(!remote || !canvas || remote.id !== canvas.id) return;
+            if(shouldDeferRemoteCanvasSync()){
+                deferredRemoteCanvasSync = true;
+                return;
+            }
             applyingRemoteCanvas = true;
             try {
                 canvas = remote;
@@ -1800,7 +1920,9 @@
                 nodes = canvas.nodes || [];
                 connections = canvas.connections || [];
                 viewport = canvas.viewport || {x:0, y:0, scale:1};
+                normalizeCanvasState();
                 lastCanvasUpdatedAt = Number(canvas.updated_at || Date.now());
+                localCanvasDirty = false;
                 nodes.forEach(n => { if(n.running) n.running = false; });
                 sanitizeConnections();
                 pruneMissingComfyWorkflows();
@@ -1855,6 +1977,10 @@
         }
         async function syncRemoteCanvasNow(){
             if(!canvas) return;
+            if(shouldDeferRemoteCanvasSync()){
+                deferredRemoteCanvasSync = true;
+                return;
+            }
             try {
                 const res = await fetch(`/api/canvases/${canvas.id}`);
                 if(!res.ok) throw new Error(tr('canvas.openFailed'));
@@ -1871,6 +1997,10 @@
         async function checkRemoteCanvasVersion(){
             if(!canvas || applyingRemoteCanvas || remoteSyncBusy) return;
             if(document.hidden) return;
+            if(shouldDeferRemoteCanvasSync()){
+                deferredRemoteCanvasSync = true;
+                return;
+            }
             remoteSyncBusy = true;
             try {
                 const res = await fetch(`/api/canvases/${canvas.id}/meta`);
@@ -1902,8 +2032,10 @@
             if(data.canvas_id !== canvas.id) return;
             const remoteUpdatedAt = Number(data.updated_at || 0);
             if(remoteUpdatedAt && remoteUpdatedAt <= Number(lastCanvasUpdatedAt || 0)) return;
-            clearTimeout(saveTimer);
-            saveTimer = null;
+            if(shouldDeferRemoteCanvasSync()){
+                deferredRemoteCanvasSync = true;
+                return;
+            }
             clearTimeout(remoteSyncTimer);
             remoteSyncTimer = setTimeout(syncRemoteCanvasNow, savingCanvasNow ? 700 : 120);
             setStatus('Syncing...');
@@ -2136,11 +2268,12 @@
                 nodes = canvas.nodes || [];
                 connections = canvas.connections || [];
                 viewport = canvas.viewport || {x:0, y:0, scale:1};
+                normalizeCanvasState();
                 lastCanvasUpdatedAt = Number(canvas.updated_at || Date.now());
                 sanitizeConnections();
                 selected.clear();
                 setCanvasMode(true);
-                render();
+                render({force:true});
                 setStatus('Saved');
                 setCreateMode(false);
                 await loadCanvasList(false);
@@ -2178,9 +2311,9 @@
                     body:JSON.stringify({
                         title:target.title,
                         icon:target.icon,
-                        nodes:target.nodes || [],
-                        connections:target.connections || [],
-                        viewport:target.viewport || {x:0, y:0, scale:1}
+                        nodes:canvas?.id === id ? nodes : (target.nodes || []),
+                        connections:canvas?.id === id ? connections : (target.connections || []),
+                        viewport:canvas?.id === id ? viewport : (target.viewport || {x:0, y:0, scale:1})
                     })
                 });
                 if(!res.ok) throw new Error('图标保存失败');
@@ -2242,9 +2375,9 @@
                     body:JSON.stringify({
                         title:target.title,
                         icon:target.icon,
-                        nodes:target.nodes || [],
-                        connections:target.connections || [],
-                        viewport:target.viewport || {x:0, y:0, scale:1}
+                        nodes:canvas?.id === id ? nodes : (target.nodes || []),
+                        connections:canvas?.id === id ? connections : (target.connections || []),
+                        viewport:canvas?.id === id ? viewport : (target.viewport || {x:0, y:0, scale:1})
                     })
                 });
                 if(!res.ok) throw new Error('重命名失败');
@@ -2266,6 +2399,7 @@
                 nodes = canvas.nodes || [];
                 connections = canvas.connections || [];
                 viewport = canvas.viewport || {x:0, y:0, scale:1};
+                const repairedNodes = normalizeCanvasState();
                 lastCanvasUpdatedAt = Number(canvas.updated_at || Date.now());
                 nodes.forEach(n => { if(n.running) n.running = false; });
                 sanitizeConnections();
@@ -2274,9 +2408,10 @@
                 selected.clear();
                 setCanvasMode(true);
                 renderCanvasList();
-                render();
+                render({force:true});
                 startCanvasRemotePolling();
                 setStatus('Ready');
+                if(repairedNodes) scheduleSave();
             } catch(e) {
                 setStatus(tr('canvas.openFailed'));
                 console.error(e);
@@ -2977,6 +3112,7 @@
             const run = runSnapshot(node, prompt, refs);
             out._pending = [...(out._pending || []), ...pendingIds.map(id => makePending(id, run))];
             if(!opts.cascade){ node.running = true; render(); setTimeout(() => { node.running = false; render(); }, 2000); }
+            scheduleSave();
             try {
                 const size = apiImageSize(node.msRatio ?? 'square', node.msResolution || '1k', node.msCustomRatio || '', node.msCustomSize || '');
                 const parsed = parseSizeValue(size);
@@ -3043,6 +3179,7 @@
                 out._pending = (out._pending || []).filter(p => !pendingIds.includes(p.id));
                 node.runStatus = 'failed'; node.runError = err.message || String(err);
                 render();
+                scheduleSave();
                 if(opts.cascade) throw err;
                 alert(err.message || tr('canvas.msFailed'));
             }
@@ -4086,16 +4223,150 @@
             return applyImageCrop();
         }
 
-        function render(){
+        function isCanvasInteractionActive(){
+            return !!(
+                dragNode ||
+                dragBoard ||
+                minimapDrag ||
+                resizeNode ||
+                llmPaneDrag ||
+                tempLink ||
+                selectDrag ||
+                internalDrag ||
+                outputCompareDrag ||
+                outputPreviewPanDrag ||
+                cropDrag ||
+                editDrawState ||
+                gridCustomDrag ||
+                textSelectionGuard?.active
+            );
+        }
+        function activeEditableNodeId(){
+            const active = document.activeElement;
+            if(!active || !nodesEl.contains(active)) return '';
+            if(!['TEXTAREA','INPUT','SELECT'].includes(active.tagName)) return '';
+            return active.closest('.node')?.dataset?.id || '';
+        }
+        function shouldDeferCanvasRender(){
+            return !!canvas && (isCanvasInteractionActive() || !!activeEditableNodeId());
+        }
+        function shouldDeferNodeRefresh(ids=[]){
+            if(!canvas) return false;
+            if(isCanvasInteractionActive()) return true;
+            const activeId = activeEditableNodeId();
+            return !!activeId && (ids || []).includes(activeId);
+        }
+        function deferCanvasRender(ids=null){
+            deferredCanvasRender = true;
+            if(!ids || !ids.length){
+                deferredCanvasRenderFull = true;
+                deferredCanvasRenderIds.clear();
+            } else if(!deferredCanvasRenderFull) {
+                ids.forEach(id => { if(id) deferredCanvasRenderIds.add(id); });
+            }
+        }
+        function scheduleDeferredCanvasRenderFlush(delay=80){
+            clearTimeout(deferredCanvasRenderTimer);
+            deferredCanvasRenderTimer = setTimeout(flushDeferredCanvasRender, delay);
+        }
+        function flushDeferredCanvasRender(){
+            if(!deferredCanvasRender) return;
+            if(shouldDeferCanvasRender()){
+                return;
+            }
+            const ids = !deferredCanvasRenderFull && deferredCanvasRenderIds.size ? [...deferredCanvasRenderIds] : null;
+            deferredCanvasRender = false;
+            deferredCanvasRenderFull = false;
+            deferredCanvasRenderIds.clear();
+            if(ids?.length) refreshNodes(ids);
+            else render({force:true});
+        }
+        function render(options={}){
+            if(!options.force && shouldDeferCanvasRender()){
+                deferCanvasRender();
+                return;
+            }
+            deferredCanvasRender = false;
+            deferredCanvasRenderFull = false;
+            deferredCanvasRenderIds.clear();
             const outputScrolls = captureOutputScrolls();
+            const activeEditable = captureActiveEditable();
             applyViewport();
             nodesEl.innerHTML = '';
             nodes.forEach(node => nodesEl.appendChild(renderNode(node)));
             restoreOutputScrolls(outputScrolls);
+            restoreActiveEditable(activeEditable);
             refreshGeometry();
             refreshGeometryAfterLayout();
             refreshIcons();
             refreshOutputTimer();
+        }
+        function refreshNodes(ids=[]){
+            const uniqueIds = [...new Set((ids || []).filter(Boolean))];
+            if(!uniqueIds.length) return;
+            if(shouldDeferNodeRefresh(uniqueIds)){
+                deferCanvasRender(uniqueIds);
+                return;
+            }
+            const outputScrolls = captureOutputScrolls();
+            const activeEditable = captureActiveEditable();
+            applyViewport();
+            for(const id of uniqueIds){
+                const node = nodes.find(n => n.id === id);
+                if(!node) continue;
+                if(node.type === 'output' && refreshOutputNodeContent(node)) continue;
+                const current = nodesEl.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+                if(!current){
+                    render();
+                    return;
+                }
+                current.replaceWith(renderNode(node));
+            }
+            restoreOutputScrolls(outputScrolls);
+            restoreActiveEditable(activeEditable);
+            refreshGeometry();
+            refreshGeometryAfterLayout();
+            refreshIcons();
+            refreshOutputTimer();
+        }
+        function refreshRunNodes(node, out=null){
+            refreshNodes([node?.id, out?.id]);
+        }
+        function captureActiveEditable(){
+            const active = document.activeElement;
+            if(!active || !nodesEl.contains(active)) return null;
+            const tag = active.tagName;
+            if(!['TEXTAREA','INPUT','SELECT'].includes(tag)) return null;
+            const nodeEl = active.closest('.node');
+            if(!nodeEl?.dataset?.id) return null;
+            const sameTag = [...nodeEl.querySelectorAll(tag.toLowerCase())];
+            const index = Math.max(0, sameTag.indexOf(active));
+            return {
+                nodeId: nodeEl.dataset.id,
+                tag: tag.toLowerCase(),
+                index,
+                value: 'value' in active ? active.value : undefined,
+                selectionStart: Number.isFinite(active.selectionStart) ? active.selectionStart : null,
+                selectionEnd: Number.isFinite(active.selectionEnd) ? active.selectionEnd : null,
+                scrollTop: active.scrollTop || 0,
+                scrollLeft: active.scrollLeft || 0
+            };
+        }
+        function restoreActiveEditable(state){
+            if(!state?.nodeId) return;
+            requestAnimationFrame(() => {
+                const nodeEl = nodesEl.querySelector(`.node[data-id="${CSS.escape(state.nodeId)}"]`);
+                const el = nodeEl ? [...nodeEl.querySelectorAll(state.tag)].at(state.index) : null;
+                if(!el) return;
+                if(state.value !== undefined && 'value' in el && el.value !== state.value) el.value = state.value;
+                el.focus({preventScroll:true});
+                if(state.selectionStart != null && typeof el.setSelectionRange === 'function'){
+                    const end = state.selectionEnd == null ? state.selectionStart : state.selectionEnd;
+                    try { el.setSelectionRange(state.selectionStart, end); } catch(_) {}
+                }
+                el.scrollTop = state.scrollTop || 0;
+                el.scrollLeft = state.scrollLeft || 0;
+            });
         }
         function captureOutputScrolls(){
             const state = new Map();
@@ -5071,6 +5342,7 @@
             };
             const ratioSelect = wrap.querySelector('.ratio');
             const resolutionSelect = wrap.querySelector('.resolution');
+            const qualitySelect = wrap.querySelector('.quality-select');
             const customRatioRow = wrap.querySelector('.custom-ratio-row');
             const customSizeRow = wrap.querySelector('.custom-size-row');
             const customRatioWInput = wrap.querySelector('.custom-ratio-w-input');
@@ -5434,6 +5706,49 @@
                 };
             });
         }
+        function bindGenerationSubmitButton(btn, node, run, options={}){
+            if(!btn || !node) return;
+            const originalHtml = btn.innerHTML;
+            const busyLabel = options.busyLabel || tr('canvas.generating');
+            const isBlocked = options.isBlocked || (live => !!live?.running);
+            const setBusy = () => {
+                btn.dataset.submitting = '1';
+                btn.disabled = true;
+                btn.classList.add('running');
+                const icon = btn.querySelector('i')?.outerHTML || '';
+                btn.innerHTML = `${icon}${escapeHtml(busyLabel)}`;
+                refreshIcons();
+            };
+            const resetIfIdle = () => {
+                const live = nodes.find(n => n.id === node.id);
+                if(live && isBlocked(live)) return;
+                btn.dataset.submitting = '';
+                btn.disabled = false;
+                btn.classList.remove('running');
+                btn.innerHTML = originalHtml;
+                refreshIcons();
+            };
+            const submit = e => {
+                e?.preventDefault?.();
+                e?.stopPropagation?.();
+                const live = nodes.find(n => n.id === node.id);
+                if(!live || btn.disabled || btn.dataset.submitting === '1' || isBlocked(live)) return;
+                setBusy();
+                Promise.resolve()
+                    .then(() => run())
+                    .catch(err => console.error(err))
+                    .finally(resetIfIdle);
+            };
+            btn.onpointerdown = e => {
+                if(e.button !== 0) return;
+                submit(e);
+            };
+            btn.onclick = submit;
+            btn.onmousedown = e => {
+                e.preventDefault();
+                e.stopPropagation();
+            };
+        }
         function renderDedicatedImageBody(node, kind){
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
@@ -5532,7 +5847,11 @@
                 list.appendChild(item);
             });
             renderPromptPreview(wrap.querySelector('.prompt-list'), promptInputs);
-            wrap.querySelector('.gen-btn').onclick = e => { e.stopPropagation(); isSeedream ? runSeedreamNode(node.id) : runGptImageNode(node.id); };
+            bindGenerationSubmitButton(
+                wrap.querySelector('.gen-btn'),
+                node,
+                () => isSeedream ? runSeedreamNode(node.id) : runGptImageNode(node.id)
+            );
             bindCascadeButtons(wrap, node.id);
             bindLatestPreview(wrap, node);
             return wrap;
@@ -5549,6 +5868,8 @@
                 ['doubao-seedance-2-0-260128', 'Seedance 2.0'],
                 ['doubao-seedance-2-0-fast-260128', 'Seedance 2.0 Fast'],
             ].map(([value,label]) => `<option value="${value}" ${node.model === value ? 'selected' : ''}>${label}</option>`).join('');
+            const seedanceSubmitting = Boolean(node.running || node.taskIds?.length || node._seedancePendingId);
+            const seedanceSubmitLabel = node.running ? tr('canvas.generating') : (node.taskIds?.length || node._seedancePendingId ? 'Submitted' : 'Submit Seedance');
             wrap.innerHTML = `
                 <div class="prompt-list mb-3"></div>
                 <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">${tr('canvas.images') || 'Images'}</div>
@@ -5575,7 +5896,7 @@
                 ${node.taskIds?.length ? `<div class="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mt-2">Seedance task: ${escapeHtml(node.taskIds.join(', '))}</div>` : ''}
                 ${latestNodePreviewHtml(node)}
                 <div class="gen-run-row">
-                    <button class="gen-btn ${node.running ? 'running' : ''}" ${node.running ? 'disabled' : ''}><i data-lucide="film" class="w-4 h-4"></i>${node.running ? tr('canvas.generating') : 'Submit Seedance'}</button>
+                    <button class="gen-btn ${seedanceSubmitting ? 'running' : ''}" ${seedanceSubmitting ? 'disabled' : ''}><i data-lucide="film" class="w-4 h-4"></i>${seedanceSubmitLabel}</button>
                     <button class="secondary-btn seedance-check" type="button" style="height:36px;padding:0 12px;font-size:12px" ${node.taskIds?.length && !node.checking ? '' : 'disabled'}>${node.checking ? 'Checking...' : 'Check result'}</button>
                     ${cascadeBtnHtml(node)}
                 </div>
@@ -5616,7 +5937,15 @@
                 list.appendChild(item);
             });
             renderPromptPreview(wrap.querySelector('.prompt-list'), promptInputs);
-            wrap.querySelector('.gen-btn').onclick = e => { e.stopPropagation(); runSeedanceNode(node.id); };
+            bindGenerationSubmitButton(
+                wrap.querySelector('.gen-btn'),
+                node,
+                () => runSeedanceNode(node.id),
+                {
+                    busyLabel:'Submitting...',
+                    isBlocked:live => Boolean(live?.running || live?.taskIds?.length || live?._seedancePendingId)
+                }
+            );
             wrap.querySelector('.seedance-check').onclick = e => { e.stopPropagation(); checkSeedanceNode(node.id); };
             bindCascadeButtons(wrap, node.id);
             bindLatestPreview(wrap, node);
@@ -6279,6 +6608,7 @@
             const run = runSnapshot(node, prompt || 'Edit the reference images.', refs);
             out._pending = [...(out._pending || []), ...pendingIds.map(id => makePending(id, run))];
             if(!opts.cascade){ node.running = true; render(); }
+            scheduleSave();
             try {
                 const payload = {
                     prompt: prompt || 'Edit the reference images.',
@@ -6311,6 +6641,7 @@
                 out._pending = (out._pending || []).filter(p => !pendingIds.includes(p.id));
                 node.runStatus = 'failed'; node.runError = err.message || String(err);
                 render();
+                scheduleSave();
                 if(opts.cascade) throw err;
                 showErrorModal(err.message || tr('canvas.generationFailed'), tr('canvas.apiFailed'));
             } finally {
@@ -6335,7 +6666,7 @@
                 node.runStatus = 'failed';
                 node.runError = node.runError || 'Seedance 自动轮询已超过 15 分钟，请用 Check 按钮手动查询。';
                 node._seedancePollStart = 0;
-                render();
+                refreshNodes([nodeId]);
                 scheduleSave();
                 return;
             }
@@ -6348,7 +6679,7 @@
         }
         async function runSeedanceNode(nodeId, opts={}){
             const node = nodes.find(n => n.id === nodeId);
-            if(!node || (node.running && !opts.cascade)) return;
+            if(!node || (!opts.cascade && (node.running || node.taskIds?.length || node._seedancePendingId))) return;
             const {prompt, refs} = dedicatedPromptAndRefs(node);
             if(!prompt){ alert(tr('canvas.videoNeedsPrompt')); return; }
             const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
@@ -6359,6 +6690,7 @@
             out._pending = [...(out._pending || []), makePending(pendingId, run)];
             node._seedancePendingId = pendingId;
             if(!opts.cascade){ node.running = true; render(); }
+            scheduleSave();
             try {
                 const result = await fetch('/api/nodes/seedance', {
                     method:'POST',
@@ -6390,6 +6722,7 @@
                 out._pending = (out._pending || []).filter(p => p.id !== pendingId);
                 node.runStatus = 'failed'; node.runError = err.message || String(err);
                 render();
+                scheduleSave();
                 if(opts.cascade) throw err;
                 showErrorModal(err.message || tr('canvas.videoFailed'));
             } finally {
@@ -6404,7 +6737,7 @@
             const out = outputForNode(node);
             node.checking = true;
             node.runStatus = 'checking';
-            render();
+            refreshNodes([nodeId]);
             try {
                 const result = await fetch('/api/nodes/seedance/status', {
                     method:'POST',
@@ -6416,7 +6749,7 @@
                     node.runError = result.status === 'failed' ? JSON.stringify(result.failed || result).slice(0, 300) : '';
                     node.checking = false;
                     if(result.status === 'failed') node._seedancePollStart = 0;
-                    render();
+                    refreshNodes([nodeId]);
                     scheduleSave();
                     if(result.status === 'failed') showErrorModal(node.runError || tr('canvas.videoFailed'));
                     else scheduleSeedancePoll(node.id, opts.auto ? 8000 : 5000);
@@ -6435,14 +6768,14 @@
                 node.checking = false;
                 node.runStatus = 'done';
                 node.runError = '';
-                render();
+                refreshNodes([nodeId, out?.id]);
                 scheduleSave();
             } catch(err) {
                 node.checking = false;
                 node._seedancePollStart = 0;
                 node.runStatus = 'failed';
                 node.runError = err.message || String(err);
-                render();
+                refreshNodes([nodeId]);
                 if(opts.cascade) throw err;
                 showErrorModal(err.message || tr('canvas.videoFailed'));
             }
@@ -6465,6 +6798,7 @@
             const run = runSnapshot(gen, prompt || 'Edit the reference images.', refs);
             out._pending = [...(out._pending||[]), ...pendingIds.map(id => makePending(id, run))];
             if(!opts.cascade){ gen.running = true; render(); setTimeout(() => { gen.running = false; render(); }, 2000); }
+            scheduleSave();
             try {
                 const payload = {
                     prompt: prompt || 'Edit the reference images.',
@@ -6493,6 +6827,7 @@
                 out._pending = (out._pending||[]).filter(p => !pendingIds.includes(p.id));
                 gen.runStatus = 'failed'; gen.runError = err.message || String(err);
                 render();
+                scheduleSave();
                 if(opts.cascade) throw err;
                 showErrorModal(err.message || tr('canvas.generationFailed'), tr('canvas.apiFailed'));
             }
@@ -6516,6 +6851,7 @@
             const run = runSnapshot(node, prompt, refs);
             out._pending = [...(out._pending || []), makePending(pendingId, run)];
             if(!opts.cascade){ node.running = true; render(); }
+            scheduleSave();
             try {
                 const result = await fetch('/api/canvas-video', {
                     method:'POST',
@@ -6550,6 +6886,7 @@
                 out._pending = (out._pending || []).filter(p => p.id !== pendingId);
                 node.runStatus = 'failed'; node.runError = err.message || String(err);
                 render();
+                scheduleSave();
                 if(opts.cascade) throw err;
                 alert(err.message || tr('canvas.videoFailed'));
             } finally {
@@ -6623,6 +6960,7 @@
             run.taskLabel = comfyRunLabel(node);
             out._pending = [...(out._pending||[]), makePending(pendingId, run)];
             if(!opts.cascade){ node.running = true; render(); setTimeout(() => { node.running = false; render(); }, 2000); }
+            scheduleSave();
             try {
                 let images = [];
                 if(mode === 'text'){
@@ -6753,6 +7091,7 @@
                 out._pending = (out._pending||[]).filter(p => p.id !== pendingId);
                 node.runStatus = 'failed'; node.runError = err.message || String(err);
                 render();
+                scheduleSave();
                 if(opts.cascade) throw err;
                 alert(err.message || actionFailed('canvas.comfyGenerate'));
             }
@@ -7095,13 +7434,13 @@
                 const n = nodes.find(x => x.id === id);
                 if(n){ n.runStatus = 'queued'; n.runError = ''; n._cascadeFailed = false; n._cascadeIdx = ''; }
             });
-            render();
+            refreshNodes(order);
             for(let i = 0; i < order.length; i++){
                 const id = order[i];
                 const node = nodes.find(n => n.id === id);
                 if(!node) continue;
                 node.runStatus = 'running';
-                render();
+                refreshNodes([id]);
                 try {
                     if(node.type === 'generator') await runGenerator(id, {cascade:true});
                     else if(node.type === 'gptimage') await runGptImageNode(id, {cascade:true});
@@ -7179,6 +7518,8 @@
         function deleteNode(id, event){
             event.stopPropagation();
             pushUndo();
+            const timer = seedancePollTimers.get(id);
+            if(timer){ clearTimeout(timer); seedancePollTimers.delete(id); }
             nodes = nodes.filter(n => n.id !== id);
             connections = connections.filter(c => c.from !== id && c.to !== id);
             selected.delete(id);
@@ -7949,6 +8290,7 @@
             }
             const children = [...collected.values()];
             dragNode = {node: dragTarget, children, sx:e.clientX, sy:e.clientY, ox:dragTarget.x, oy:dragTarget.y};
+            markCanvasDirty();
             document.body.classList.add('canvas-node-drag');
             window.onmousemove = onNodeDrag;
             window.onmouseup = endDrag;
@@ -7989,6 +8331,7 @@
                 sw:(rect?.width ? rect.width / viewport.scale : node.w || defaultNodeSize(node.type).w),
                 sh:(rect?.height ? rect.height / viewport.scale : node.h || defaultNodeSize(node.type).h || 160)
             };
+            markCanvasDirty();
             document.body.classList.add('canvas-node-resize');
             window.onmousemove = onNodeResize;
             window.onmouseup = endDrag;
@@ -8015,6 +8358,7 @@
             originKind = originKind || 'out';
             const src = portPoint(originId, originKind);
             tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
+            markCanvasDirty();
             window.onmousemove = e2 => { const p = screenToWorld(e2.clientX, e2.clientY); tempLink.x2 = p.x; tempLink.y2 = p.y; renderLinks(); };
             window.onmouseup = e2 => {
                 const targetKind = originKind === 'out' ? 'in' : 'out';
@@ -8326,6 +8670,7 @@
             e.preventDefault();
             e.stopPropagation();
             minimapDrag = true;
+            markCanvasDirty();
             centerViewportOnWorldPoint(minimapEventToWorld(e));
             window.onmousemove = e2 => {
                 if(minimapDrag) centerViewportOnWorldPoint(minimapEventToWorld(e2));
@@ -8344,7 +8689,9 @@
             e.stopPropagation();
             closeCreateMenu();
             if(document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+            normalizeViewportState();
             dragBoard = {sx:e.clientX, sy:e.clientY, ox:viewport.x, oy:viewport.y};
+            markCanvasDirty();
             document.body.classList.add('canvas-board-pan');
             window.onmousemove = e2 => {
                 viewport.x = dragBoard.ox + e2.clientX - dragBoard.sx;
@@ -8400,10 +8747,11 @@
             if(!canvas) return;
             e.preventDefault();
             const before = screenToWorld(e.clientX, e.clientY);
-            viewport.scale = viewport.scale * (e.deltaY > 0 ? .92 : 1.08);
+            viewport.scale = clampNumber(viewport.scale * (e.deltaY > 0 ? .92 : 1.08), VIEWPORT_MIN_SCALE, VIEWPORT_MAX_SCALE, 1);
             const rect = board.getBoundingClientRect();
             viewport.x = e.clientX - rect.left - before.x * viewport.scale;
             viewport.y = e.clientY - rect.top - before.y * viewport.scale;
+            normalizeViewportState();
             applyViewport();
             renderLinks();
             renderSelectionHub();
@@ -8497,7 +8845,16 @@
         });
         window.addEventListener('keyup', e => {
             if(e.key === 'Shift') setKnifeMode(false);
+            scheduleDeferredCanvasRenderFlush(0);
         });
+        window.addEventListener('mouseup', () => scheduleDeferredCanvasRenderFlush(0), true);
+        window.addEventListener('pointerup', () => scheduleDeferredCanvasRenderFlush(0), true);
+        document.addEventListener('focusout', e => {
+            if(nodesEl.contains(e.target)) scheduleDeferredCanvasRenderFlush(0);
+        }, true);
+        document.addEventListener('change', e => {
+            if(nodesEl.contains(e.target)) scheduleDeferredCanvasRenderFlush(0);
+        }, true);
         window.addEventListener('blur', () => setKnifeMode(false));
         window.addEventListener('blur', () => {
             if(selectDrag){
@@ -8507,6 +8864,7 @@
                 window.onmousemove = null;
                 window.onmouseup = null;
             }
+            scheduleDeferredCanvasRenderFlush(0);
         });
         function deleteSelectedNodes(){
             if(!canvas || selected.size === 0) return;
