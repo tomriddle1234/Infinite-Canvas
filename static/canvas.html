@@ -16,10 +16,10 @@
         * { box-sizing:border-box; }
         body { margin:0; height:100vh; overflow:hidden; background:var(--page); color:var(--text); font-family:'Inter',-apple-system,sans-serif; -webkit-font-smoothing:antialiased; }
         .shell { position:relative; height:100vh; overflow:hidden; }
-        .topbar { position:absolute; top:22px; left:24px; right:24px; z-index:30; display:flex; align-items:flex-start; justify-content:space-between; pointer-events:none; }
+        .topbar { position:absolute; top:14px; left:16px; right:16px; z-index:30; display:flex; align-items:flex-start; justify-content:space-between; pointer-events:none; }
         .panel { pointer-events:auto; background:var(--panel); border:1px solid var(--line); border-radius:24px; box-shadow:0 16px 44px var(--shadow); backdrop-filter:blur(16px); }
         .library { width:310px; max-height:calc(100vh - 44px); padding:14px; display:flex; flex-direction:column; gap:12px; }
-        .canvas-nav { width:max-content; max-width:min(360px, calc(100vw - 48px)); padding:8px 10px 8px 8px; display:flex; align-items:center; gap:8px; }
+        .canvas-nav { width:max-content; max-width:min(360px, calc(100vw - 48px)); padding:6px 8px 6px 6px; display:flex; align-items:center; gap:8px; }
         .canvas-nav-meta { min-width:0; display:flex; flex-direction:column; gap:2px; }
         .current-canvas-title { max-width:260px; color:var(--text); font-size:12px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .current-canvas-time { max-width:260px; color:var(--faint); font-size:10px; font-weight:400; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -62,17 +62,20 @@
         .canvas-restore:hover { background:#ecfdf5; color:#059669; border-color:#a7f3d0; }
         .canvas-item.active .canvas-delete { background:rgba(255,255,255,.14); color:#fff; border-color:rgba(255,255,255,.18); opacity:1; }
         .canvas-item.active .canvas-delete:hover { background:rgba(248,113,113,.22); color:#fecaca; }
-        .toolbar { padding:6px; display:flex; gap:6px; align-items:center; border-radius:18px; }
-        .toolbar-items { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+        .topbar { top:14px; left:16px; right:16px; }
+        .toolbar { padding:4px; display:flex; gap:6px; align-items:center; border-radius:18px; }
+        .toolbar-items { display:flex; gap:5px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
         .toolbar.collapsed .toolbar-items { display:none; }
         .toolbar-fixed { display:flex; gap:6px; align-items:center; }
         .toolbar-toggle i { transition:transform .18s var(--ease); }
         .toolbar.collapsed .toolbar-toggle i { transform:rotate(180deg); }
-        .toolbar .toolbar-toggle { width:24px; height:25px; min-width:24px; padding:0; border-radius:10px; }
-        .toolbar .toolbar-log { width:auto; height:38px; min-width:38px; padding:0 12px; }
-        .toolbar.collapsed { padding:5px; }
-        .tool-btn { height:38px; min-width:38px; padding:0 12px; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:7px; color:var(--muted); background:var(--card-solid); border:1px solid var(--line); font-size:11px; font-weight:700; transition:all .2s var(--ease); pointer-events:auto; }
+        .toolbar .toolbar-toggle { width:24px; height:28px; min-width:24px; padding:0; border-radius:10px; }
+        .toolbar .toolbar-log { width:auto; height:28px; min-width:28px; padding:0 8px; }
+        .toolbar.collapsed { padding:4px; }
+        .tool-btn { height:28px; min-width:28px; padding:0 8px; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:5px; color:var(--muted); background:var(--card-solid); border:1px solid var(--line); font-size:10px; font-weight:700; transition:all .2s var(--ease); pointer-events:auto; }
+        .tool-btn span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:55px; transition:max-width .15s var(--ease); }
         .tool-btn:hover { background:var(--soft-2); color:var(--text); }
+        .tool-btn:hover span { max-width:200px; }
         .theme-toggle.active { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
         .board { position:absolute; inset:0; cursor:grab; background-color:var(--page); background-image:radial-gradient(var(--grid) 1px, transparent 1px); background-size:24px 24px; }
         body.canvas-knife .board,
@@ -231,6 +234,11 @@
         .comfy-node { width:420px; height:460px; }
         .generator-body { min-height:0; }
         .node.sized.generator-node .generator-body { height:100%; display:flex; flex-direction:column; }
+        .latest-node-preview { position:relative; width:100%; margin-top:10px; cursor:zoom-in; }
+        .latest-node-preview img,
+        .latest-node-preview video { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; }
+        .latest-node-preview.video { aspect-ratio:16/9; background:#0f172a; border-radius:16px; }
+        .latest-node-preview.image { max-height:260px; }
         .node.sized.comfy-node .node-body { overflow:hidden; }
         .comfy-body { min-height:0; height:100%; display:flex; flex-direction:column; gap:10px; }
         .node.sized.comfy-node .comfy-body { height:100%; }
@@ -300,6 +308,13 @@
         .output-grid img { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; cursor:zoom-in; transition:border-color .2s var(--ease); }
         .output-grid img:active { cursor:grabbing; }
         .output-grid video { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#0f172a; cursor:pointer; }
+        .output-grid video::-webkit-media-controls,
+        .output-grid video::-webkit-media-controls-enclosure,
+        .output-grid video::-webkit-media-controls-panel,
+        .output-grid video::-webkit-media-controls-overlay-play-button,
+        .output-single-video::-webkit-media-controls,
+        .output-single-video::-webkit-media-controls-enclosure { display:none !important; appearance:none; opacity:0; visibility:hidden; }
+        .output-grid video::-internal-media-controls-download-button { display:none !important; -webkit-appearance:none; }
         .output-img-wrap:hover img { border-color:#94a3b8; }
         .output-video-badge { position:absolute; left:7px; bottom:7px; height:22px; padding:0 8px; border-radius:999px; display:flex; align-items:center; gap:4px; background:rgba(15,23,42,.78); color:#fff; font-size:10px; font-weight:800; pointer-events:none; }
         .output-img-wrap.loading-wrap { width:100%; aspect-ratio:1; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; display:flex; align-items:center; justify-content:center; min-height:80px; }
@@ -387,8 +402,12 @@
         .drop-overlay.active { display:flex; }
         .create-menu { position:absolute; z-index:40; display:none; width:190px; padding:8px; border-radius:18px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 20px 50px rgba(15,23,42,.14); backdrop-filter:blur(16px); }
         .create-menu.open { display:block; }
+        .output-node-menu { width:260px; }
         .menu-btn { width:100%; height:38px; border-radius:12px; display:flex; align-items:center; gap:9px; padding:0 10px; color:#475569; font-size:12px; font-weight:700; }
+        .menu-btn span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; }
         .menu-btn:hover { background:#f8fafc; color:#111827; }
+        .menu-btn:disabled { color:#cbd5e1; cursor:not-allowed; }
+        .menu-btn:disabled:hover { background:transparent; color:#cbd5e1; }
         .selection-box { position:absolute; z-index:22; border:1px solid #111827; background:rgba(17,24,39,.06); pointer-events:none; display:none; }
         .selection-hub { position:absolute; z-index:28; display:none; align-items:center; gap:6px; padding:6px; border-radius:999px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 12px 30px rgba(15,23,42,.12); }
         .selection-hub.open { display:flex; }
@@ -400,7 +419,12 @@
         .output-lightbox-shell { width:min(1280px, 96vw); max-height:98vh; display:flex; flex-direction:column; align-items:center; gap:10px; }
         .output-preview { position:relative; width:min(1280px, 96vw); height:min(960px, 88vh); border-radius:24px; background:rgba(255,255,255,.72); border:1px solid rgba(255,255,255,.64); box-shadow:0 30px 90px rgba(15,23,42,.22); overflow:hidden; cursor:grab; }
         .output-preview img { display:block; width:100%; height:100%; object-fit:contain; background:rgba(241,245,249,.52); transition:transform .12s ease-out; transform-origin:0 0; }
-        .output-preview video { display:block; width:100%; height:100%; object-fit:contain; background:#0f172a; }
+        .output-preview video { display:block; width:100%; height:100%; object-fit:contain; background:#0f172a; outline:none; }
+        .output-video-controls { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:8px; padding:6px; border-radius:999px; background:rgba(15,23,42,.8); backdrop-filter:blur(12px); border:1px solid rgba(148,163,184,.2); opacity:0; transition:opacity .2s ease; pointer-events:auto; }
+        .output-preview:hover .output-video-controls { opacity:1; }
+        .video-control-btn { width:32px; height:32px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:transparent; color:#e5e7eb; border:none; cursor:pointer; }
+        .video-control-btn:hover { background:rgba(255,255,255,.12); color:#fff; }
+        .video-control-btn.active { background:rgba(59,130,246,.5); color:#fff; }
         .output-preview.panning { cursor:grabbing; }
         .output-preview.panning img { transition:none; }
         .output-single-img { cursor:inherit; }
@@ -705,7 +729,7 @@
         .shell.no-canvas .topbar { display:none; }
         .shell.no-canvas .editor-only { display:none; }
         @media (max-width:760px) {
-            .topbar { left:14px; right:14px; top:14px; }
+            .topbar { left:10px; right:10px; top:10px; }
             .library { width:calc(100vw - 28px); max-height:42vh; }
             .canvas-nav { min-width:0; width:max-content; max-width:calc(100vw - 28px); }
             .canvas-gate { padding:16px; align-items:center; }
@@ -785,7 +809,7 @@
             <div id="dropOverlay" class="drop-overlay" data-i18n="canvas.dropImage">拖放图片到画布</div>
             <div id="selectionBox" class="selection-box"></div>
             <div id="selectionHub" class="selection-hub"></div>
-            <div id="outputNodeMenu" class="create-menu"></div>
+            <div id="outputNodeMenu" class="create-menu output-node-menu"></div>
             <div id="createMenu" class="create-menu">
                 <button class="menu-btn" onclick="menuAdd('prompt')"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
                 <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
@@ -825,7 +849,12 @@
                     </div>
                 </div>
                 <img id="outputLightboxImg" class="output-single-img" src="" alt="output preview">
-                <video id="outputLightboxVideo" class="output-single-video" src="" controls playsinline style="display:none"></video>
+                <video id="outputLightboxVideo" class="output-single-video" src="" playsinline disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback" style="display:none"></video>
+                <div id="outputVideoControls" class="output-video-controls" style="display:none">
+                    <button id="videoPlayBtn" class="video-control-btn" type="button" title="播放/暂停"><i data-lucide="play" class="w-4 h-4"></i></button>
+                    <button id="videoMuteBtn" class="video-control-btn" type="button" title="静音"><i data-lucide="volume-2" class="w-4 h-4"></i></button>
+                    <button id="videoDownloadBtn" class="video-control-btn" type="button" title="下载"><i data-lucide="download" class="w-4 h-4"></i></button>
+                </div>
                 <div class="output-preview-bar">
                     <div id="outputResolution" class="output-resolution">--</div>
                     <div class="output-preview-actions">
@@ -3222,43 +3251,57 @@
         }
         function openCreateMenu(clientX, clientY){
             menuPoint = screenToWorld(clientX, clientY);
-            createMenu.style.left = `${clientX}px`;
-            createMenu.style.top = `${clientY}px`;
+            createMenu.style.left = '0px';
+            createMenu.style.top = '0px';
             createMenu.classList.add('open');
+            const rect = createMenu.getBoundingClientRect();
+            const margin = 10;
+            const left = Math.max(margin, Math.min(window.innerWidth - rect.width - margin, clientX));
+            const top = Math.max(margin, Math.min(window.innerHeight - rect.height - margin, clientY));
+            createMenu.style.left = `${left}px`;
+            createMenu.style.top = `${top}px`;
             refreshIcons();
         }
         function closeCreateMenu(){ createMenu.classList.remove('open'); }
         function outputImageUrls(node){
             return (node?.images || []).map(outputUrlValue).filter(url => url && !isVideoUrl(url));
         }
+        function outputVideoUrls(node){
+            return (node?.images || []).map(outputUrlValue).filter(url => url && isVideoUrl(url));
+        }
         function outputDownloadableImageUrls(node){
             return outputImageUrls(node).filter(url => !isMissingAssetUrl(url) && (url.startsWith('/output/') || url.startsWith('/assets/')));
         }
+        function outputDownloadableVideoUrls(node){
+            return outputVideoUrls(node).filter(url => !isMissingAssetUrl(url) && (url.startsWith('/output/') || url.startsWith('/assets/')));
+        }
         async function downloadOutputNodeImages(nodeId){
             const node = nodes.find(n => n.id === nodeId);
-            const urls = outputDownloadableImageUrls(node);
+            const imageUrls = outputDownloadableImageUrls(node);
+            const videoUrls = outputDownloadableVideoUrls(node);
+            const urls = [...imageUrls, ...videoUrls];
             if(!urls.length){
-                alert(tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片');
+                alert(tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频');
                 return;
             }
             try {
                 const res = await fetch('/api/canvas-assets/download', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({urls, filename:`${node?.name || node?.id || 'output'}-images.zip`})
+                    body:JSON.stringify({urls, filename:`${node?.name || node?.id || 'output'}-media.zip`})
                 });
-                if(!res.ok) throw new Error(await responseErrorMessage(res, tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片'));
+                if(!res.ok) throw new Error(await responseErrorMessage(res, tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频'));
                 const blob = await res.blob();
                 const a = document.createElement('a');
                 const href = URL.createObjectURL(blob);
                 a.href = href;
-                a.download = `${node?.id || 'output'}-images.zip`;
+                a.download = `${node?.id || 'output'}-media.zip`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
                 setTimeout(() => URL.revokeObjectURL(href), 1200);
             } catch(err) {
-                alert(err.message || tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片');
+                alert(err.message || tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频');
             }
         }
         function createInputGroupFromOutput(node, point){
@@ -3303,18 +3346,25 @@
             if(!node || node.type !== 'output') return;
             closeCreateMenu();
             const imageCount = outputImageUrls(node).length;
-            const downloadableCount = outputDownloadableImageUrls(node).length;
+            const imageDownloadableCount = outputDownloadableImageUrls(node).length;
+            const videoDownloadableCount = outputDownloadableVideoUrls(node).length;
+            const downloadableCount = imageDownloadableCount + videoDownloadableCount;
             outputNodeMenu.innerHTML = `
                 <div class="menu-section-title">${tr('canvas.outputGroupActions')}</div>
                 <button class="menu-btn" data-output-convert="${escapeAttr(nodeId)}" ${imageCount ? '' : 'disabled'}><i data-lucide="replace" class="w-4 h-4"></i><span>${tr('canvas.outputConvertToInputGroup')}</span></button>
                 <button class="menu-btn" data-output-copy="${escapeAttr(nodeId)}" ${imageCount ? '' : 'disabled'}><i data-lucide="copy-plus" class="w-4 h-4"></i><span>${tr('canvas.outputCopyToInputGroup')}</span></button>
                 <div class="menu-section-title">${tr('canvas.outputFileActions')}</div>
-                <button class="menu-btn" data-output-download="${escapeAttr(nodeId)}" ${downloadableCount ? '' : 'disabled'}><i data-lucide="download" class="w-4 h-4"></i><span>${tr('canvas.outputDownloadAllImages')}</span></button>
+                <button class="menu-btn" data-output-download="${escapeAttr(nodeId)}" title="${downloadableCount ? `${imageDownloadableCount} images · ${videoDownloadableCount} videos` : tr('canvas.outputDownloadEmpty')}" ${downloadableCount ? '' : 'disabled'}><i data-lucide="download" class="w-4 h-4"></i><span>${tr('canvas.outputDownloadAllMedia')}</span></button>
             `;
-            const menuWidth = 260;
-            outputNodeMenu.style.left = `${Math.max(10, Math.min(window.innerWidth - menuWidth - 10, clientX))}px`;
-            outputNodeMenu.style.top = `${clientY}px`;
+            outputNodeMenu.style.left = '0px';
+            outputNodeMenu.style.top = '0px';
             outputNodeMenu.classList.add('open');
+            const rect = outputNodeMenu.getBoundingClientRect();
+            const margin = 10;
+            const left = Math.max(margin, Math.min(window.innerWidth - rect.width - margin, clientX));
+            const top = Math.max(margin, Math.min(window.innerHeight - rect.height - margin, clientY));
+            outputNodeMenu.style.left = `${left}px`;
+            outputNodeMenu.style.top = `${top}px`;
             const convertBtn = outputNodeMenu.querySelector('[data-output-convert]');
             if(convertBtn){
                 convertBtn.onclick = e => {
@@ -5706,12 +5756,12 @@
             const latest = [...(node.lastOutputs || [])].reverse().find(Boolean);
             if(!latest) return '';
             if(isVideoUrl(latest)){
-                return `<div class="output-img-wrap" style="margin-top:10px"><video src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" muted playsinline></video></div>`;
+                return `<div class="latest-node-preview video"><video src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" muted playsinline></video></div>`;
             }
-            return `<div class="output-img-wrap" style="margin-top:10px"><img src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" draggable="false"></div>`;
+            return `<div class="latest-node-preview image"><img src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" draggable="false"></div>`;
         }
         function bindLatestPreview(wrap, node){
-            wrap.querySelectorAll('.output-img-wrap img, .output-img-wrap video').forEach(el => {
+            wrap.querySelectorAll('.latest-node-preview img, .latest-node-preview video, .output-img-wrap img, .output-img-wrap video').forEach(el => {
                 el.onclick = e => {
                     e.stopPropagation();
                     openOutputLightbox(el.dataset.url || el.getAttribute('src'), null);
@@ -7783,7 +7833,7 @@
                 return `<div class="output-img-wrap" data-output-url="${safe}" data-missing-url="${safe}"${gridStyle}>${missingAssetHtml(url, true)}${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
             if(isVideoUrl(url)){
-                return `<div class="output-img-wrap"><video src="${safe}" data-url="${safe}" preload="metadata" muted playsinline></video>${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
+                return `<div class="output-img-wrap"><video src="${safe}" data-url="${safe}" preload="metadata" muted playsinline disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
             return `<div class="output-img-wrap"><img src="${safe}" data-url="${safe}" alt="generated output">${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
         }
@@ -8040,7 +8090,12 @@
             outputLightboxVideo.style.display = videoMode ? 'block' : 'none';
             outputCompareResult.style.display = videoMode ? 'none' : 'block';
             outputCompareOriginal.style.display = videoMode ? 'none' : 'block';
+            const videoControls = document.getElementById('outputVideoControls');
+            const videoPlayBtn = document.getElementById('videoPlayBtn');
+            const videoMuteBtn = document.getElementById('videoMuteBtn');
+            const videoDownloadBtn = document.getElementById('videoDownloadBtn');
             if(videoMode){
+                videoControls.style.display = 'flex';
                 outputLightboxImg.src = '';
                 outputCompareResult.src = '';
                 outputCompareOriginal.src = '';
@@ -8055,10 +8110,50 @@
                     e.stopPropagation();
                     downloadUrl(url, outputDownloadName(url)).catch(err => alert(err.message || '下载失败'));
                 };
+                // Custom video controls
+                const video = outputLightboxVideo;
+                video.muted = true;
+                const updatePlayIcon = () => {
+                    const icon = videoPlayBtn.querySelector('[data-lucide]');
+                    if(video.paused){
+                        icon.setAttribute('data-lucide', 'play');
+                    } else {
+                        icon.setAttribute('data-lucide', 'pause');
+                    }
+                    refreshIcons();
+                };
+                const updateMuteIcon = () => {
+                    const icon = videoMuteBtn.querySelector('[data-lucide]');
+                    if(video.muted){
+                        icon.setAttribute('data-lucide', 'volume-x');
+                        videoMuteBtn.classList.add('active');
+                    } else {
+                        icon.setAttribute('data-lucide', 'volume-2');
+                        videoMuteBtn.classList.remove('active');
+                    }
+                    refreshIcons();
+                };
+                video.onplay = updatePlayIcon;
+                video.onpause = updatePlayIcon;
+                videoPlayBtn.onclick = e => {
+                    e.stopPropagation();
+                    if(video.paused) video.play();
+                    else video.pause();
+                };
+                videoMuteBtn.onclick = e => {
+                    e.stopPropagation();
+                    video.muted = !video.muted;
+                    updateMuteIcon();
+                };
+                videoDownloadBtn.onclick = e => {
+                    e.stopPropagation();
+                    downloadUrl(url, outputDownloadName(url)).catch(err => alert(err.message || '下载失败'));
+                };
                 outputLightbox.classList.add('open');
                 refreshIcons();
                 return;
             }
+            videoControls.style.display = 'none';
             outputLightboxVideo.pause();
             outputLightboxVideo.src = '';
             outputLightboxImg.draggable = false;
