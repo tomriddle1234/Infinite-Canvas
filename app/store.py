@@ -177,17 +177,20 @@ def save_canvas(canvas: dict) -> None:
             json.dump(canvas, f, ensure_ascii=False, indent=2)
 
 
-def new_canvas(title: str = "未命名画布", icon: str = "layers") -> dict:
+def new_canvas(title: str = "未命名画布", icon: str = "layers", kind: str = "classic") -> dict:
     timestamp = now_ms()
     canvas = {
         "id": uuid.uuid4().hex,
         "title": (title or "未命名画布")[:80],
-        "icon": (icon or "🧩")[:4],
+        "icon": (icon or "🧩")[:32],
+        "kind": "classic",
         "created_at": timestamp,
         "updated_at": timestamp,
         "nodes": [],
         "connections": [],
         "viewport": {"x": 0, "y": 0, "scale": 1},
+        "logs": [],
+        "settings": {},
     }
     save_canvas(canvas)
     return canvas
@@ -218,6 +221,7 @@ def canvas_record(data: dict) -> dict:
         "id": data.get("id"),
         "title": data.get("title", "未命名画布"),
         "icon": data.get("icon", "🧩"),
+        "kind": data.get("kind", "classic"),
         "created_at": data.get("created_at", 0),
         "updated_at": data.get("updated_at", 0),
         "deleted_at": data.get("deleted_at", 0),

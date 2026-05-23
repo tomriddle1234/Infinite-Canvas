@@ -4,7 +4,7 @@ import os
 
 from fastapi import APIRouter, HTTPException
 
-from .. import store
+from .. import store, ws
 from ..models import CanvasCreateRequest, CanvasSaveRequest
 
 router = APIRouter()
@@ -22,7 +22,7 @@ async def trashed_canvases():
 
 @router.post("/api/canvases")
 async def create_canvas(payload: CanvasCreateRequest):
-    return {"canvas": store.new_canvas(payload.title, payload.icon)}
+    return {"canvas": store.new_canvas(payload.title, payload.icon, payload.kind)}
 
 
 @router.get("/api/canvases/{canvas_id}/meta")
@@ -33,6 +33,7 @@ async def get_canvas_meta(canvas_id: str):
         "updated_at": canvas.get("updated_at", 0),
         "title": canvas.get("title", "未命名画布"),
         "icon": canvas.get("icon", "layers"),
+        "kind": canvas.get("kind", "classic"),
     }
 
 
@@ -57,7 +58,15 @@ async def update_canvas(canvas_id: str, payload: CanvasSaveRequest):
     canvas["connections"] = payload.connections
     canvas["viewport"] = payload.viewport
     canvas["logs"] = payload.logs[-500:]
+    canvas["settings"] = payload.settings or {}
+    if not canvas.get("kind"):
+        canvas["kind"] = "classic"
     store.save_canvas(canvas)
+    await ws.manager.broadcast_canvas_updated(
+        canvas_id,
+        int(canvas.get("updated_at") or store.now_ms()),
+        payload.client_id or "",
+    )
     return {"canvas": canvas}
 
 

@@ -168,6 +168,28 @@ errors 必须为 0。
 
 ## 7. 同步日志（按时间倒序，每次同步追加一节，不要删旧的）
 
+### 2026-05-23 — 同步上游主画布补丁
+
+本次同步只移植主无限画布相关内容。继续跳过 Smart Canvas、LTX、RunningHub、self-update、asset-library、ComfyUI 方向功能和 affiliate/广告内容。
+
+拉取了：
+- 后端画布保存契约：`CanvasSaveRequest` 接收 `settings`、`client_id`，`CanvasCreateRequest` 接收 `kind`；`app/store.py` 的新画布和列表记录保留 `kind`、`settings`、`logs`。
+- 多 tab 同步广播：`app/ws.py` 新增 `broadcast_canvas_updated()`，`app/routes/canvas.py` 在保存画布后广播 `canvas_updated`，并回传来源 `client_id` 供前端忽略自身更新。
+- 画布资产端点 smoke 覆盖：`tests/smoke_refactored_app.py` 增加 `/api/canvases/{canvas_id}/meta`、`/api/canvas-assets/check`、`/api/canvas-assets/download`。
+- Output 节点文件操作：`static/canvas.html` 的右键菜单恢复“下载全部图片”，复用现有 `/api/canvas-assets/download`；同时保存画布时发送 `settings` 和 `client_id`。
+- i18n 补齐：`canvas.outputGroupActions`、`canvas.outputFileActions`、`canvas.outputDownloadAllImages`、`canvas.outputDownloadEmpty`、`canvas.missingFile`。
+
+验证情况：
+- ✅ `python -c "import ast; [ast.parse(open(f, encoding='utf-8').read()) for f in ['app/routes/canvas.py','app/routes/public.py','app/routes/generate.py','app/models.py','app/ws.py','main_refactored.py']]; print('OK')"` 通过。
+- ✅ `python tests/smoke_refactored_app.py` 通过，`route_count: 57`，`missing_paths: []`。
+- ✅ `python -m pytest tests/test_canvas_sync_contract.py -v` 通过，2 tests passed。
+- ✅ `python tests/unit_seedream_seedance.py` 通过，`failure_count: 0`。
+- ✅ `node --check` 校验 `static/canvas.html` 内联脚本合并产物和 `static/i18n.js` 通过。
+
+未端到端验证（需浏览器手动确认）：
+- 打开同一画布的两个 tab，修改并保存其中一个，另一个应通过 WebSocket `canvas_updated` 提示并同步。
+- 右键 Output 节点，确认“下载全部图片”在存在本地 `/output/` 或 `/assets/` 图片时可点击并下载 zip，无本地图片时禁用。
+
 ### 2026-05-17（下午） — 同步上游 5/17 下午追加更新
 
 上游最新 commit：`e0c838c Add files via upload`（2026-05-17 13:53 +0800；上一次同步基线是 `8afea2f` 09:25 +0800）。

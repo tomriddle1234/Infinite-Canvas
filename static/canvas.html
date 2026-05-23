@@ -1863,7 +1863,7 @@
                 const res = await fetch(`/api/canvases/${canvas.id}`, {
                     method:'PUT',
                     headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({ title:canvas.title, icon:canvas.icon || '🧩', nodes, connections, viewport, logs:canvas.logs || [], base_updated_at: baseUpdatedAt })
+                    body:JSON.stringify({ title:canvas.title, icon:canvas.icon || '🧩', nodes, connections, viewport, logs:canvas.logs || [], settings:canvas.settings || {}, base_updated_at: baseUpdatedAt, client_id: CLIENT_ID })
                 });
                 if(res.status === 409){
                     const conflict = await res.json().catch(() => ({}));
@@ -3303,9 +3303,13 @@
             if(!node || node.type !== 'output') return;
             closeCreateMenu();
             const imageCount = outputImageUrls(node).length;
+            const downloadableCount = outputDownloadableImageUrls(node).length;
             outputNodeMenu.innerHTML = `
+                <div class="menu-section-title">${tr('canvas.outputGroupActions')}</div>
                 <button class="menu-btn" data-output-convert="${escapeAttr(nodeId)}" ${imageCount ? '' : 'disabled'}><i data-lucide="replace" class="w-4 h-4"></i><span>${tr('canvas.outputConvertToInputGroup')}</span></button>
                 <button class="menu-btn" data-output-copy="${escapeAttr(nodeId)}" ${imageCount ? '' : 'disabled'}><i data-lucide="copy-plus" class="w-4 h-4"></i><span>${tr('canvas.outputCopyToInputGroup')}</span></button>
+                <div class="menu-section-title">${tr('canvas.outputFileActions')}</div>
+                <button class="menu-btn" data-output-download="${escapeAttr(nodeId)}" ${downloadableCount ? '' : 'disabled'}><i data-lucide="download" class="w-4 h-4"></i><span>${tr('canvas.outputDownloadAllImages')}</span></button>
             `;
             const menuWidth = 260;
             outputNodeMenu.style.left = `${Math.max(10, Math.min(window.innerWidth - menuWidth - 10, clientX))}px`;
@@ -3324,6 +3328,14 @@
                 copyBtn.onclick = e => {
                     e.stopPropagation();
                     copyOutputNodeToInputGroup(nodeId);
+                    closeOutputNodeMenu();
+                };
+            }
+            const downloadBtn = outputNodeMenu.querySelector('[data-output-download]');
+            if(downloadBtn){
+                downloadBtn.onclick = e => {
+                    e.stopPropagation();
+                    downloadOutputNodeImages(nodeId);
                     closeOutputNodeMenu();
                 };
             }
@@ -7558,7 +7570,7 @@
             return Boolean(url && missingAssetUrls.has(url));
         }
         function missingAssetHtml(url, compact=false){
-            return `<div class="missing-asset ${compact ? 'compact' : ''}" title="${escapeAttr(url || '')}"><i data-lucide="image-off" class="${compact ? 'w-4 h-4' : 'w-6 h-6'}"></i><span>${langIsEn() ? 'Missing file' : '????'}</span></div>`;
+            return `<div class="missing-asset ${compact ? 'compact' : ''}" title="${escapeAttr(url || '')}"><i data-lucide="image-off" class="${compact ? 'w-4 h-4' : 'w-6 h-6'}"></i><span>${tr('canvas.missingFile')}</span></div>`;
         }
         function outputMetaFor(url, out){
             const item = (out?.images || []).find(x => outputUrlValue(x) === url);

@@ -70,6 +70,20 @@ class ConnectionManager:
                 print(f"Broadcast image error: {e}")
                 self.active_connections.remove(connection)
 
+    async def broadcast_canvas_updated(self, canvas_id: str, updated_at: int, client_id: str = ""):
+        data = json.dumps({
+            "type": "canvas_updated",
+            "canvas_id": canvas_id,
+            "updated_at": updated_at,
+            "client_id": client_id or "",
+        })
+        for connection in self.active_connections[:]:
+            try:
+                await connection.send_text(data)
+            except Exception as e:
+                print(f"Broadcast canvas update error: {e}")
+                self.active_connections.remove(connection)
+
     async def send_personal_message(self, message: dict, client_id: str):
         ws = self.user_connections.get(client_id)
         if ws:

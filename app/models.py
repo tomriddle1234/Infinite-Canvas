@@ -177,6 +177,7 @@ class ConversationCreateRequest(BaseModel):
 class CanvasCreateRequest(BaseModel):
     title: str = "未命名画布"
     icon: str = "🧩"
+    kind: str = "classic"
 
 
 class CanvasSaveRequest(BaseModel):
@@ -186,7 +187,9 @@ class CanvasSaveRequest(BaseModel):
     connections: List[Dict[str, Any]] = []
     viewport: Dict[str, Any] = {}
     logs: List[Dict[str, Any]] = []
+    settings: Dict[str, Any] = {}
     base_updated_at: Optional[int] = None
+    client_id: Optional[str] = None
 
 
 class CanvasAssetCheckRequest(BaseModel):
