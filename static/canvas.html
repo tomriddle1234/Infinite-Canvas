@@ -389,6 +389,20 @@
         .input-item img { width:100%; height:100%; object-fit:cover; border-radius:12px; }
         .input-index { position:absolute; left:5px; top:5px; min-width:18px; height:18px; border-radius:999px; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
         .input-label { position:absolute; left:5px; right:5px; bottom:5px; border-radius:10px; padding:2px 4px; background:rgba(255,255,255,.86); color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .seedance-role-wrap { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+        .seedance-source-tray { display:flex; gap:8px; overflow:auto; padding-bottom:2px; }
+        .seedance-source-item { position:relative; width:54px; height:54px; flex:0 0 auto; border:1px solid var(--line-2); border-radius:12px; background:var(--card-solid); padding:4px; cursor:grab; }
+        .seedance-source-item img { width:100%; height:100%; object-fit:cover; border-radius:9px; }
+        .seedance-source-item.unassigned { border-color:#f59e0b; box-shadow:0 0 0 2px rgba(245,158,11,.12); }
+        .seedance-source-tag { position:absolute; left:4px; right:4px; bottom:4px; border-radius:8px; padding:1px 3px; background:rgba(15,23,42,.72); color:#fff; font-size:9px; font-weight:800; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .seedance-slot-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
+        .seedance-slot { position:relative; min-width:0; aspect-ratio:1; border:1px dashed var(--line-2); border-radius:12px; background:rgba(248,250,252,.78); padding:5px; color:var(--muted); display:flex; align-items:center; justify-content:center; text-align:center; font-size:9px; font-weight:800; overflow:hidden; }
+        .seedance-slot.assigned { border-style:solid; background:var(--card-solid); color:var(--text); cursor:grab; }
+        .seedance-slot.drag-over { border-color:#111827; box-shadow:0 0 0 2px rgba(17,24,39,.12); }
+        .seedance-slot img { width:100%; height:100%; object-fit:cover; border-radius:9px; }
+        .seedance-slot-label { position:absolute; left:5px; right:5px; bottom:5px; border-radius:8px; padding:2px 4px; background:rgba(255,255,255,.88); color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .seedance-slot-clear { position:absolute; right:4px; top:4px; width:18px; height:18px; border-radius:999px; background:rgba(15,23,42,.78); color:#fff; font-size:12px; line-height:18px; display:flex; align-items:center; justify-content:center; }
+        .seedance-slot-empty { padding:0 3px; line-height:1.15; }
         .video-frame-label { width:100%; min-height:22px; border:1px solid var(--line-2); border-radius:9px; background:var(--card-solid); color:var(--text); font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; }
         .gen-btn { height:40px; width:100%; border-radius:16px; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; }
         .gen-btn:disabled { background:#e5e7eb; color:#94a3b8; cursor:not-allowed; }
@@ -563,11 +577,14 @@
         .theme-dark .llm-input-area[readonly] { background:#1e293b; }
         .theme-dark .blank-image,
         .theme-dark .input-item,
+        .theme-dark .seedance-source-item,
+        .theme-dark .seedance-slot,
         .theme-dark .output-img-wrap.loading-wrap,
         .theme-dark .llm-chat-log,
         .theme-dark .llm-output,
         .theme-dark .model-row,
         .theme-dark .model-empty { background:var(--soft); border-color:var(--line); color:var(--muted); }
+        .theme-dark .seedance-slot-label { background:rgba(15,23,42,.82); color:var(--text); }
         .theme-dark .llm-pane-resizer::before { background:#475569; }
         .theme-dark .group-node,
         .theme-dark .promptGroup-node,
@@ -2739,6 +2756,7 @@
                 seed:'',
                 generateAudio:true,
                 returnLastFrame:false,
+                seedanceImageSlots:null,
                 refVideos:[],
                 refAudios:[],
                 taskIds:[],
@@ -4465,7 +4483,7 @@
             });
         }
         function isNodeControl(target){
-            return !!target.closest('textarea, input, select, option, button, .seg, .gen-btn, .comfy-run, .input-item, .blank-image, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
+            return !!target.closest('textarea, input, select, option, button, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
         }
         function isNodeDragSurface(target){
             return !isNodeControl(target) && !target.closest('.port, .resize-handle, .output-img-wrap');
@@ -5918,6 +5936,105 @@
             bindLatestPreview(wrap, node);
             return wrap;
         }
+        const SEEDANCE_MAX_REF_IMAGES = 9;
+        function seedanceDefaultImageSlots(imageInputs, hasReferenceMedia){
+            const slots = {first_frame:'', last_frame:'', references:[]};
+            if(!imageInputs.length) return slots;
+            if(imageInputs.length <= 2 && !hasReferenceMedia){
+                slots.first_frame = imageInputs[0]?.id || '';
+                slots.last_frame = imageInputs[1]?.id || '';
+            } else {
+                slots.references = imageInputs.slice(0, SEEDANCE_MAX_REF_IMAGES).map(src => src.id);
+            }
+            return slots;
+        }
+        function normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia=false){
+            const ids = new Set(imageInputs.map(src => src.id));
+            const raw = node.seedanceImageSlots;
+            const slots = raw && typeof raw === 'object' && !Array.isArray(raw)
+                ? {
+                    first_frame:raw.first_frame || '',
+                    last_frame:raw.last_frame || '',
+                    references:Array.isArray(raw.references) ? raw.references : []
+                }
+                : seedanceDefaultImageSlots(imageInputs, hasReferenceMedia);
+            const used = new Set();
+            const cleanId = id => {
+                if(!id || !ids.has(id) || used.has(id)) return '';
+                used.add(id);
+                return id;
+            };
+            slots.first_frame = cleanId(slots.first_frame);
+            slots.last_frame = cleanId(slots.last_frame);
+            slots.references = slots.references.map(cleanId).filter(Boolean).slice(0, SEEDANCE_MAX_REF_IMAGES);
+            node.seedanceImageSlots = slots;
+            return slots;
+        }
+        function seedanceSlotLocation(slots, sourceId){
+            if(slots.first_frame === sourceId) return {role:'first_frame'};
+            if(slots.last_frame === sourceId) return {role:'last_frame'};
+            const index = slots.references.indexOf(sourceId);
+            return index >= 0 ? {role:'reference_image', index} : null;
+        }
+        function seedanceRemoveSourceFromSlots(slots, sourceId){
+            if(slots.first_frame === sourceId) slots.first_frame = '';
+            if(slots.last_frame === sourceId) slots.last_frame = '';
+            slots.references = slots.references.filter(id => id !== sourceId);
+        }
+        function seedanceSetSlot(slots, role, index, sourceId){
+            if(role === 'first_frame') slots.first_frame = sourceId || '';
+            else if(role === 'last_frame') slots.last_frame = sourceId || '';
+            else {
+                const refs = slots.references.slice();
+                refs[index] = sourceId || '';
+                slots.references = refs.filter(Boolean).slice(0, SEEDANCE_MAX_REF_IMAGES);
+            }
+        }
+        function moveSeedanceImageToSlot(node, imageInputs, sourceId, role, index=0){
+            if(!sourceId || !imageInputs.some(src => src.id === sourceId)) return;
+            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
+            const slots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
+            const previous = seedanceSlotLocation(slots, sourceId);
+            const targetId = role === 'first_frame' ? slots.first_frame : role === 'last_frame' ? slots.last_frame : slots.references[index];
+            seedanceRemoveSourceFromSlots(slots, sourceId);
+            if(targetId && targetId !== sourceId){
+                seedanceRemoveSourceFromSlots(slots, targetId);
+                if(previous) seedanceSetSlot(slots, previous.role, previous.index || 0, targetId);
+            }
+            seedanceSetSlot(slots, role, index, sourceId);
+            normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
+            render();
+            scheduleSave();
+        }
+        function clearSeedanceImageSlot(node, imageInputs, role, index=0){
+            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
+            const slots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
+            seedanceSetSlot(slots, role, index, '');
+            normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
+            render();
+            scheduleSave();
+        }
+        function seedanceImagePayload(node, imageInputs){
+            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
+            const slots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
+            const byId = new Map(imageInputs.map(src => [src.id, src]));
+            const refs = [];
+            const pushRef = (id, role) => {
+                const src = byId.get(id);
+                const ref = src?.refs?.[0];
+                if(ref?.url) refs.push({...ref, role});
+            };
+            pushRef(slots.first_frame, 'first_frame');
+            pushRef(slots.last_frame, 'last_frame');
+            slots.references.forEach(id => pushRef(id, 'reference_image'));
+            return {
+                refs,
+                hasFirst:Boolean(slots.first_frame),
+                hasLast:Boolean(slots.last_frame),
+                refCount:slots.references.length,
+                hasReferenceMedia
+            };
+        }
         function renderSeedanceBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
@@ -5925,6 +6042,8 @@
             const ordered = orderedSources(node, inputSources);
             const imageInputs = ordered.filter(src => src.refs?.length);
             const promptInputs = ordered.filter(src => src.prompt && !src.refs?.length);
+            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
+            const imageSlots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
             const modelOptions = [
                 ['doubao-seedance-1-5-pro-251215', 'Seedance 1.5 Pro'],
                 ['doubao-seedance-2-0-260128', 'Seedance 2.0'],
@@ -5935,7 +6054,10 @@
             wrap.innerHTML = `
                 <div class="prompt-list mb-3"></div>
                 <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">${tr('canvas.images') || 'Images'}</div>
-                <div class="input-list seedance-img-list"></div>
+                <div class="seedance-role-wrap">
+                    <div class="seedance-source-tray"></div>
+                    <div class="seedance-slot-grid"></div>
+                </div>
                 <div class="gen-settings">
                     <div class="gen-settings-row">
                         <select class="select-lite seedance-model" style="flex:2">${modelOptions}</select>
@@ -5983,20 +6105,59 @@
             });
             wrap.querySelector('.seedance-video-upload').onclick = e => { e.stopPropagation(); pickNodeMedia(node.id, 'refVideos', 'video/mp4,video/quicktime,.mp4,.mov'); };
             wrap.querySelector('.seedance-audio-upload').onclick = e => { e.stopPropagation(); pickNodeMedia(node.id, 'refAudios', 'audio/mpeg,audio/wav,.mp3,.wav'); };
-            const list = wrap.querySelector('.seedance-img-list');
-            list.innerHTML = imageInputs.length ? '' : `<div class="text-[11px] text-gray-300 py-2">${tr('canvas.groupEmpty')}</div>`;
+            const tray = wrap.querySelector('.seedance-source-tray');
+            const grid = wrap.querySelector('.seedance-slot-grid');
+            const assignedIds = new Set([imageSlots.first_frame, imageSlots.last_frame, ...imageSlots.references].filter(Boolean));
+            tray.innerHTML = imageInputs.length ? '' : `<div class="text-[11px] text-gray-300 py-2">${tr('canvas.inputImagesEmpty')}</div>`;
             imageInputs.forEach((src, i) => {
                 const item = document.createElement('div');
-                item.className = 'input-item';
+                item.className = `seedance-source-item ${assignedIds.has(src.id) ? '' : 'unassigned'}`;
                 item.draggable = true;
                 item.dataset.sourceId = src.id;
-                const frameLabel = i === 0 ? tr('canvas.videoRoleFirstFrame') : i === 1 ? tr('canvas.videoRoleLastFrame') : 'Reference';
-                item.innerHTML = `<span class="input-index">${i + 1}</span>${src.preview ? `<img src="${src.preview}">` : '<i data-lucide="image" class="w-6 h-6 text-slate-400"></i>'}<span class="input-label">${escapeHtml(frameLabel)}</span>`;
+                item.title = src.label || `Image ${i + 1}`;
+                item.innerHTML = `${src.preview ? `<img src="${src.preview}">` : '<i data-lucide="image" class="w-6 h-6 text-slate-400"></i>'}<span class="seedance-source-tag">${i + 1}</span>`;
                 item.ondragstart = e => { e.stopPropagation(); internalDrag = true; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('application/x-canvas-input', src.id); };
                 item.ondragend = () => { internalDrag = false; };
-                item.ondragover = e => { e.preventDefault(); e.stopPropagation(); };
-                item.ondrop = e => { e.preventDefault(); e.stopPropagation(); reorderInput(node, e.dataTransfer.getData('application/x-canvas-input'), src.id); internalDrag = false; };
-                list.appendChild(item);
+                tray.appendChild(item);
+            });
+            const byId = new Map(imageInputs.map(src => [src.id, src]));
+            const refSlotCount = imageInputs.length
+                ? Math.min(SEEDANCE_MAX_REF_IMAGES, Math.max(2, imageInputs.length, Math.min(SEEDANCE_MAX_REF_IMAGES, imageSlots.references.length + 1)))
+                : 0;
+            const slotDefs = imageInputs.length ? [
+                {role:'first_frame', label:tr('canvas.videoRoleFirstFrame'), sourceId:imageSlots.first_frame},
+                {role:'last_frame', label:tr('canvas.videoRoleLastFrame'), sourceId:imageSlots.last_frame},
+                ...Array.from({length:refSlotCount}, (_, i) => ({role:'reference_image', index:i, label:`${tr('canvas.videoRoleReference')} ${i + 1}`, sourceId:imageSlots.references[i] || ''}))
+            ] : [];
+            grid.innerHTML = '';
+            slotDefs.forEach(def => {
+                const src = byId.get(def.sourceId);
+                const slot = document.createElement('div');
+                slot.className = `seedance-slot ${src ? 'assigned' : ''}`;
+                slot.dataset.role = def.role;
+                slot.dataset.index = String(def.index || 0);
+                slot.draggable = Boolean(src);
+                slot.innerHTML = src
+                    ? `${src.preview ? `<img src="${src.preview}">` : '<i data-lucide="image" class="w-6 h-6 text-slate-400"></i>'}<span class="seedance-slot-label">${escapeHtml(def.label)}</span><button class="seedance-slot-clear" type="button" title="Clear">&times;</button>`
+                    : `<span class="seedance-slot-empty">${escapeHtml(def.label)}</span>`;
+                if(src){
+                    slot.ondragstart = e => { e.stopPropagation(); internalDrag = true; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('application/x-canvas-input', src.id); };
+                    slot.ondragend = () => { internalDrag = false; };
+                    slot.querySelector('.seedance-slot-clear')?.addEventListener('click', e => {
+                        e.stopPropagation();
+                        clearSeedanceImageSlot(node, imageInputs, def.role, def.index || 0);
+                    });
+                }
+                slot.ondragover = e => { e.preventDefault(); e.stopPropagation(); slot.classList.add('drag-over'); };
+                slot.ondragleave = () => slot.classList.remove('drag-over');
+                slot.ondrop = e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    slot.classList.remove('drag-over');
+                    moveSeedanceImageToSlot(node, imageInputs, e.dataTransfer.getData('application/x-canvas-input'), def.role, def.index || 0);
+                    internalDrag = false;
+                };
+                grid.appendChild(slot);
             });
             renderPromptPreview(wrap.querySelector('.prompt-list'), promptInputs);
             bindGenerationSubmitButton(
@@ -6742,13 +6903,22 @@
         async function runSeedanceNode(nodeId, opts={}){
             const node = nodes.find(n => n.id === nodeId);
             if(!node || (!opts.cascade && (node.running || node.taskIds?.length || node._seedancePendingId))) return;
-            const {prompt, refs} = dedicatedPromptAndRefs(node);
+            const sources = orderedSources(node, generatorSources(node));
+            const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
+            const imageInputs = sources.filter(src => src.refs?.length);
+            const {refs:imageRefs, hasFirst, hasLast, refCount, hasReferenceMedia} = seedanceImagePayload(node, imageInputs);
             if(!prompt){ alert(tr('canvas.videoNeedsPrompt')); return; }
-            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
-            const imageRefs = refs.map((ref, index) => ({...ref, role: refs.length <= 2 && !hasReferenceMedia ? (index === 0 ? 'first_frame' : 'last_frame') : 'reference_image'}));
+            if(hasLast && !hasFirst){
+                alert(tr('canvas.seedanceLastNeedsFirst'));
+                return;
+            }
+            if((hasFirst || hasLast) && (refCount || hasReferenceMedia)){
+                alert(tr('canvas.seedanceFrameRefConflict'));
+                return;
+            }
             const out = outputForNode(node);
             const pendingId = uid('p');
-            const run = runSnapshot(node, prompt, refs);
+            const run = runSnapshot(node, prompt, imageRefs);
             out._pending = [...(out._pending || []), makePending(pendingId, run)];
             node._seedancePendingId = pendingId;
             if(!opts.cascade){ node.running = true; render(); }
