@@ -482,9 +482,9 @@
         .log-thumbs img, .log-thumbs video { width:38px; height:38px; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:#0f172a; cursor:pointer; }
         .model-modal { position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
         .model-modal.open { display:flex; }
-        .error-modal { position:fixed; right:14px; bottom:14px; z-index:90; display:none; width:min(420px, calc(100vw - 28px)); pointer-events:none; }
+        .error-modal { position:fixed; right:14px; bottom:178px; z-index:90; display:none; width:min(420px, calc(100vw - 28px)); pointer-events:none; }
         .error-modal.open { display:block; }
-        .error-panel { width:100%; max-height:min(420px, calc(100vh - 28px)); padding:12px; border-radius:14px; background:var(--card-solid); border:1px solid rgba(239,68,68,.32); box-shadow:0 18px 46px rgba(15,23,42,.18); display:flex; flex-direction:column; gap:9px; pointer-events:auto; }
+        .error-panel { width:100%; max-height:min(360px, calc(100vh - 206px)); padding:12px; border-radius:14px; background:var(--card-solid); border:1px solid rgba(239,68,68,.32); box-shadow:0 18px 46px rgba(15,23,42,.18); display:flex; flex-direction:column; gap:9px; pointer-events:auto; }
         .error-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
         .error-title { color:#dc2626; font-size:12px; font-weight:900; display:flex; align-items:center; gap:6px; min-width:0; }
         body.theme-dark .error-title { color:#fca5a5; }
@@ -495,6 +495,10 @@
         .error-actions { display:flex; justify-content:flex-end; gap:8px; }
         .error-btn { height:28px; padding:0 10px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:10.5px; font-weight:850; border:1px solid var(--line); color:var(--muted); background:var(--card-solid); }
         .error-btn.primary { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
+        @media (max-width: 760px) {
+            .error-modal { left:14px; right:14px; bottom:178px; width:auto; }
+            .error-panel { max-height:min(300px, calc(100vh - 206px)); }
+        }
         .model-panel { width:min(560px, 100%); border-radius:24px; background:#fff; border:1px solid #e8edf3; box-shadow:0 30px 80px rgba(15,23,42,.18); padding:18px; }
         .model-panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
         .model-panel-title { font-size:13px; font-weight:900; color:#111827; }
@@ -1142,6 +1146,7 @@
         let viewport = {x: -1800, y: -1000, scale: 1};
         let dragNode = null;
         let dragBoard = null;
+        let dragGeometryQueued = false;
         let minimapDrag = false;
         let minimapState = null;
         let minimapRenderQueued = false;
@@ -1554,6 +1559,7 @@
                 sel.addRange(range);
             }
         }
+        window.alert = message => showErrorModal(String(message || ''), tr('canvas.errors'));
         async function copyTextToClipboard(text){
             const value = String(text || '');
             if(!value) return false;
@@ -1867,6 +1873,15 @@
         function refreshGeometry(){
             renderLinks();
             renderSelectionHub();
+        }
+        function scheduleDragGeometry(){
+            if(dragGeometryQueued) return;
+            dragGeometryQueued = true;
+            requestAnimationFrame(() => {
+                dragGeometryQueued = false;
+                renderLinks();
+                renderSelectionHub();
+            });
         }
         function refreshGeometryAfterLayout(){
             requestAnimationFrame(() => {
@@ -6131,12 +6146,20 @@
             const age = Date.now() - Number(run.submittedAt || Date.now());
             return run.status === 'needs_recovery' || age >= SEEDANCE_FIND_TASK_MIN_MS;
         }
+        function seedanceNetworkError(err){
+            const status = Number(err?.status || 0);
+            const message = String(err?.message || err || '');
+            return [502, 503, 504].includes(status) || /连接火山\s*Ark失败|Connection Error|NetworkError|Failed to fetch|请求超时|查询超时|timed?\s*out/i.test(message);
+        }
+        function seedanceAutoPollPaused(node, run=null){
+            return Boolean(node?._seedanceAutoPollPaused || run?.autoPollPaused);
+        }
         function seedanceIsDefinitiveSubmitFailure(err){
-            return [400, 401, 403, 404, 409, 422, 429].includes(Number(err?.status || 0));
+            return [400, 401, 403, 404, 409, 422, 429].includes(Number(err?.status || 0)) || seedanceNetworkError(err);
         }
         function seedanceTaskListHtml(node){
             const runs = seedanceRuns(node)
-                .filter(run => run?.taskIds?.length || ['submitting', 'checking', 'needs_recovery'].includes(run?.status || ''))
+                .filter(run => run?.taskIds?.length || ['submitting', 'checking', 'needs_recovery', 'poll_paused'].includes(run?.status || ''))
                 .slice(-5)
                 .reverse();
             if(!runs.length && !node.taskIds?.length) return '';
@@ -6145,7 +6168,7 @@
                 : [];
             return [...legacy, ...runs].map(run => {
                 seedanceNormalizeTransientRunState(run);
-                const label = run.status === 'done' ? tr('canvas.seedanceDone') : run.status === 'failed' ? tr('canvas.seedanceFailed') : run.status === 'checking' ? tr('canvas.seedanceChecking') : run.taskIds?.length ? tr('canvas.seedanceSubmitted') : tr('canvas.seedanceNeedTaskId');
+                const label = run.status === 'done' ? tr('canvas.seedanceDone') : run.status === 'failed' ? tr('canvas.seedanceFailed') : run.status === 'checking' ? tr('canvas.seedanceChecking') : run.status === 'poll_paused' || run.autoPollPaused ? tr('canvas.seedancePollPaused') : run.taskIds?.length ? tr('canvas.seedanceSubmitted') : tr('canvas.seedanceNeedTaskId');
                 const taskText = (run.taskIds || []).join(', ') || tr('canvas.seedanceNoTaskId');
                 const canFind = seedanceCanFindTask(node, run);
                 const button = run.status === 'done'
@@ -6313,7 +6336,7 @@
             if(seedanceNodeHasCompletedVideoResult(node, activeSeedanceRun) || (!activeSeedanceRun && seedanceNodeHasCompletedVideoResult(node))){
                 clearSeedancePollingState(node, activeSeedanceRun);
                 scheduleSave();
-            } else if(node.taskIds?.length && !node.checking && !seedancePollTimers.has(node.id)) {
+            } else if(node.taskIds?.length && !node.checking && !seedanceAutoPollPaused(node, activeSeedanceRun) && !seedancePollTimers.has(node.id)) {
                 scheduleSeedancePoll(node.id);
             }
             return wrap;
@@ -7068,6 +7091,7 @@
                 node._seedancePendingId = '';
                 node._seedanceActiveRunId = '';
                 node._seedancePollStart = 0;
+                node._seedanceAutoPollPaused = false;
                 node.checking = false;
                 node.running = false;
                 node.runStatus = 'done';
@@ -7104,6 +7128,7 @@
             const node = nodes.find(n => n.id === nodeId);
             if(!node?.taskIds?.length) return;
             const activeRun = seedanceRunById(node, node._seedanceActiveRunId);
+            if(seedanceAutoPollPaused(node, activeRun)) return;
             if(seedanceNodeHasCompletedVideoResult(node, activeRun) || (!activeRun && seedanceNodeHasCompletedVideoResult(node))){
                 clearSeedancePollingState(node, activeRun);
                 refreshNodes([nodeId]);
@@ -7123,6 +7148,7 @@
                 seedancePollTimers.delete(nodeId);
                 const cur = nodes.find(n => n.id === nodeId);
                 const curRun = seedanceRunById(cur, cur?._seedanceActiveRunId);
+                if(seedanceAutoPollPaused(cur, curRun)) return;
                 if(cur && (seedanceNodeHasCompletedVideoResult(cur, curRun) || (!curRun && seedanceNodeHasCompletedVideoResult(cur)))){
                     clearSeedancePollingState(cur, curRun);
                     refreshNodes([nodeId]);
@@ -7314,6 +7340,8 @@
                 seedanceRun.status = 'submitted';
                 seedanceRun.submittedAt = Number(result.submitted_at || 0) ? Number(result.submitted_at) * 1000 : seedanceRun.submittedAt;
                 seedanceRun.reused = Boolean(result.reused);
+                seedanceRun.autoPollPaused = false;
+                node._seedanceAutoPollPaused = false;
                 node.runStatus = 'submitted';
                 node.runError = '';
                 node._seedancePollStart = Date.now();
@@ -7334,6 +7362,7 @@
                     node._seedancePendingId = '';
                     node._seedanceActiveRunId = '';
                     node._seedancePollStart = 0;
+                    node._seedanceAutoPollPaused = false;
                 }
                 render();
                 scheduleSave();
@@ -7366,7 +7395,7 @@
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({task_ids:taskIds, run_id:run?.runId || ''})
-                }).then(async r => { if(!r.ok) throw new Error(await responseErrorMessage(r, tr('canvas.videoFailed'))); return r.json(); });
+                }).then(async r => { if(!r.ok) throw await responseError(r, tr('canvas.videoFailed')); return r.json(); });
                 if(result.task_ids?.length){
                     if(run && !run.taskIds?.length) run.taskIds = result.task_ids;
                     if((!run || run.runId === node._seedanceActiveRunId) && !node.taskIds?.length) node.taskIds = result.task_ids;
@@ -7378,8 +7407,10 @@
                     if(run){
                         run.status = result.status || 'submitted';
                         run.error = node.runError;
+                        run.autoPollPaused = false;
                         run.lastCheckedAt = Date.now();
                     }
+                    node._seedanceAutoPollPaused = false;
                     if(['failed', 'missing'].includes(result.status)){
                         const isActiveRun = !run || run.runId === node._seedanceActiveRunId || taskIds.join(',') === (node.taskIds || []).join(',');
                         const pendingId = run?.pendingId || (isActiveRun ? node._seedancePendingId : '');
@@ -7408,8 +7439,10 @@
                 if(run){
                     run.status = 'done';
                     run.videos = [...(run.videos || []), ...videos];
+                    run.autoPollPaused = false;
                     run.lastCheckedAt = Date.now();
                 }
+                node._seedanceAutoPollPaused = false;
                 if(isActiveRun){
                     node.taskIds = [];
                     node._seedancePendingId = '';
@@ -7425,9 +7458,12 @@
                 node.checking = false;
                 node.runStatus = 'submitted';
                 node.runError = err.message || String(err);
+                const pauseAutoPoll = true;
+                if(pauseAutoPoll) node._seedanceAutoPollPaused = true;
                 if(run){
-                    run.status = run.taskIds?.length ? 'submitted' : 'failed';
+                    run.status = pauseAutoPoll && run.taskIds?.length ? 'poll_paused' : run.taskIds?.length ? 'submitted' : 'failed';
                     run.error = err.message || String(err);
+                    run.autoPollPaused = pauseAutoPoll;
                     run.lastCheckedAt = Date.now();
                 }
                 refreshNodes([nodeId]);
@@ -8924,6 +8960,7 @@
                 copy._seedancePendingId = '';
                 copy._seedanceActiveRunId = '';
                 copy._seedancePollStart = 0;
+                copy._seedanceAutoPollPaused = false;
                 copy.checking = false;
                 copy.runStatus = '';
                 copy.runError = '';
@@ -9055,9 +9092,7 @@
                     childEl.style.top = `${childDrag.node.y}px`;
                 }
             });
-            renderLinks();
-            renderSelectionHub();
-            scheduleMinimapRender();
+            scheduleDragGeometry();
         }
         function startNodeResize(e, node){
             e.preventDefault();
