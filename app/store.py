@@ -8,10 +8,54 @@ import os
 import re
 import time
 import uuid
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import HTTPException, Request
 
 from . import config
+
+
+SENSITIVE_URL_QUERY_KEYS = {
+    "accesskeyid",
+    "signature",
+    "x-amz-credential",
+    "x-amz-security-token",
+    "x-amz-signature",
+    "x-tos-credential",
+    "x-tos-security-token",
+    "x-tos-signature",
+}
+
+
+def _sanitize_persisted_string(value: str) -> str:
+    cleaned = re.sub(r"(?i)\b(AKLT|AKTP)[A-Z0-9]+\b", r"\1***", value)
+    if "://" not in cleaned or "?" not in cleaned:
+        return cleaned
+    try:
+        parts = urlsplit(cleaned)
+        query = []
+        changed = False
+        for key, item in parse_qsl(parts.query, keep_blank_values=True):
+            if key.lower() in SENSITIVE_URL_QUERY_KEYS:
+                query.append((key, "***"))
+                changed = True
+            else:
+                query.append((key, item))
+        if changed:
+            return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+    except Exception:
+        pass
+    return cleaned
+
+
+def sanitize_persisted_data(value):
+    if isinstance(value, dict):
+        return {key: sanitize_persisted_data(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [sanitize_persisted_data(item) for item in value]
+    if isinstance(value, str):
+        return _sanitize_persisted_string(value)
+    return value
 
 
 def now_ms() -> int:
@@ -97,6 +141,7 @@ def save_seedance_task(record: dict) -> dict:
     run_id = (record.get("run_id") or "").strip()
     if not run_id:
         raise HTTPException(status_code=400, detail="缺少 Seedance run_id")
+    record = sanitize_persisted_data(record)
     now = time.time()
     with config.SEEDANCE_TASKS_LOCK:
         data = _load_seedance_task_map()
@@ -113,6 +158,7 @@ def update_seedance_task(run_id: str, updates: dict) -> dict | None:
     cleaned = (run_id or "").strip()
     if not cleaned:
         return None
+    updates = sanitize_persisted_data(updates)
     with config.SEEDANCE_TASKS_LOCK:
         data = _load_seedance_task_map()
         existing = data.get(cleaned)
