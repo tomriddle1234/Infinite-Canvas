@@ -36,8 +36,10 @@ from ..models import (
     GptImage2Request,
     MsGenerateRequest,
     OnlineImageRequest,
+    SeedanceClaimRequest,
     SeedanceRequest,
     SeedanceStatusRequest,
+    SeedanceTaskListRequest,
     SeedreamRequest,
 )
 
@@ -49,6 +51,7 @@ SEEDANCE_CACHE_TTL_SECONDS = 30 * 60
 SEEDANCE_CACHE_MAX_ENTRIES = 200
 SEEDANCE_RESULT_CACHE: "collections.OrderedDict[tuple, tuple[float, dict]]" = collections.OrderedDict()
 SEEDANCE_STATUS_LOCK = asyncio.Lock()
+SEEDANCE_SUBMIT_LOCK = asyncio.Lock()
 
 
 def _seedance_cache_get(key: tuple):
@@ -133,12 +136,66 @@ async def node_seedream(payload: SeedreamRequest):
 
 @router.post("/api/nodes/seedance")
 async def node_seedance(payload: SeedanceRequest):
-    try:
-        submitted = await asyncio.to_thread(upstream_volcengine.submit_seedance, payload)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Seedance 提交失败：{exc}") from exc
+    run_id = (payload.run_id or "").strip()
+    async with SEEDANCE_SUBMIT_LOCK:
+        if run_id:
+            existing = await asyncio.to_thread(store.get_seedance_task, run_id)
+            if existing and existing.get("task_ids"):
+                old_sig = (existing.get("input_signature") or "").strip()
+                new_sig = (payload.input_signature or "").strip()
+                if old_sig and new_sig and old_sig != new_sig:
+                    raise HTTPException(status_code=409, detail="Seedance run_id 已对应另一组参数，请复制节点或重新提交新任务。")
+                log.info("Seedance submit reused: run_id=%s task_ids=%s", run_id, existing.get("task_ids"))
+                return {
+                    "status": "submitted",
+                    "task_ids": existing.get("task_ids") or [],
+                    "model": existing.get("model") or payload.model,
+                    "raw": existing.get("raw") or {},
+                    "submitted_at": existing.get("submitted_at") or existing.get("created_at") or time.time(),
+                    "run_id": run_id,
+                    "reused": True,
+                }
+            await asyncio.to_thread(store.save_seedance_task, {
+                "run_id": run_id,
+                "node_id": payload.node_id,
+                "input_signature": payload.input_signature,
+                "status": "submitting",
+                "model": payload.model,
+                "submitted_at": time.time(),
+                "params": {
+                    "duration": payload.duration,
+                    "aspect_ratio": payload.aspect_ratio,
+                    "resolution": payload.resolution,
+                    "seed": payload.seed,
+                    "generate_audio": payload.generate_audio,
+                    "return_last_frame": payload.return_last_frame,
+                    "reference_images": len(payload.reference_images or []),
+                    "reference_videos": len(payload.reference_videos or []),
+                    "reference_audios": len(payload.reference_audios or []),
+                },
+                "prompt": payload.prompt[:1000],
+            })
+        try:
+            submitted = await asyncio.to_thread(upstream_volcengine.submit_seedance, payload)
+        except HTTPException as exc:
+            if run_id:
+                await asyncio.to_thread(store.update_seedance_task, run_id, {"status": "submit_failed", "error": exc.detail})
+            raise
+        except Exception as exc:
+            if run_id:
+                await asyncio.to_thread(store.update_seedance_task, run_id, {"status": "submit_failed", "error": str(exc)})
+            raise HTTPException(status_code=502, detail=f"Seedance 提交失败：{exc}") from exc
+        if run_id:
+            await asyncio.to_thread(store.save_seedance_task, {
+                "run_id": run_id,
+                "node_id": payload.node_id,
+                "input_signature": payload.input_signature,
+                "status": "submitted",
+                "task_ids": submitted["task_ids"],
+                "model": submitted["model"],
+                "raw": submitted["raw"],
+                "submitted_at": submitted["submitted_at"],
+            })
     log.info("Seedance submitted: task_ids=%s model=%s", submitted["task_ids"], submitted["model"])
     return {
         "status": "submitted",
@@ -146,20 +203,37 @@ async def node_seedance(payload: SeedanceRequest):
         "model": submitted["model"],
         "raw": submitted["raw"],
         "submitted_at": submitted["submitted_at"],
+        "run_id": run_id,
+        "reused": False,
     }
 
 
 @router.post("/api/nodes/seedance/status")
 async def node_seedance_status(payload: SeedanceStatusRequest):
-    if not payload.task_ids:
+    task_ids = [item for item in payload.task_ids if item]
+    if not task_ids and payload.run_id:
+        existing = await asyncio.to_thread(store.get_seedance_task, payload.run_id)
+        task_ids = [item for item in (existing or {}).get("task_ids", []) if item]
+    if not task_ids:
+        if payload.run_id:
+            return {"status": "missing", "task_ids": [], "tasks": [], "missing": [{"run_id": payload.run_id, "error": "本地未记录 Seedance task_id"}], "videos": []}
         raise HTTPException(status_code=400, detail="缺少 Seedance task_ids")
-    cache_key = tuple(item for item in payload.task_ids if item)
+    cache_key = tuple(task_ids)
     async with SEEDANCE_STATUS_LOCK:
         cached = _seedance_cache_get(cache_key)
         if cached is not None:
+            cached = {**cached, "task_ids": task_ids}
+            if payload.run_id:
+                await asyncio.to_thread(store.update_seedance_task, payload.run_id, {
+                    "status": cached.get("status"),
+                    "task_ids": task_ids,
+                    "videos": cached.get("videos", []),
+                    "raw_status": cached,
+                    "last_checked_at": time.time(),
+                })
             return cached
         try:
-            result = await asyncio.to_thread(upstream_volcengine.poll_seedance, payload.task_ids)
+            result = await asyncio.to_thread(upstream_volcengine.poll_seedance, task_ids)
         except HTTPException:
             raise
         except Exception as exc:
@@ -173,15 +247,66 @@ async def node_seedance_status(payload: SeedanceStatusRequest):
                 "outputs": local_videos,
                 "timestamp": time.time(),
                 "type": "seedance",
-                "task_ids": payload.task_ids,
+                "task_ids": task_ids,
                 "raw": result,
             }
             store.save_to_history(record)
-        response = {**result, "videos": local_videos or result.get("videos", [])}
+        response = {**result, "task_ids": task_ids, "videos": local_videos or result.get("videos", [])}
+        if payload.run_id:
+            await asyncio.to_thread(store.update_seedance_task, payload.run_id, {
+                "status": response.get("status"),
+                "task_ids": task_ids,
+                "videos": response.get("videos", []),
+                "raw_status": result,
+                "last_checked_at": time.time(),
+            })
         if response.get("status") == "succeeded":
             _seedance_cache_put(cache_key, response)
         log.info("Seedance status: task_ids=%s status=%s videos=%d", list(cache_key), response.get("status"), len(response.get("videos") or []))
         return response
+
+
+@router.post("/api/nodes/seedance/tasks")
+async def node_seedance_tasks(payload: SeedanceTaskListRequest):
+    page_size = max(1, min(50, int(payload.page_size or 10)))
+    result = await asyncio.to_thread(upstream_volcengine.list_seedance_tasks, payload.model, payload.status, page_size)
+    claimed = await asyncio.to_thread(store.seedance_claimed_task_ids)
+    claimed.update(str(item) for item in (payload.known_task_ids or []) if item)
+    after = float(payload.submitted_after or 0)
+    tasks = []
+    for item in result.get("tasks", []):
+        task_id = str(item.get("task_id") or "")
+        if not task_id or task_id in claimed:
+            continue
+        created_at = item.get("created_at")
+        if after and isinstance(created_at, (int, float)) and float(created_at) < after:
+            continue
+        tasks.append(item)
+    return {"tasks": tasks, "total": result.get("total", len(tasks))}
+
+
+@router.post("/api/nodes/seedance/claim")
+async def node_seedance_claim(payload: SeedanceClaimRequest):
+    run_id = (payload.run_id or "").strip()
+    task_id = (payload.task_id or "").strip()
+    if not run_id or not task_id:
+        raise HTTPException(status_code=400, detail="缺少 Seedance run_id 或 task_id")
+    existing_owner = await asyncio.to_thread(store.find_seedance_run_by_task_id, task_id)
+    if existing_owner and existing_owner.get("run_id") != run_id:
+        raise HTTPException(status_code=409, detail="这个 Seedance task_id 已经绑定到其它任务。")
+    existing = await asyncio.to_thread(store.get_seedance_task, run_id)
+    if existing and existing.get("task_ids") and task_id not in existing.get("task_ids", []):
+        raise HTTPException(status_code=409, detail="这个 Seedance run 已经绑定了其它 task_id。")
+    record = await asyncio.to_thread(store.save_seedance_task, {
+        "run_id": run_id,
+        "node_id": payload.node_id,
+        "input_signature": payload.input_signature or (existing or {}).get("input_signature", ""),
+        "status": "submitted",
+        "task_ids": [task_id],
+        "model": payload.model or (existing or {}).get("model", ""),
+        "claimed_at": time.time(),
+    })
+    return {"status": "claimed", "run_id": run_id, "task_ids": record.get("task_ids", [task_id]), "record": record}
 
 
 # ---------------- 在线生图 ----------------

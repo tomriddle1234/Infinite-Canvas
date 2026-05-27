@@ -26,6 +26,7 @@ output/
 assets/
 history.json
 global_config.json
+data/seedance_tasks.json
 data/conversations/
 data/canvases/
 data/api_providers.json

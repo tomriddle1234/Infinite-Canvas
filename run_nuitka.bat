@@ -12,6 +12,9 @@ REM  Useful options:
 REM    run_nuitka.bat --force      Force Python recompilation
 REM    run_nuitka.bat --clean      Clean build/dist first
 REM    run_nuitka.bat --onefile    Build a single root exe instead of runtime\
+REM    run_nuitka.bat --jobs 16    Tune MSVC parallel C compiler jobs
+REM    run_nuitka.bat --no-zip     Skip zip packaging after build
+REM    run_nuitka.bat --assets-only Refresh static/workflows only, no Nuitka
 REM
 REM  static\ and workflows\ are copied after compilation, so frontend-only
 REM  edits do not trigger a Nuitka rebuild.

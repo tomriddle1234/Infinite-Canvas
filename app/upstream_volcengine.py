@@ -6,12 +6,12 @@ import time
 
 from fastapi import HTTPException
 from volcenginesdkarkruntime import Ark
-from volcenginesdkarkruntime._exceptions import ArkAPIConnectionError, ArkAPITimeoutError
+from volcenginesdkarkruntime._exceptions import ArkAPIConnectionError, ArkAPIStatusError, ArkAPITimeoutError, ArkNotFoundError
 
 from . import config, imageproc
 
 
-TERMINAL_FAILED = {"failed", "fail", "error", "canceled", "cancelled", "timeout", "rejected"}
+TERMINAL_FAILED = {"failed", "fail", "error", "canceled", "cancelled", "timeout", "rejected", "expired"}
 TERMINAL_SUCCESS = {"succeeded", "success", "done", "completed"}
 
 
@@ -209,6 +209,8 @@ def submit_seedance(payload) -> dict:
         raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 请求超时", exc)) from exc
     except ArkAPIConnectionError as exc:
         raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 连接火山 Ark 失败", exc)) from exc
+    except ArkAPIStatusError as exc:
+        raise HTTPException(status_code=getattr(exc, "status_code", None) or 502, detail=f"Seedance 提交失败：{exc}") from exc
     raw = _to_dict(task)
     task_id = _read_attr(task, "id") or raw.get("id") or raw.get("task_id")
     if not task_id:
@@ -232,12 +234,84 @@ def task_urls(raw) -> list[str]:
     return list(dict.fromkeys(urls))
 
 
+def _task_status(task, raw: dict) -> str:
+    return str(_read_attr(task, "status") or raw.get("status") or raw.get("task_status") or "").lower()
+
+
+def _normalize_task_id(task, raw: dict) -> str:
+    return str(_read_attr(task, "id") or raw.get("id") or raw.get("task_id") or "").strip()
+
+
+def _list_seedance_tasks(client, task_ids: list[str]) -> dict[str, dict]:
+    cleaned = [item for item in task_ids if item]
+    if not cleaned:
+        return {}
+    response = client.content_generation.tasks.list(
+        task_ids=cleaned,
+        page_num=1,
+        page_size=max(len(cleaned), 10),
+    )
+    items = getattr(response, "items", None) or _read_attr(response, "items") or []
+    found = {}
+    for item in items:
+        raw = _to_dict(item)
+        tid = _normalize_task_id(item, raw)
+        if tid:
+            found[tid] = raw
+    return found
+
+
+def _seedance_task_summary(item, raw: dict | None = None) -> dict:
+    raw = raw or _to_dict(item)
+    task_id = _normalize_task_id(item, raw)
+    return {
+        "task_id": task_id,
+        "status": _task_status(item, raw),
+        "model": raw.get("model") or _read_attr(item, "model") or "",
+        "created_at": raw.get("created_at") or _read_attr(item, "created_at"),
+        "updated_at": raw.get("updated_at") or _read_attr(item, "updated_at"),
+        "videos": task_urls(raw),
+        "raw": raw,
+    }
+
+
+def list_seedance_tasks(model: str = "", status: str = "all", page_size: int = 10) -> dict:
+    client = _client()
+    kwargs = {"page_num": 1, "page_size": max(1, min(50, int(page_size or 10)))}
+    if status and status != "all":
+        kwargs["status"] = status
+    if model:
+        kwargs["model"] = _valid_model(model, config.SEEDANCE_MODELS, model)
+    try:
+        response = client.content_generation.tasks.list(**kwargs)
+    except ArkAPITimeoutError as exc:
+        raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 历史任务查询超时", exc)) from exc
+    except ArkAPIConnectionError as exc:
+        raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 连接火山 Ark 失败", exc)) from exc
+    items = getattr(response, "items", None) or _read_attr(response, "items") or []
+    tasks = [_seedance_task_summary(item) for item in items]
+    tasks = [item for item in tasks if item.get("task_id")]
+    return {"tasks": tasks, "total": getattr(response, "total", None) or _read_attr(response, "total") or len(tasks)}
+
+
+def _collect_seedance_task(raw: dict, task_id: str, tasks: list, videos: list, failed: list, pending: list):
+    status = str(raw.get("status") or raw.get("task_status") or "").lower()
+    tasks.append(raw)
+    if status in TERMINAL_FAILED:
+        failed.append({"task_id": task_id, "status": status, "raw": raw})
+    elif status in TERMINAL_SUCCESS or task_urls(raw):
+        videos.extend(task_urls(raw))
+    else:
+        pending.append({"task_id": task_id, "status": status or "pending", "raw": raw})
+
+
 def poll_seedance(task_ids: list[str]) -> dict:
     client = _client()
     tasks = []
     videos = []
     failed = []
     pending = []
+    missing = []
     for task_id in [item for item in task_ids if item]:
         try:
             task = client.content_generation.tasks.get(task_id=task_id)
@@ -245,17 +319,40 @@ def poll_seedance(task_ids: list[str]) -> dict:
             raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 查询超时", exc)) from exc
         except ArkAPIConnectionError as exc:
             raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 连接火山 Ark 失败", exc)) from exc
+        except ArkNotFoundError as exc:
+            missing.append({"task_id": task_id, "error": str(exc)})
+            continue
+        except ArkAPIStatusError as exc:
+            if getattr(exc, "status_code", None) == 404:
+                missing.append({"task_id": task_id, "error": str(exc)})
+                continue
+            raise HTTPException(status_code=502, detail=f"Seedance 查询失败：{exc}") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Seedance 查询失败：{exc}") from exc
         raw = _to_dict(task)
-        status = str(_read_attr(task, "status") or raw.get("status") or raw.get("task_status") or "").lower()
-        tasks.append(raw)
-        if status in TERMINAL_FAILED:
-            failed.append({"task_id": task_id, "status": status, "raw": raw})
-        elif status in TERMINAL_SUCCESS or task_urls(raw):
-            videos.extend(task_urls(raw))
-        else:
-            pending.append({"task_id": task_id, "status": status or "pending", "raw": raw})
+        _collect_seedance_task(raw, task_id, tasks, videos, failed, pending)
+    if missing:
+        missing_ids = [item["task_id"] for item in missing]
+        try:
+            listed = _list_seedance_tasks(client, missing_ids)
+        except ArkAPITimeoutError as exc:
+            raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 历史任务查询超时", exc)) from exc
+        except ArkAPIConnectionError as exc:
+            raise HTTPException(status_code=502, detail=_connection_error_detail("Seedance 连接火山 Ark 失败", exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Seedance 历史任务查询失败：{exc}") from exc
+        resolved = set()
+        for task_id in missing_ids:
+            raw = listed.get(task_id)
+            if not raw:
+                continue
+            _collect_seedance_task(raw, task_id, tasks, videos, failed, pending)
+            resolved.add(task_id)
+        missing = [item for item in missing if item["task_id"] not in resolved]
     if failed:
-        return {"status": "failed", "tasks": tasks, "failed": failed, "videos": videos}
+        return {"status": "failed", "tasks": tasks, "failed": failed, "missing": missing, "videos": videos}
+    if missing and not tasks:
+        return {"status": "missing", "tasks": tasks, "missing": missing, "videos": videos}
     if pending or not videos:
-        return {"status": "pending", "tasks": tasks, "pending": pending, "videos": videos}
-    return {"status": "succeeded", "tasks": tasks, "videos": videos}
+        return {"status": "pending", "tasks": tasks, "pending": pending, "missing": missing, "videos": videos}
+    return {"status": "succeeded", "tasks": tasks, "missing": missing, "videos": videos}

@@ -33,7 +33,12 @@ echo.
 
 start "" /min cmd /c "timeout /t 3 /nobreak >nul & start "" http://127.0.0.1:3000/"
 python main_refactored.py
+set "EXIT_CODE=%ERRORLEVEL%"
 
 echo.
 echo Server stopped.
-pause
+if not "%EXIT_CODE%"=="0" (
+    echo Exit code: %EXIT_CODE%
+    pause
+)
+exit /b %EXIT_CODE%

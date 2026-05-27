@@ -100,6 +100,9 @@ class SeedreamRequest(BaseModel):
 
 
 class SeedanceRequest(BaseModel):
+    run_id: str = ""
+    node_id: str = ""
+    input_signature: str = ""
     prompt: str = Field(min_length=1, max_length=config.VIDEO_PROMPT_MAX_LENGTH)
     model: str = "doubao-seedance-2-0-fast-260128"
     duration: int = 5
@@ -115,6 +118,24 @@ class SeedanceRequest(BaseModel):
 
 class SeedanceStatusRequest(BaseModel):
     task_ids: List[str] = []
+    run_id: str = ""
+
+
+class SeedanceTaskListRequest(BaseModel):
+    run_id: str = ""
+    model: str = ""
+    status: str = "all"
+    page_size: int = 10
+    submitted_after: Optional[float] = None
+    known_task_ids: List[str] = []
+
+
+class SeedanceClaimRequest(BaseModel):
+    run_id: str = ""
+    node_id: str = ""
+    task_id: str = ""
+    model: str = ""
+    input_signature: str = ""
 
 
 class ApiProviderPayload(BaseModel):

@@ -482,15 +482,18 @@
         .log-thumbs img, .log-thumbs video { width:38px; height:38px; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:#0f172a; cursor:pointer; }
         .model-modal { position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
         .model-modal.open { display:flex; }
-        .error-modal { position:absolute; inset:0; z-index:90; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
-        .error-modal.open { display:flex; }
-        .error-panel { width:min(560px, 100%); max-height:min(520px, calc(100vh - 56px)); padding:18px; border-radius:20px; background:var(--card-solid); border:1px solid var(--line); box-shadow:0 22px 58px var(--shadow); display:flex; flex-direction:column; gap:14px; }
+        .error-modal { position:fixed; right:14px; bottom:14px; z-index:90; display:none; width:min(420px, calc(100vw - 28px)); pointer-events:none; }
+        .error-modal.open { display:block; }
+        .error-panel { width:100%; max-height:min(420px, calc(100vh - 28px)); padding:12px; border-radius:14px; background:var(--card-solid); border:1px solid rgba(239,68,68,.32); box-shadow:0 18px 46px rgba(15,23,42,.18); display:flex; flex-direction:column; gap:9px; pointer-events:auto; }
         .error-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .error-title { color:#dc2626; font-size:13px; font-weight:900; }
+        .error-title { color:#dc2626; font-size:12px; font-weight:900; display:flex; align-items:center; gap:6px; min-width:0; }
         body.theme-dark .error-title { color:#fca5a5; }
-        .error-message { min-height:120px; max-height:330px; overflow:auto; padding:12px; border-radius:14px; background:var(--soft); border:1px solid var(--line); color:var(--text); font-size:12px; line-height:1.55; white-space:pre-wrap; user-select:text; cursor:text; }
+        .error-stack { display:flex; flex-direction:column; gap:7px; min-height:0; overflow:auto; }
+        .error-message { min-height:0; max-height:150px; overflow:auto; padding:9px 10px; border-radius:10px; background:var(--soft); border:1px solid var(--line); color:var(--text); font-size:11.5px; line-height:1.45; white-space:pre-wrap; user-select:text; cursor:text; }
+        .error-message.collapsed { max-height:42px; cursor:pointer; overflow:hidden; }
+        .error-meta { color:var(--faint); font-size:10px; font-weight:800; flex:0 0 auto; }
         .error-actions { display:flex; justify-content:flex-end; gap:8px; }
-        .error-btn { height:36px; padding:0 13px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:7px; font-size:11.5px; font-weight:850; border:1px solid var(--line); color:var(--muted); background:var(--card-solid); }
+        .error-btn { height:28px; padding:0 10px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:10.5px; font-weight:850; border:1px solid var(--line); color:var(--muted); background:var(--card-solid); }
         .error-btn.primary { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
         .model-panel { width:min(560px, 100%); border-radius:24px; background:#fff; border:1px solid #e8edf3; box-shadow:0 30px 80px rgba(15,23,42,.18); padding:18px; }
         .model-panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
@@ -649,8 +652,7 @@
         .theme-dark .image-edit-btn.secondary { background:var(--soft); color:var(--muted); border-color:var(--line); }
         .theme-dark .image-edit-btn.primary { background:#d8dee9; color:#0f172a; }
         .theme-dark .image-edit-modal { background:rgba(2,6,23,.66); }
-        .theme-dark .error-modal,
-        body.theme-dark .error-modal { background:rgba(2,6,23,.72); }
+        body.theme-dark .error-panel { box-shadow:0 20px 56px rgba(0,0,0,.46); }
         .theme-dark .model-modal,
         body.theme-dark .model-modal { background:rgba(2,6,23,.72); }
         .theme-dark .selection-box { border-color:var(--strong); background:rgba(248,250,252,.08); }
@@ -1017,16 +1019,16 @@
                 </div>
             </div>
         </div>
-        <div id="errorModal" class="error-modal" onclick="closeErrorModal()">
-            <div class="error-panel" onclick="event.stopPropagation()">
+        <div id="errorModal" class="error-modal">
+            <div class="error-panel">
                 <div class="error-head">
-                    <div id="errorTitle" class="error-title" data-i18n="canvas.generationFailed">生成失败</div>
-                    <button class="preview-icon-btn" type="button" title="关闭" aria-label="关闭" onclick="closeErrorModal()"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <div id="errorTitle" class="error-title"><i data-lucide="circle-x" class="w-4 h-4"></i><span data-i18n="canvas.errors">错误</span><span id="errorCount" class="error-meta"></span></div>
+                    <button class="preview-icon-btn" type="button" data-i18n-title="common.close" aria-label="关闭" onclick="closeErrorModal()"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
-                <div id="errorMessage" class="error-message"></div>
+                <div id="errorMessage" class="error-stack"></div>
                 <div class="error-actions">
-                    <button class="error-btn" type="button" onclick="copyErrorMessage()"><i data-lucide="copy" class="w-4 h-4"></i><span>复制</span></button>
-                    <button class="error-btn primary" type="button" onclick="closeErrorModal()">关闭</button>
+                    <button class="error-btn" type="button" onclick="copyErrorMessage()"><i data-lucide="copy" class="w-3.5 h-3.5"></i><span data-i18n="studio.copy">复制</span></button>
+                    <button class="error-btn primary" type="button" onclick="dismissLatestError()"><i data-lucide="x" class="w-3.5 h-3.5"></i><span data-i18n="canvas.dismissLatest">移除最新</span></button>
                 </div>
             </div>
         </div>
@@ -1130,6 +1132,8 @@
         const errorModal = document.getElementById('errorModal');
         const errorTitle = document.getElementById('errorTitle');
         const errorMessage = document.getElementById('errorMessage');
+        const errorCount = document.getElementById('errorCount');
+        const errorStack = [];
         let canvases = [];
         let deletedCanvases = [];
         let canvas = null;
@@ -1455,15 +1459,43 @@
             const providerModels = providerId ? providerChatModels(providerId) : [];
             return value || providerModels[0] || allChatModels()[0] || chatModels[0] || 'gpt-4o-mini';
         }
-        function showErrorModal(message, title=tr('canvas.generationFailed')){
-            if(!errorModal || !errorMessage){
-                alert(message || title);
+        function renderErrorStack(){
+            if(!errorModal || !errorMessage) return;
+            if(!errorStack.length){
+                errorModal.classList.remove('open');
+                errorMessage.innerHTML = '';
+                if(errorCount) errorCount.textContent = '';
                 return;
             }
-            errorTitle.textContent = title || tr('canvas.generationFailed');
-            errorMessage.textContent = message || title;
+            if(errorCount) errorCount.textContent = `(${errorStack.length})`;
+            errorMessage.innerHTML = errorStack.slice(0, 5).map((item, index) => {
+                const age = Math.max(0, Math.round((Date.now() - item.at) / 1000));
+                return `<div class="error-message ${index ? 'collapsed' : ''}" data-error-index="${index}" title="${escapeAttr(item.message)}">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                        <span style="font-weight:900;color:#dc2626">${escapeHtml(item.title)}</span>
+                        <span class="error-meta">${age}s</span>
+                    </div>
+                    <div>${escapeHtml(item.message)}</div>
+                </div>`;
+            }).join('');
+            errorMessage.querySelectorAll('[data-error-index]').forEach(el => {
+                el.onclick = e => {
+                    e.stopPropagation();
+                    el.classList.toggle('collapsed');
+                };
+            });
             errorModal.classList.add('open');
             refreshIcons();
+        }
+        function showErrorModal(message, title=tr('canvas.generationFailed')){
+            const text = message || title;
+            if(!errorModal || !errorMessage){
+                console.error(text);
+                return;
+            }
+            errorStack.unshift({title:title || tr('canvas.generationFailed'), message:text, at:Date.now()});
+            while(errorStack.length > 20) errorStack.pop();
+            renderErrorStack();
         }
         function apiErrorMessage(data, fallback='请求失败'){
             if(!data) return fallback;
@@ -1502,10 +1534,15 @@
             }
         }
         function closeErrorModal(){
-            if(errorModal) errorModal.classList.remove('open');
+            errorStack.length = 0;
+            renderErrorStack();
+        }
+        function dismissLatestError(){
+            errorStack.shift();
+            renderErrorStack();
         }
         async function copyErrorMessage(){
-            const text = errorMessage?.textContent || '';
+            const text = errorStack.map(item => `[${item.title}] ${item.message}`).join('\n\n') || errorMessage?.textContent || '';
             if(!text) return;
             try {
                 await navigator.clipboard.writeText(text);
@@ -2753,6 +2790,7 @@
                 refVideos:[],
                 refAudios:[],
                 taskIds:[],
+                seedanceRuns:[],
                 inputs:[],
                 running:false,
                 lastOutputs:[]
@@ -3138,8 +3176,8 @@
             const msModel = MS_GEN_MODELS[modelKey] || MS_GEN_MODELS.zimage;
             const msModelId = currentMsModelId(modelKey, node);
             const msLoras = modelscopeLorasForModel(msModelId);
-            if(!prompt){ alert(tr('canvas.needPrompt')); return; }
-            if(msModel.supportsImage && !refs.length){ alert(tr('canvas.needImage')); return; }
+            if(!prompt){ showErrorModal(tr('canvas.needPrompt')); return; }
+            if(msModel.supportsImage && !refs.length){ showErrorModal(tr('canvas.needImage')); return; }
             const count = Math.max(1, Math.min(8, Number(node.count || 1)));
             // 找或创建 output 节点，立即添加 loading 占位
             let out = connections.filter(c => c.from===node.id).map(c => nodes.find(n => n.id===c.to)).find(n => n?.type==='output');
@@ -3221,7 +3259,7 @@
                 render();
                 scheduleSave();
                 if(opts.cascade) throw err;
-                alert(err.message || tr('canvas.msFailed'));
+                showErrorModal(err.message || tr('canvas.msFailed'));
             }
         }
         function addComfyNode(point){
@@ -3292,7 +3330,7 @@
             const videoUrls = outputDownloadableVideoUrls(node);
             const urls = [...imageUrls, ...videoUrls];
             if(!urls.length){
-                alert(tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频');
+                showErrorModal(tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频');
                 return;
             }
             try {
@@ -3312,7 +3350,7 @@
                 a.remove();
                 setTimeout(() => URL.revokeObjectURL(href), 1200);
             } catch(err) {
-                alert(err.message || tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频');
+                showErrorModal(err.message || tr('canvas.outputDownloadEmpty') || '没有可下载的本地图片或视频');
             }
         }
         function createInputGroupFromOutput(node, point){
@@ -4374,7 +4412,7 @@
             refreshIcons();
             refreshOutputTimer();
         }
-        function refreshNodes(ids=[]){
+        function refreshNodes(ids=[], options={}){
             const uniqueIds = [...new Set((ids || []).filter(Boolean))];
             if(!uniqueIds.length) return;
             if(shouldDeferNodeRefresh(uniqueIds)){
@@ -4397,8 +4435,10 @@
             }
             restoreOutputScrolls(outputScrolls);
             restoreActiveEditable(activeEditable);
-            refreshGeometry();
-            refreshGeometryAfterLayout();
+            if(options.geometry !== false){
+                refreshGeometry();
+                refreshGeometryAfterLayout();
+            }
             refreshIcons();
             refreshOutputTimer();
         }
@@ -5988,6 +6028,11 @@
                 slots.references = refs.filter(Boolean).slice(0, SEEDANCE_MAX_REF_IMAGES);
             }
         }
+        async function responseError(response, fallback='请求失败'){
+            const err = new Error(await responseErrorMessage(response, fallback));
+            err.status = response.status;
+            return err;
+        }
         function moveSeedanceImageToSlot(node, imageInputs, sourceId, role, index=0){
             if(!sourceId || !imageInputs.some(src => src.id === sourceId)) return;
             const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
@@ -6001,7 +6046,7 @@
             }
             seedanceSetSlot(slots, role, index, sourceId);
             normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
-            refreshNodes([node.id]);
+            refreshNodes([node.id], {geometry:false});
             scheduleSave();
         }
         function clearSeedanceImageSlot(node, imageInputs, role, index=0){
@@ -6009,7 +6054,7 @@
             const slots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
             seedanceSetSlot(slots, role, index, '');
             normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
-            refreshNodes([node.id]);
+            refreshNodes([node.id], {geometry:false});
             scheduleSave();
         }
         function seedanceImagePayload(node, imageInputs){
@@ -6033,6 +6078,100 @@
                 hasReferenceMedia
             };
         }
+        function seedanceRuns(node){
+            if(!Array.isArray(node.seedanceRuns)) node.seedanceRuns = [];
+            return node.seedanceRuns;
+        }
+        function seedanceRunById(node, runId){
+            return seedanceRuns(node).find(run => run.runId === runId) || null;
+        }
+        function seedanceKnownTaskIds(){
+            const ids = [];
+            nodes.forEach(n => {
+                if(n?.taskIds?.length) ids.push(...n.taskIds);
+                (n?.seedanceRuns || []).forEach(run => {
+                    if(run?.taskIds?.length) ids.push(...run.taskIds);
+                });
+            });
+            return [...new Set(ids.filter(Boolean))];
+        }
+        function seedanceCandidateTaskId(task){
+            return task?.task_id || task?.id || task?.taskId || '';
+        }
+        const SEEDANCE_FIND_TASK_MIN_MS = 2 * 60 * 1000;
+        const SEEDANCE_RECOVERY_TIMEOUT_MS = 30 * 1000;
+        const SEEDANCE_STALE_BUSY_MS = 60 * 1000;
+        async function seedanceFetchJson(url, options={}, timeoutMs=SEEDANCE_RECOVERY_TIMEOUT_MS){
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, {...options, signal:ctrl.signal});
+                if(!response.ok) throw new Error(await responseErrorMessage(response, tr('canvas.seedanceRequestFailed')));
+                return await response.json();
+            } catch(err) {
+                if(err?.name === 'AbortError') throw new Error(tr('canvas.seedanceRequestTimedOut'));
+                throw err;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+        function seedanceNormalizeTransientRunState(run){
+            if(!run) return;
+            const now = Date.now();
+            if(run.finding && (!run.findingStartedAt || now - Number(run.findingStartedAt) > SEEDANCE_STALE_BUSY_MS)){
+                run.finding = false;
+            }
+            if(run.claiming && (!run.claimingStartedAt || now - Number(run.claimingStartedAt) > SEEDANCE_STALE_BUSY_MS)){
+                run.claiming = false;
+            }
+        }
+        function seedanceCanFindTask(node, run){
+            seedanceNormalizeTransientRunState(run);
+            if(!node || !run || run.taskIds?.length || run.finding || node.checking) return false;
+            const age = Date.now() - Number(run.submittedAt || Date.now());
+            return run.status === 'needs_recovery' || age >= SEEDANCE_FIND_TASK_MIN_MS;
+        }
+        function seedanceIsDefinitiveSubmitFailure(err){
+            return [400, 401, 403, 404, 409, 422, 429].includes(Number(err?.status || 0));
+        }
+        function seedanceTaskListHtml(node){
+            const runs = seedanceRuns(node)
+                .filter(run => run?.taskIds?.length || ['submitting', 'checking', 'needs_recovery'].includes(run?.status || ''))
+                .slice(-5)
+                .reverse();
+            if(!runs.length && !node.taskIds?.length) return '';
+            const legacy = node.taskIds?.length && !runs.some(run => (run.taskIds || []).join(',') === node.taskIds.join(','))
+                ? [{runId:'', status:node.runStatus || 'submitted', taskIds:node.taskIds}]
+                : [];
+            return [...legacy, ...runs].map(run => {
+                seedanceNormalizeTransientRunState(run);
+                const label = run.status === 'done' ? tr('canvas.seedanceDone') : run.status === 'failed' ? tr('canvas.seedanceFailed') : run.status === 'checking' ? tr('canvas.seedanceChecking') : run.taskIds?.length ? tr('canvas.seedanceSubmitted') : tr('canvas.seedanceNeedTaskId');
+                const taskText = (run.taskIds || []).join(', ') || tr('canvas.seedanceNoTaskId');
+                const canFind = seedanceCanFindTask(node, run);
+                const button = run.status === 'done'
+                    ? ''
+                    : run.taskIds?.length
+                        ? `<button class="secondary-btn seedance-run-check" type="button" data-seedance-run="${escapeAttr(run.runId || '')}" style="height:24px;padding:0 8px;font-size:10px" ${node.checking ? 'disabled' : ''}>${tr('canvas.seedanceCheckResult')}</button>`
+                        : `<button class="secondary-btn seedance-run-find" type="button" data-seedance-run="${escapeAttr(run.runId || '')}" style="height:24px;padding:0 8px;font-size:10px" ${canFind ? '' : 'disabled'}>${run.finding ? tr('canvas.seedanceFinding') : canFind ? tr('canvas.seedanceFindTask') : tr('canvas.seedanceWait')}</button>`;
+                const candidates = (run.recoveryCandidates || []).map(task => {
+                    const taskId = seedanceCandidateTaskId(task);
+                    const status = task.status || 'unknown';
+                    return `<div class="text-[10.5px] text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 mt-1" style="display:flex;align-items:center;gap:6px;min-width:0">
+                        <span style="font-weight:800;flex:0 0 auto">${escapeHtml(status)}</span>
+                        <span title="${escapeAttr(taskId)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(taskId)}</span>
+                        <button class="secondary-btn seedance-run-bind" type="button" data-seedance-run="${escapeAttr(run.runId || '')}" data-seedance-task="${escapeAttr(taskId)}" style="height:24px;padding:0 8px;font-size:10px" ${run.claiming ? 'disabled' : ''}>${run.claiming ? tr('canvas.seedanceBinding') : tr('canvas.seedanceBind')}</button>
+                    </div>`;
+                }).join('');
+                const empty = run.findSearched && !run.finding && !(run.recoveryCandidates || []).length
+                    ? `<div class="text-[10.5px] text-slate-400 px-2 py-1">${tr('canvas.seedanceNoUnclaimedTasks')}</div>`
+                    : '';
+                return `<div class="text-[10.5px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1 mt-1" style="display:flex;align-items:center;gap:6px;min-width:0">
+                    <span style="font-weight:800;flex:0 0 auto">${escapeHtml(label)}</span>
+                    <span title="${escapeAttr(taskText)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(taskText)}</span>
+                    ${button}
+                </div>${candidates}${empty}`;
+            }).join('');
+        }
         function renderSeedanceBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
@@ -6047,8 +6186,8 @@
                 ['doubao-seedance-2-0-260128', 'Seedance 2.0'],
                 ['doubao-seedance-2-0-fast-260128', 'Seedance 2.0 Fast'],
             ].map(([value,label]) => `<option value="${value}" ${node.model === value ? 'selected' : ''}>${label}</option>`).join('');
-            const seedanceSubmitting = Boolean(node.running || node.taskIds?.length || node._seedancePendingId);
-            const seedanceSubmitLabel = node.running ? tr('canvas.generating') : (node.taskIds?.length || node._seedancePendingId ? 'Submitted' : 'Submit Seedance');
+            const seedanceSubmitting = seedanceHasActiveRun(node);
+            const seedanceSubmitLabel = node.running ? tr('canvas.generating') : (seedanceSubmitting ? tr('canvas.seedanceSubmitted') : tr('canvas.seedanceSubmit'));
             wrap.innerHTML = `
                 <div class="prompt-list mb-3"></div>
                 <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">${tr('canvas.images') || 'Images'}</div>
@@ -6074,11 +6213,11 @@
                     </div>
                     <div class="text-[11px] text-slate-400">${[...(node.refVideos || []), ...(node.refAudios || [])].map(item => escapeHtml(item.name || item.url)).join(' · ')}</div>
                 </div>
-                ${node.taskIds?.length ? `<div class="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mt-2">Seedance task: ${escapeHtml(node.taskIds.join(', '))}</div>` : ''}
+                ${seedanceTaskListHtml(node)}
                 ${latestNodePreviewHtml(node)}
                 <div class="gen-run-row">
                     <button class="gen-btn ${seedanceSubmitting ? 'running' : ''}" ${seedanceSubmitting ? 'disabled' : ''}><i data-lucide="film" class="w-4 h-4"></i>${seedanceSubmitLabel}</button>
-                    <button class="secondary-btn seedance-check" type="button" style="height:36px;padding:0 12px;font-size:12px" ${node.taskIds?.length && !node.checking ? '' : 'disabled'}>${node.checking ? 'Checking...' : 'Check result'}</button>
+                    <button class="secondary-btn seedance-check" type="button" style="height:36px;padding:0 12px;font-size:12px" ${node.taskIds?.length && !node.checking ? '' : 'disabled'}>${node.checking ? tr('canvas.seedanceChecking') : tr('canvas.seedanceCheckResult')}</button>
                     ${cascadeBtnHtml(node)}
                 </div>
                 ${retryBarHtml(node)}
@@ -6145,14 +6284,38 @@
                 node,
                 () => runSeedanceNode(node.id),
                 {
-                    busyLabel:'Submitting...',
-                    isBlocked:live => Boolean(live?.running || live?.taskIds?.length || live?._seedancePendingId)
+                    busyLabel:tr('canvas.seedanceSubmitting'),
+                    isBlocked:live => seedanceHasActiveRun(live)
                 }
             );
             wrap.querySelector('.seedance-check').onclick = e => { e.stopPropagation(); checkSeedanceNode(node.id); };
+            wrap.querySelectorAll('.seedance-run-check').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    checkSeedanceNode(node.id, {runId:btn.dataset.seedanceRun || ''});
+                };
+            });
+            wrap.querySelectorAll('.seedance-run-find').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    findSeedanceTaskCandidates(node.id, btn.dataset.seedanceRun || '');
+                };
+            });
+            wrap.querySelectorAll('.seedance-run-bind').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    bindSeedanceTaskCandidate(node.id, btn.dataset.seedanceRun || '', btn.dataset.seedanceTask || '');
+                };
+            });
             bindCascadeButtons(wrap, node.id);
             bindLatestPreview(wrap, node);
-            if(node.taskIds?.length && !node.checking && !seedancePollTimers.has(node.id)) scheduleSeedancePoll(node.id, 8000);
+            const activeSeedanceRun = seedanceRunById(node, node._seedanceActiveRunId);
+            if(seedanceNodeHasCompletedVideoResult(node, activeSeedanceRun) || (!activeSeedanceRun && seedanceNodeHasCompletedVideoResult(node))){
+                clearSeedancePollingState(node, activeSeedanceRun);
+                scheduleSave();
+            } else if(node.taskIds?.length && !node.checking && !seedancePollTimers.has(node.id)) {
+                scheduleSeedancePoll(node.id);
+            }
             return wrap;
         }
         function renderPromptPreview(container, promptInputs){
@@ -6718,9 +6881,9 @@
             renderModelManagerList();
         }
         function deleteApiProvider(){
-            if(apiProviders.length <= 1) { alert('至少保留一个 API 平台'); return; }
+            if(apiProviders.length <= 1) { showErrorModal('至少保留一个 API 平台'); return; }
             const provider = currentManagedProvider();
-            if(!provider || provider.id === 'comfly') { alert(tr('canvas.defaultProviderNoDelete')); return; }
+            if(!provider || provider.id === 'comfly') { showErrorModal(tr('canvas.defaultProviderNoDelete')); return; }
             apiProviders = apiProviders.filter(p => p.id !== provider.id);
             managedProviderId = (managedModelKind === 'video' ? videoApiProviders()[0]?.id : imageApiProviders()[0]?.id) || apiProviders[0]?.id || 'comfly';
             managedModelsDraft = managedModelKind === 'video' ? [...providerVideoModels(managedProviderId)] : [...providerImageModels(managedProviderId)];
@@ -6762,7 +6925,7 @@
                 render();
                 scheduleSave();
             } catch(err) {
-                alert(err.message || '保存 API 平台失败');
+                showErrorModal(err.message || '保存 API 平台失败');
             }
         }
         function outputForNode(node){
@@ -6814,7 +6977,7 @@
             const node = nodes.find(n => n.id === nodeId);
             if(!node || (node.running && !opts.cascade)) return;
             const {prompt, refs} = dedicatedPromptAndRefs(node);
-            if(!prompt && !refs.length){ alert(tr('canvas.needPromptOrImage')); return; }
+            if(!prompt && !refs.length){ showErrorModal(tr('canvas.needPromptOrImage')); return; }
             const count = Math.max(1, Math.min(8, Number(node.count || 1)));
             const out = outputForNode(node);
             const pendingIds = Array.from({length:count}, () => uid('p'));
@@ -6868,16 +7031,89 @@
         async function runSeedreamNode(nodeId, opts={}){
             return runDedicatedImageNode(nodeId, '/api/nodes/seedream', opts);
         }
+        function existingOutputForNode(node){
+            return connections.filter(c => c.from === node?.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output') || null;
+        }
+        function seedanceVideoResultUrls(node){
+            const out = existingOutputForNode(node);
+            const urls = [
+                ...(node?.lastOutputs || []),
+                ...((out?.images || []).map(outputUrlValue)),
+                ...((node?.seedanceRuns || []).flatMap(run => run?.videos || []))
+            ].filter(Boolean);
+            return [...new Set(urls.filter(isVideoUrl))];
+        }
+        function seedanceRunHasVideoResult(node, run){
+            if(!run) return false;
+            if((run.videos || []).some(isVideoUrl)) return true;
+            return run.status === 'done' && seedanceVideoResultUrls(node).length > 0;
+        }
+        function seedanceNodeHasCompletedVideoResult(node, run=null){
+            if(seedanceRunHasVideoResult(node, run)) return true;
+            return !run && node?.runStatus === 'done' && seedanceVideoResultUrls(node).length > 0;
+        }
+        function clearSeedancePollingState(node, run=null){
+            if(!node) return;
+            const videos = seedanceVideoResultUrls(node);
+            if(run){
+                run.status = 'done';
+                if(videos.length) run.videos = [...new Set([...(run.videos || []), ...videos])];
+                run.lastCheckedAt = Date.now();
+            }
+            const runTaskIds = (run?.taskIds || []).join(',');
+            const nodeTaskIds = (node.taskIds || []).join(',');
+            const isActiveRun = !run || run.runId === node._seedanceActiveRunId || (runTaskIds && runTaskIds === nodeTaskIds);
+            if(isActiveRun){
+                node.taskIds = [];
+                node._seedancePendingId = '';
+                node._seedanceActiveRunId = '';
+                node._seedancePollStart = 0;
+                node.checking = false;
+                node.running = false;
+                node.runStatus = 'done';
+                node.runError = '';
+            }
+            const timer = seedancePollTimers?.get(node.id);
+            if(timer){
+                clearTimeout(timer);
+                seedancePollTimers.delete(node.id);
+            }
+        }
         const seedancePollTimers = new Map();
-        const SEEDANCE_POLL_MAX_MS = 15 * 60 * 1000;
-        function scheduleSeedancePoll(nodeId, delay=8000){
+        const SEEDANCE_POLL_MAX_MS = 4 * 60 * 60 * 1000;
+        function isSeedance20Model(model){
+            return String(model || '').includes('seedance-2-0');
+        }
+        function seedancePollInterval(node){
+            return isSeedance20Model(node?.model) ? 60 * 1000 : 20 * 1000;
+        }
+        function seedanceInitialPollDelay(node){
+            return isSeedance20Model(node?.model) ? 45 * 1000 : 8 * 1000;
+        }
+        function seedanceHasActiveRun(node){
+            const activeRun = seedanceRunById(node, node?._seedanceActiveRunId);
+            if(seedanceNodeHasCompletedVideoResult(node, activeRun) || (!activeRun && seedanceNodeHasCompletedVideoResult(node))) return false;
+            const hasActiveRecord = Array.isArray(node?.seedanceRuns) && node.seedanceRuns.some(run => {
+                const status = run?.status || '';
+                return (run?.taskIds?.length || ['submitting', 'needs_recovery'].includes(status)) && !['done', 'failed', 'missing'].includes(status);
+            });
+            return Boolean(node?.running || node?.checking || node?.taskIds?.length || node?._seedancePendingId || hasActiveRecord);
+        }
+        function scheduleSeedancePoll(nodeId, delay=null){
             if(seedancePollTimers.has(nodeId)) return;
             const node = nodes.find(n => n.id === nodeId);
             if(!node?.taskIds?.length) return;
+            const activeRun = seedanceRunById(node, node._seedanceActiveRunId);
+            if(seedanceNodeHasCompletedVideoResult(node, activeRun) || (!activeRun && seedanceNodeHasCompletedVideoResult(node))){
+                clearSeedancePollingState(node, activeRun);
+                refreshNodes([nodeId]);
+                scheduleSave();
+                return;
+            }
             if(!node._seedancePollStart) node._seedancePollStart = Date.now();
             if(Date.now() - node._seedancePollStart > SEEDANCE_POLL_MAX_MS){
-                node.runStatus = 'failed';
-                node.runError = node.runError || 'Seedance 自动轮询已超过 15 分钟，请用 Check 按钮手动查询。';
+                node.runStatus = 'submitted';
+                node.runError = node.runError || 'Seedance 自动轮询已暂停，请用 Check 按钮手动查询。';
                 node._seedancePollStart = 0;
                 refreshNodes([nodeId]);
                 scheduleSave();
@@ -6886,38 +7122,180 @@
             const timer = setTimeout(() => {
                 seedancePollTimers.delete(nodeId);
                 const cur = nodes.find(n => n.id === nodeId);
+                const curRun = seedanceRunById(cur, cur?._seedanceActiveRunId);
+                if(cur && (seedanceNodeHasCompletedVideoResult(cur, curRun) || (!curRun && seedanceNodeHasCompletedVideoResult(cur)))){
+                    clearSeedancePollingState(cur, curRun);
+                    refreshNodes([nodeId]);
+                    scheduleSave();
+                    return;
+                }
                 if(cur?.taskIds?.length) checkSeedanceNode(nodeId, {auto:true});
-            }, delay);
+            }, delay ?? seedancePollInterval(node));
             seedancePollTimers.set(nodeId, timer);
+        }
+        async function findSeedanceTaskCandidates(nodeId, runId){
+            const node = nodes.find(n => n.id === nodeId);
+            const run = seedanceRunById(node, runId);
+            if(!seedanceCanFindTask(node, run)) return;
+            run.finding = true;
+            run.findingStartedAt = Date.now();
+            run.findSearched = true;
+            refreshNodes([nodeId]);
+            try {
+                const ledger = await seedanceFetchJson('/api/nodes/seedance/status', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({task_ids:[], run_id:run.runId})
+                }).catch(err => ({status:'missing', error:err.message || String(err)}));
+                if(ledger.task_ids?.length){
+                    run.taskIds = ledger.task_ids;
+                    run.status = ledger.status === 'missing' ? 'submitted' : (ledger.status || 'submitted');
+                    run.recoveryCandidates = [];
+                    run.findError = '';
+                    if(run.runId === node._seedanceActiveRunId || !node.taskIds?.length){
+                        node.taskIds = run.taskIds;
+                        node.runStatus = run.status === 'succeeded' ? 'done' : 'submitted';
+                        node.runError = '';
+                        node._seedanceActiveRunId = run.runId;
+                        node._seedancePollStart = Date.now();
+                        scheduleSeedancePoll(node.id, seedanceInitialPollDelay(node));
+                    }
+                    return;
+                }
+                const result = await seedanceFetchJson('/api/nodes/seedance/tasks', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({
+                        run_id:run.runId,
+                        model:run.model || node.model,
+                        status:'all',
+                        page_size:10,
+                        submitted_after:Math.max(0, Number(run.submittedAt || 0) / 1000 - 10 * 60),
+                        known_task_ids:seedanceKnownTaskIds()
+                    })
+                });
+                const known = new Set(seedanceKnownTaskIds());
+                run.recoveryCandidates = (result.tasks || []).filter(task => {
+                    const taskId = seedanceCandidateTaskId(task);
+                    return taskId && !known.has(taskId);
+                }).slice(0, 8);
+                run.findError = '';
+            } catch(err) {
+                run.findError = err.message || String(err);
+                showErrorModal(run.findError);
+            } finally {
+                run.finding = false;
+                run.findingStartedAt = 0;
+                refreshNodes([nodeId]);
+                scheduleSave();
+            }
+        }
+        async function bindSeedanceTaskCandidate(nodeId, runId, taskId){
+            const node = nodes.find(n => n.id === nodeId);
+            const run = seedanceRunById(node, runId);
+            if(!node || !run || !taskId || run.taskIds?.length || run.claiming) return;
+            run.claiming = true;
+            run.claimingStartedAt = Date.now();
+            refreshNodes([nodeId]);
+            try {
+                const result = await seedanceFetchJson('/api/nodes/seedance/claim', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({
+                        run_id:run.runId,
+                        node_id:node.id,
+                        task_id:taskId,
+                        model:run.model || node.model,
+                        input_signature:run.inputSignature || ''
+                    })
+                });
+                run.taskIds = result.task_ids?.length ? result.task_ids : [taskId];
+                run.status = 'submitted';
+                run.claimedAt = Date.now();
+                run.recoveryCandidates = [];
+                run.findError = '';
+                if(run.runId === node._seedanceActiveRunId || !node.taskIds?.length){
+                    node.taskIds = run.taskIds;
+                    node.runStatus = 'submitted';
+                    node.runError = '';
+                    node._seedanceActiveRunId = run.runId;
+                    node._seedancePollStart = Date.now();
+                    scheduleSeedancePoll(node.id, seedanceInitialPollDelay(node));
+                }
+                refreshNodes([nodeId]);
+                scheduleSave();
+            } catch(err) {
+                showErrorModal(err.message || tr('canvas.seedanceTaskBindFailed'));
+            } finally {
+                run.claiming = false;
+                run.claimingStartedAt = 0;
+                refreshNodes([nodeId]);
+            }
         }
         async function runSeedanceNode(nodeId, opts={}){
             const node = nodes.find(n => n.id === nodeId);
-            if(!node || (!opts.cascade && (node.running || node.taskIds?.length || node._seedancePendingId))) return;
+            if(!node) return;
+            if(seedanceHasActiveRun(node)){
+                const msg = tr('canvas.seedanceActiveRunExists');
+                if(opts.cascade) throw new Error(msg);
+                showErrorModal(msg);
+                return;
+            }
             const sources = orderedSources(node, generatorSources(node));
             const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
             const imageInputs = sources.filter(src => src.refs?.length);
             const {refs:imageRefs, hasFirst, hasLast, refCount, hasReferenceMedia} = seedanceImagePayload(node, imageInputs);
-            if(!prompt){ alert(tr('canvas.videoNeedsPrompt')); return; }
+            if(!prompt){ showErrorModal(tr('canvas.videoNeedsPrompt')); return; }
             if(hasLast && !hasFirst){
-                alert(tr('canvas.seedanceLastNeedsFirst'));
+                showErrorModal(tr('canvas.seedanceLastNeedsFirst'));
                 return;
             }
             if((hasFirst || hasLast) && (refCount || hasReferenceMedia)){
-                alert(tr('canvas.seedanceFrameRefConflict'));
+                showErrorModal(tr('canvas.seedanceFrameRefConflict'));
                 return;
             }
             const out = outputForNode(node);
             const pendingId = uid('p');
             const run = runSnapshot(node, prompt, imageRefs);
+            const runId = uid('seedance_run');
+            const inputSignature = JSON.stringify({
+                prompt,
+                model:node.model,
+                duration:Number(node.duration || 5),
+                aspectRatio:node.aspectRatio || '16:9',
+                resolution:node.resolution || '720p',
+                seed:node.seed === '' || node.seed == null ? null : Number(node.seed),
+                generateAudio:Boolean(node.generateAudio),
+                returnLastFrame:Boolean(node.returnLastFrame),
+                referenceImages:imageRefs.map(ref => ({url:ref.url || '', role:ref.role || ''})),
+                referenceVideos:(node.refVideos || []).map(ref => ref.url || ''),
+                referenceAudios:(node.refAudios || []).map(ref => ref.url || '')
+            });
+            const seedanceRun = {
+                runId,
+                pendingId,
+                status:'submitting',
+                taskIds:[],
+                model:node.model,
+                submittedAt:Date.now(),
+                inputSignature
+            };
+            seedanceRuns(node).push(seedanceRun);
             out._pending = [...(out._pending || []), makePending(pendingId, run)];
             node._seedancePendingId = pendingId;
-            if(!opts.cascade){ node.running = true; render(); }
+            node._seedanceActiveRunId = runId;
+            node.running = true;
+            if(!opts.cascade) render();
+            else refreshNodes([node.id]);
             scheduleSave();
             try {
                 const result = await fetch('/api/nodes/seedance', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({
+                        run_id:runId,
+                        node_id:node.id,
+                        input_signature:inputSignature,
                         prompt,
                         model:node.model,
                         duration:Number(node.duration || 5),
@@ -6930,19 +7308,33 @@
                         reference_videos:node.refVideos || [],
                         reference_audios:node.refAudios || []
                     })
-                }).then(async r => { if(!r.ok) throw new Error(await responseErrorMessage(r, tr('canvas.videoFailed'))); return r.json(); });
+                }).then(async r => { if(!r.ok) throw await responseError(r, tr('canvas.videoFailed')); return r.json(); });
                 node.taskIds = result.task_ids || [];
+                seedanceRun.taskIds = node.taskIds;
+                seedanceRun.status = 'submitted';
+                seedanceRun.submittedAt = Number(result.submitted_at || 0) ? Number(result.submitted_at) * 1000 : seedanceRun.submittedAt;
+                seedanceRun.reused = Boolean(result.reused);
                 node.runStatus = 'submitted';
                 node.runError = '';
                 node._seedancePollStart = Date.now();
                 render();
                 scheduleSave();
-                scheduleSeedancePoll(node.id, 3000);
+                scheduleSeedancePoll(node.id, seedanceInitialPollDelay(node));
             } catch(err) {
                 const meta = collectRunMeta(out, pendingId);
                 addGenerationLog({run, outputs:[], runMs:meta.runMs || 0, error:err.message || String(err)});
                 out._pending = (out._pending || []).filter(p => p.id !== pendingId);
-                node.runStatus = 'failed'; node.runError = err.message || String(err);
+                const definitive = seedanceIsDefinitiveSubmitFailure(err);
+                seedanceRun.status = definitive ? 'failed' : 'needs_recovery';
+                seedanceRun.error = err.message || String(err);
+                node.runStatus = definitive ? 'failed' : 'submitted';
+                node.runError = err.message || String(err);
+                if(definitive){
+                    node.taskIds = [];
+                    node._seedancePendingId = '';
+                    node._seedanceActiveRunId = '';
+                    node._seedancePollStart = 0;
+                }
                 render();
                 scheduleSave();
                 if(opts.cascade) throw err;
@@ -6954,39 +7346,76 @@
         }
         async function checkSeedanceNode(nodeId, opts={}){
             const node = nodes.find(n => n.id === nodeId);
-            if(!node?.taskIds?.length) return;
+            const run = opts.runId ? seedanceRunById(node, opts.runId) : seedanceRunById(node, node?._seedanceActiveRunId);
+            const taskIds = (run?.taskIds?.length ? run.taskIds : node?.taskIds) || [];
+            if(!node || (!taskIds.length && !run?.runId)) return;
+            if(seedanceNodeHasCompletedVideoResult(node, run) || (!run && seedanceNodeHasCompletedVideoResult(node))){
+                clearSeedancePollingState(node, run);
+                refreshNodes([nodeId]);
+                scheduleSave();
+                return;
+            }
             if(node.checking) return;
             const out = outputForNode(node);
             node.checking = true;
+            if(run) run.status = 'checking';
             node.runStatus = 'checking';
             refreshNodes([nodeId]);
             try {
                 const result = await fetch('/api/nodes/seedance/status', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({task_ids:node.taskIds})
+                    body:JSON.stringify({task_ids:taskIds, run_id:run?.runId || ''})
                 }).then(async r => { if(!r.ok) throw new Error(await responseErrorMessage(r, tr('canvas.videoFailed'))); return r.json(); });
+                if(result.task_ids?.length){
+                    if(run && !run.taskIds?.length) run.taskIds = result.task_ids;
+                    if((!run || run.runId === node._seedanceActiveRunId) && !node.taskIds?.length) node.taskIds = result.task_ids;
+                }
                 if(result.status !== 'succeeded'){
                     node.runStatus = result.status === 'failed' ? 'failed' : 'submitted';
                     node.runError = result.status === 'failed' ? JSON.stringify(result.failed || result).slice(0, 300) : '';
                     node.checking = false;
-                    if(result.status === 'failed') node._seedancePollStart = 0;
+                    if(run){
+                        run.status = result.status || 'submitted';
+                        run.error = node.runError;
+                        run.lastCheckedAt = Date.now();
+                    }
+                    if(['failed', 'missing'].includes(result.status)){
+                        const isActiveRun = !run || run.runId === node._seedanceActiveRunId || taskIds.join(',') === (node.taskIds || []).join(',');
+                        const pendingId = run?.pendingId || (isActiveRun ? node._seedancePendingId : '');
+                        if(pendingId) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
+                        if(isActiveRun){
+                            node.taskIds = [];
+                            node._seedancePendingId = '';
+                            node._seedanceActiveRunId = '';
+                            node._seedancePollStart = 0;
+                        }
+                    }
                     refreshNodes([nodeId]);
                     scheduleSave();
                     if(result.status === 'failed') showErrorModal(node.runError || tr('canvas.videoFailed'));
-                    else scheduleSeedancePoll(node.id, opts.auto ? 8000 : 5000);
+                    else scheduleSeedancePoll(node.id, opts.auto ? seedancePollInterval(node) : seedanceInitialPollDelay(node));
                     return;
                 }
-                const pendingId = node._seedancePendingId;
+                const isActiveRun = !run || run.runId === node._seedanceActiveRunId || taskIds.join(',') === (node.taskIds || []).join(',');
+                const pendingId = run?.pendingId || (isActiveRun ? node._seedancePendingId : '');
                 const meta = pendingId ? collectRunMeta(out, pendingId) : {runMs:0};
                 if(pendingId) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
                 const existing = new Set([...(node.lastOutputs || []), ...((out.images || []).map(outputUrlValue))].filter(Boolean));
                 const videos = (result.videos || []).filter(url => url && !existing.has(url));
                 appendOutputImages(out, videos, null, [meta]);
                 node.lastOutputs = [...(node.lastOutputs || []), ...videos];
-                node.taskIds = [];
-                node._seedancePendingId = '';
-                node._seedancePollStart = 0;
+                if(run){
+                    run.status = 'done';
+                    run.videos = [...(run.videos || []), ...videos];
+                    run.lastCheckedAt = Date.now();
+                }
+                if(isActiveRun){
+                    node.taskIds = [];
+                    node._seedancePendingId = '';
+                    node._seedanceActiveRunId = '';
+                    node._seedancePollStart = 0;
+                }
                 node.checking = false;
                 node.runStatus = 'done';
                 node.runError = '';
@@ -6994,10 +7423,15 @@
                 scheduleSave();
             } catch(err) {
                 node.checking = false;
-                node._seedancePollStart = 0;
-                node.runStatus = 'failed';
+                node.runStatus = 'submitted';
                 node.runError = err.message || String(err);
+                if(run){
+                    run.status = run.taskIds?.length ? 'submitted' : 'failed';
+                    run.error = err.message || String(err);
+                    run.lastCheckedAt = Date.now();
+                }
                 refreshNodes([nodeId]);
+                scheduleSave();
                 if(opts.cascade) throw err;
                 showErrorModal(err.message || tr('canvas.videoFailed'));
             }
@@ -7008,7 +7442,7 @@
             const sources = orderedSources(gen, generatorSources(gen));
             const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
             const refs = sources.flatMap(s => s.refs || []);
-            if(!prompt && !refs.length){ alert(tr('canvas.needPromptOrImage')); return; }
+            if(!prompt && !refs.length){ showErrorModal(tr('canvas.needPromptOrImage')); return; }
             const count = Math.max(1, Math.min(8, Number(gen.count || 1)));
             let out = connections.filter(c => c.from === gen.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
@@ -7062,7 +7496,7 @@
             const refs = sources.flatMap(s => s.refs || []);
             if(node.useFrameRoles && refs[0]) refs[0] = {...refs[0], role:'first_frame'};
             if(node.useFrameRoles && refs[1]) refs[1] = {...refs[1], role:'last_frame'};
-            if(!prompt){ alert(tr('canvas.videoNeedsPrompt')); return; }
+            if(!prompt){ showErrorModal(tr('canvas.videoNeedsPrompt')); return; }
             let out = connections.filter(c => c.from === node.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
                 out = {id:uid('out'), type:'output', x:node.x + 460, y:node.y, images:[]};
@@ -7110,7 +7544,7 @@
                 render();
                 scheduleSave();
                 if(opts.cascade) throw err;
-                alert(err.message || tr('canvas.videoFailed'));
+                showErrorModal(err.message || tr('canvas.videoFailed'));
             } finally {
                 node.running = false;
                 render();
@@ -7169,8 +7603,8 @@
             const mode = node.mode || 'text';
             const customImageFields = mode === 'custom' ? comfyFields(node, 'image') : [];
             const customPromptFields = mode === 'custom' ? comfyFields(node, 'prompt') : [];
-            if((mode === 'text' || (mode === 'custom' && customPromptFields.length)) && !prompt){ alert(tr('canvas.needPrompt')); return; }
-            if((mode !== 'text' && mode !== 'custom' && !refs.length) || (mode === 'custom' && refs.length < customImageFields.length)){ alert(tr('canvas.needImage')); return; }
+            if((mode === 'text' || (mode === 'custom' && customPromptFields.length)) && !prompt){ showErrorModal(tr('canvas.needPrompt')); return; }
+            if((mode !== 'text' && mode !== 'custom' && !refs.length) || (mode === 'custom' && refs.length < customImageFields.length)){ showErrorModal(tr('canvas.needImage')); return; }
             let out = connections.filter(c => c.from === node.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
                 out = {id:uid('out'), type:'output', x:node.x + 480, y:node.y, images:[]};
@@ -7315,7 +7749,7 @@
                 render();
                 scheduleSave();
                 if(opts.cascade) throw err;
-                alert(err.message || actionFailed('canvas.comfyGenerate'));
+                showErrorModal(err.message || actionFailed('canvas.comfyGenerate'));
             }
         }
         async function callCanvasLLM(node, message, messages=[]){
@@ -7348,7 +7782,7 @@
             const input = llmInputText(node) || node.userInput || '';
             if(!input){
                 if(opts.cascade) throw new Error('LLM 缺少提示词输入');
-                alert(tr('canvas.needPromptToLLM')); return;
+                showErrorModal(tr('canvas.needPromptToLLM')); return;
             }
             if(!opts.cascade){ node.running = true; render(); }
             try {
@@ -7362,7 +7796,7 @@
                 node.runStatus = 'failed'; node.runError = err.message || String(err);
                 render();
                 if(opts.cascade) throw err;
-                alert(err.message || 'LLM 运行失败');
+                showErrorModal(err.message || 'LLM 运行失败');
             }
         }
         // 判断是不是「链尾」节点：没有下游生成节点（直接相连或经 Output 中转都算）
@@ -7521,11 +7955,11 @@
         async function runNodeCascade(nodeId){
             const target = nodes.find(n => n.id === nodeId);
             if(!target) return;
-            if(target.running){ alert('当前节点正在运行'); return; }
+            if(target.running){ showErrorModal('当前节点正在运行'); return; }
             cascadeRunningIds.add(nodeId);
             const order = computeCascadeOrder(nodeId);
             refreshNodes(cascadeUiNodeIds(nodeId, order));
-            if(!order.length){ alert('没有可运行的生成节点'); return; }
+            if(!order.length){ showErrorModal('没有可运行的生成节点'); return; }
             const loop = resolveCascadeLoop(nodeId);
             const totalRounds = loop?.count || 1;
             const startIdx = Math.max(1, Number(loop?.node?.loopStart) || 1);
@@ -7733,7 +8167,7 @@
             } catch(err) {
                 node.running = false;
                 render();
-                alert(err.message || 'LLM 运行失败');
+                showErrorModal(err.message || 'LLM 运行失败');
             }
         }
 
@@ -8268,7 +8702,7 @@
                 outputPreview.ondblclick = null;
                 outputDownloadBtn.onclick = e => {
                     e.stopPropagation();
-                    downloadUrl(url, outputDownloadName(url)).catch(err => alert(err.message || '下载失败'));
+                    downloadUrl(url, outputDownloadName(url)).catch(err => showErrorModal(err.message || '下载失败'));
                 };
                 // Custom video controls
                 const video = outputLightboxVideo;
@@ -8307,7 +8741,7 @@
                 };
                 videoDownloadBtn.onclick = e => {
                     e.stopPropagation();
-                    downloadUrl(url, outputDownloadName(url)).catch(err => alert(err.message || '下载失败'));
+                    downloadUrl(url, outputDownloadName(url)).catch(err => showErrorModal(err.message || '下载失败'));
                 };
                 outputLightbox.classList.add('open');
                 refreshIcons();
@@ -8332,7 +8766,7 @@
             };
             outputDownloadBtn.onclick = e => {
                 e.stopPropagation();
-                downloadUrl(url, outputDownloadName(url)).catch(err => alert(err.message || '下载失败'));
+                downloadUrl(url, outputDownloadName(url)).catch(err => showErrorModal(err.message || '下载失败'));
             };
             outputLightbox.classList.add('open');
             refreshIcons();
@@ -8485,7 +8919,36 @@
             copy.x = n.x + dx;
             copy.y = n.y + dy;
             copy.running = false;
+            if(copy.type === 'seedance'){
+                copy.taskIds = [];
+                copy._seedancePendingId = '';
+                copy._seedanceActiveRunId = '';
+                copy._seedancePollStart = 0;
+                copy.checking = false;
+                copy.runStatus = '';
+                copy.runError = '';
+                copy.lastOutputs = [];
+                copy.seedanceRuns = [];
+            }
             return copy;
+        }
+        function seedanceInputConnectionsFor(ids){
+            const idSet = new Set(ids);
+            return connections
+                .filter(c => idSet.has(c.to) && nodes.find(n => n.id === c.to)?.type === 'seedance')
+                .map(c => ({from:c.from, to:c.to}));
+        }
+        function addCopiedSeedanceInputConnections(idMap, inputConnections=[]){
+            if(!inputConnections.length) return;
+            const existing = new Set(connections.map(c => `${c.from}->${c.to}`));
+            inputConnections.forEach(c => {
+                const to = idMap.get(c.to);
+                if(!to || !nodes.some(n => n.id === c.from) || nodes.find(n => n.id === to)?.type !== 'seedance') return;
+                const key = `${c.from}->${to}`;
+                if(existing.has(key)) return;
+                connections.push({id:uid('c'), from:c.from, to});
+                existing.add(key);
+            });
         }
         function copySelectedNodes(){
             if(!canvas || !selected.size) return;
@@ -8493,23 +8956,29 @@
             if(el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) return;
             const toCopy = [...selected].map(id => nodes.find(n => n.id === id)).filter(Boolean);
             if(!toCopy.length) return;
-            clipboard = JSON.parse(JSON.stringify(toCopy));
+            clipboard = {
+                kind:'canvas-nodes',
+                nodes:JSON.parse(JSON.stringify(toCopy)),
+                seedanceInputConnections:seedanceInputConnectionsFor(toCopy.map(n => n.id))
+            };
         }
         function pasteNodes(){
-            if(!canvas || !clipboard?.length) return;
+            const clipboardNodes = Array.isArray(clipboard) ? clipboard : clipboard?.nodes;
+            if(!canvas || !clipboardNodes?.length) return;
             pushUndo();
-            const xs = clipboard.map(n => n.x), ys = clipboard.map(n => n.y);
+            const xs = clipboardNodes.map(n => n.x), ys = clipboardNodes.map(n => n.y);
             const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
             const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
             const dx = lastMouseBoard.x - cx;
             const dy = lastMouseBoard.y - cy;
             const idMap = new Map();
-            const copies = clipboard.map(n => { const c = cloneNode(n, dx, dy); idMap.set(n.id, c.id); return c; });
+            const copies = clipboardNodes.map(n => { const c = cloneNode(n, dx, dy); idMap.set(n.id, c.id); return c; });
             copies.forEach(c => {
                 if((c.type === 'group' || c.type === 'promptGroup') && c.items)
                     c.items = c.items.map(id => idMap.get(id) || id);
             });
             nodes.push(...copies);
+            addCopiedSeedanceInputConnections(idMap, clipboard?.seedanceInputConnections || []);
             selected.clear();
             copies.forEach(c => selected.add(c.id));
             render();
@@ -8533,6 +9002,10 @@
                     nodes.push(...childCopies, copy);
                 } else {
                     nodes.push(copy);
+                }
+                if(node.type === 'seedance'){
+                    const idMap = new Map([[node.id, copy.id]]);
+                    addCopiedSeedanceInputConnections(idMap, seedanceInputConnectionsFor([node.id]));
                 }
                 selected.clear();
                 selected.add(copy.id);
@@ -9092,7 +9565,8 @@
             if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 const tag = document.activeElement?.tagName;
                 if(tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
-                if(clipboard?.length) {
+                const clipboardNodes = Array.isArray(clipboard) ? clipboard : clipboard?.nodes;
+                if(clipboardNodes?.length) {
                     const pasteRequestedAt = Date.now();
                     setTimeout(() => {
                         if(!canvas) return;

@@ -62,6 +62,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 CONVERSATION_DIR = os.path.join(DATA_DIR, "conversations")
 CANVAS_DIR = os.path.join(DATA_DIR, "canvases")
 API_PROVIDERS_FILE = os.path.join(DATA_DIR, "api_providers.json")
+SEEDANCE_TASKS_FILE = os.path.join(DATA_DIR, "seedance_tasks.json")
 GLOBAL_CONFIG_FILE = os.path.join(BASE_DIR, "global_config.json")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -76,6 +77,7 @@ GLOBAL_CONFIG_LOCK = Lock()
 CONVERSATION_LOCK = Lock()
 CANVAS_LOCK = Lock()
 LOAD_LOCK = Lock()
+SEEDANCE_TASKS_LOCK = Lock()
 
 # --- 校验 ---
 

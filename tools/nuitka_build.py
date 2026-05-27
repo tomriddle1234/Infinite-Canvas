@@ -37,7 +37,7 @@ STANDALONE_STAGING = BUILD_DIR / "main_refactored.dist"
 ONEFILE_STAGING = BUILD_DIR / f"{APP_NAME}.exe"
 MANIFEST = BUILD_DIR / "manifest.json"
 
-NUITKA_COMPILE_ARGS_VERSION = 2
+NUITKA_COMPILE_ARGS_VERSION = 3
 
 PYTHON_COMPILE_PATTERNS = (
     "main_refactored.py",
@@ -81,10 +81,11 @@ def hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def source_signature(mode: str) -> dict[str, object]:
+def source_signature(mode: str, lto: str) -> dict[str, object]:
     return {
         "mode": mode,
         "entry": rel(ENTRY),
+        "lto": lto,
         "python": {rel(path): hash_file(path) for path in iter_source_files()},
         "nuitka_args_version": NUITKA_COMPILE_ARGS_VERSION,
     }
@@ -107,7 +108,7 @@ def save_manifest(signature: dict[str, object]) -> None:
 def manifest_matches_compile_inputs(manifest: dict[str, object], signature: dict[str, object]) -> bool:
     if not manifest:
         return False
-    for key in ("mode", "entry", "nuitka_args_version"):
+    for key in ("mode", "entry", "lto", "nuitka_args_version"):
         if manifest.get(key) != signature.get(key):
             return False
     current = signature.get("python")
@@ -115,6 +116,26 @@ def manifest_matches_compile_inputs(manifest: dict[str, object], signature: dict
     if not isinstance(current, dict) or not isinstance(previous, dict):
         return False
     return all(previous.get(path) == digest for path, digest in current.items())
+
+
+def changed_compile_inputs(manifest: dict[str, object], signature: dict[str, object]) -> list[str]:
+    changes: list[str] = []
+    for key in ("mode", "entry", "lto", "nuitka_args_version"):
+        if manifest.get(key) != signature.get(key):
+            changes.append(f"{key}: {manifest.get(key)!r} -> {signature.get(key)!r}")
+    current = signature.get("python")
+    previous = manifest.get("python")
+    if not isinstance(current, dict):
+        return changes
+    if not isinstance(previous, dict):
+        changes.extend(sorted(current))
+        return changes
+    for path, digest in sorted(current.items()):
+        if previous.get(path) != digest:
+            changes.append(path)
+    for path in sorted(set(previous) - set(current)):
+        changes.append(f"removed: {path}")
+    return changes
 
 
 def ensure_nuitka(skip_pip: bool) -> None:
@@ -250,8 +271,17 @@ def write_package_zip() -> None:
     shutil.make_archive(str(archive_base), "zip", root_dir=FINAL_DIR.parent, base_dir=FINAL_DIR.name)
 
 
-def nuitka_common_args() -> list[str]:
-    jobs = max(1, (os.cpu_count() or 2) - 1)
+def default_jobs() -> int:
+    env_value = os.environ.get("NUITKA_JOBS", "").strip()
+    if env_value:
+        try:
+            return max(1, int(env_value))
+        except ValueError:
+            pass
+    return max(1, min((os.cpu_count() or 2) - 1, 32))
+
+
+def nuitka_common_args(jobs: int, lto: str) -> list[str]:
     return [
         sys.executable,
         "-m",
@@ -260,6 +290,7 @@ def nuitka_common_args() -> list[str]:
         f"--output-filename={APP_NAME}.exe",
         f"--output-dir={BUILD_DIR}",
         f"--jobs={jobs}",
+        f"--lto={lto}",
         "--include-package=app",
         "--include-package=uvicorn",
         "--include-package=websockets",
@@ -279,14 +310,14 @@ def nuitka_common_args() -> list[str]:
     ]
 
 
-def run_nuitka(mode: str) -> None:
+def run_nuitka(mode: str, jobs: int, lto: str) -> None:
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     if mode == "onefile":
         remove_path(ONEFILE_STAGING)
-        command = nuitka_common_args() + ["--onefile"]
+        command = nuitka_common_args(jobs, lto) + ["--onefile"]
     else:
         remove_path(STANDALONE_STAGING)
-        command = nuitka_common_args() + ["--standalone"]
+        command = nuitka_common_args(jobs, lto) + ["--standalone"]
 
     print()
     print("=" * 60)
@@ -294,6 +325,8 @@ def run_nuitka(mode: str) -> None:
     print(f"Entry     : {rel(ENTRY)}")
     print(f"Cache dir : {rel(BUILD_DIR)}")
     print(f"Output    : {rel(FINAL_DIR)}")
+    print(f"Jobs      : {jobs}")
+    print(f"LTO       : {lto}")
     print("Static/workflows are copied after compilation and do not trigger Nuitka.")
     print("=" * 60)
     print()
@@ -323,6 +356,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--onefile", action="store_true", help="Shortcut for --mode onefile.")
     parser.add_argument("--force", action="store_true", help="Force Nuitka even if Python sources are unchanged.")
     parser.add_argument("--clean", action="store_true", help="Remove build/nuitka and dist/Infinite-Canvas before building.")
+    parser.add_argument("--jobs", type=int, default=default_jobs(), help="Parallel C compiler jobs. Default: min(cpu-1, 32), or NUITKA_JOBS.")
+    parser.add_argument("--lto", choices=("yes", "no", "auto"), default="no", help="Nuitka C compiler link-time optimization. Default: no for faster builds.")
+    parser.add_argument("--no-zip", action="store_true", help="Skip creating dist/Infinite-Canvas.zip.")
+    parser.add_argument("--assets-only", action="store_true", help="Do not run Nuitka; only refresh static/workflow assets and package files.")
     parser.add_argument("--skip-pip", action="store_true", help="Do not auto-install Nuitka if it is missing.")
     return parser.parse_args()
 
@@ -337,13 +374,31 @@ def main() -> int:
 
     ensure_nuitka(skip_pip=args.skip_pip)
 
-    signature = source_signature(mode)
+    signature = source_signature(mode, args.lto)
     manifest = load_manifest()
     expected_exe = FINAL_DIR / f"{APP_NAME}.exe" if mode == "onefile" else RUNTIME_DIR / f"{APP_NAME}.exe"
     needs_compile = args.force or not manifest_matches_compile_inputs(manifest, signature) or not expected_exe.exists()
 
+    if args.assets_only:
+        if not expected_exe.exists():
+            raise SystemExit(f"[ERROR] --assets-only needs an existing build: {expected_exe}")
+        print("Nuitka skipped by --assets-only; refreshing package files only.")
+        needs_compile = False
+    elif needs_compile:
+        changes = changed_compile_inputs(manifest, signature)
+        if args.force:
+            print("Nuitka required: --force was used.")
+        elif not expected_exe.exists():
+            print(f"Nuitka required: expected executable is missing: {expected_exe}")
+        elif changes:
+            print("Nuitka required: compile inputs changed:")
+            for item in changes[:30]:
+                print(f"  - {item}")
+            if len(changes) > 30:
+                print(f"  ... {len(changes) - 30} more")
+
     if needs_compile:
-        run_nuitka(mode)
+        run_nuitka(mode, max(1, args.jobs), args.lto)
         promote_build(mode)
         save_manifest(signature)
     else:
@@ -353,13 +408,17 @@ def main() -> int:
     sync_external_assets()
     write_launcher(mode)
     write_readme(mode)
-    write_package_zip()
+    if args.no_zip:
+        print("Zip skipped by --no-zip.")
+    else:
+        write_package_zip()
 
     print()
     print("=" * 60)
     print("BUILD DONE")
     print(f"Folder : {FINAL_DIR}")
-    print(f"Zip    : {PACKAGE_ZIP}")
+    if not args.no_zip:
+        print(f"Zip    : {PACKAGE_ZIP}")
     print(f"Launch : {FINAL_DIR / 'Start.bat'}")
     if not needs_compile:
         print("Only static/workflow/API files were refreshed.")

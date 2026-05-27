@@ -68,6 +68,85 @@ def load_history(history_type: str = None) -> list:
     return data
 
 
+def _load_seedance_task_map() -> dict:
+    if not os.path.exists(config.SEEDANCE_TASKS_FILE):
+        return {}
+    try:
+        with open(config.SEEDANCE_TASKS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_seedance_task_map(data: dict) -> None:
+    os.makedirs(os.path.dirname(config.SEEDANCE_TASKS_FILE), exist_ok=True)
+    with open(config.SEEDANCE_TASKS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def get_seedance_task(run_id: str) -> dict | None:
+    cleaned = (run_id or "").strip()
+    if not cleaned:
+        return None
+    with config.SEEDANCE_TASKS_LOCK:
+        return _load_seedance_task_map().get(cleaned)
+
+
+def save_seedance_task(record: dict) -> dict:
+    run_id = (record.get("run_id") or "").strip()
+    if not run_id:
+        raise HTTPException(status_code=400, detail="缺少 Seedance run_id")
+    now = time.time()
+    with config.SEEDANCE_TASKS_LOCK:
+        data = _load_seedance_task_map()
+        existing = data.get(run_id, {})
+        merged = {**existing, **record, "run_id": run_id, "updated_at": now}
+        if "created_at" not in merged:
+            merged["created_at"] = now
+        data[run_id] = merged
+        _save_seedance_task_map(data)
+        return merged
+
+
+def update_seedance_task(run_id: str, updates: dict) -> dict | None:
+    cleaned = (run_id or "").strip()
+    if not cleaned:
+        return None
+    with config.SEEDANCE_TASKS_LOCK:
+        data = _load_seedance_task_map()
+        existing = data.get(cleaned)
+        if not existing:
+            return None
+        merged = {**existing, **updates, "updated_at": time.time()}
+        data[cleaned] = merged
+        _save_seedance_task_map(data)
+        return merged
+
+
+def seedance_claimed_task_ids() -> set[str]:
+    with config.SEEDANCE_TASKS_LOCK:
+        data = _load_seedance_task_map()
+    claimed = set()
+    for record in data.values():
+        for task_id in record.get("task_ids") or []:
+            if task_id:
+                claimed.add(str(task_id))
+    return claimed
+
+
+def find_seedance_run_by_task_id(task_id: str) -> dict | None:
+    target = (task_id or "").strip()
+    if not target:
+        return None
+    with config.SEEDANCE_TASKS_LOCK:
+        data = _load_seedance_task_map()
+    for record in data.values():
+        if target in [str(item) for item in (record.get("task_ids") or [])]:
+            return record
+    return None
+
+
 def delete_history(timestamp: float):
     if not os.path.exists(config.HISTORY_FILE):
         return None
