@@ -31,6 +31,7 @@ data/conversations/
 data/canvases/
 data/api_providers.json
 API/.env
+doc/prompt_ref/
 
 # IDE / OS
 .vscode/
