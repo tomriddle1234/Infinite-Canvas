@@ -4492,7 +4492,7 @@
         function refreshNodes(ids=[], options={}){
             const uniqueIds = [...new Set((ids || []).filter(Boolean))];
             if(!uniqueIds.length) return;
-            if(shouldDeferNodeRefresh(uniqueIds)){
+            if(!options.force && shouldDeferNodeRefresh(uniqueIds)){
                 deferCanvasRender(uniqueIds);
                 return;
             }
@@ -5037,12 +5037,29 @@
             counter.classList.toggle('over', count > PROMPT_TEXT_MAX_LENGTH);
             counter.innerHTML = `<span>${count.toLocaleString()}</span><span>/ ${PROMPT_TEXT_MAX_LENGTH.toLocaleString()}</span>`;
         }
+        const CORE_PROMPT_TEMPLATE_URL = '/static/system-prompts/templates/core-presets.local.json';
         const PROMPT_TEMPLATE_LIBRARIES = [
-            {id:'composition', url:'/static/system-prompts/templates/composition.json', labelKey:'canvas.promptTemplateComposition'}
+            {id:'composition', url:'/static/system-prompts/templates/composition.json', labelKey:'canvas.promptTemplateComposition'},
+            {id:'seedream', url:CORE_PROMPT_TEMPLATE_URL, category:'Seedream', labelKey:'canvas.promptTemplateSeedream'},
+            {id:'seedance', url:CORE_PROMPT_TEMPLATE_URL, category:'Seedance', labelKey:'canvas.promptTemplateSeedance'},
+            {id:'gpt-image-2', url:CORE_PROMPT_TEMPLATE_URL, category:'GPT-Image-2', labelKey:'canvas.promptTemplateGptImage2'},
+            {id:'nano-banana', url:CORE_PROMPT_TEMPLATE_URL, category:'Nano Banana', labelKey:'canvas.promptTemplateNanoBanana'}
         ];
         const promptTemplateCache = {};
         const promptTemplatePending = {};
+        function normalizePromptTemplateLibraryId(libId){
+            if(libId === 'core') return 'seedream';
+            return libId || 'composition';
+        }
+        function materializePromptTemplateLibrary(def, json){
+            if(!def?.category) return json;
+            const presets = Array.isArray(json?.presets)
+                ? json.presets.filter(p => p.category === def.category)
+                : [];
+            return {...json, presets};
+        }
         function loadPromptTemplateLibrary(libId){
+            libId = normalizePromptTemplateLibraryId(libId);
             if(promptTemplateCache[libId]) return Promise.resolve(promptTemplateCache[libId]);
             if(promptTemplatePending[libId]) return promptTemplatePending[libId];
             const def = PROMPT_TEMPLATE_LIBRARIES.find(l => l.id === libId);
@@ -5051,9 +5068,9 @@
                 if(!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
             }).then(json => {
-                promptTemplateCache[libId] = json;
+                promptTemplateCache[libId] = materializePromptTemplateLibrary(def, json);
                 delete promptTemplatePending[libId];
-                return json;
+                return promptTemplateCache[libId];
             }).catch(err => {
                 delete promptTemplatePending[libId];
                 throw err;
@@ -5066,6 +5083,11 @@
             if(!presetId) return libJson.presets[0] || null;
             return libJson.presets.find(p => p.id === presetId) || null;
         }
+        function buildPromptTemplatePresetOptions(presets, selectedId){
+            return presets.map(p =>
+                `<option value="${escapeAttr(p.id)}" ${p.id === selectedId ? 'selected' : ''}>${escapeHtml(p.name || p.id)}</option>`
+            ).join('');
+        }
         function fillPromptTemplatePlaceholders(text, values){
             if(!text) return '';
             return text.replace(/\[([^\]]+)\]/g, (match, key) => {
@@ -5075,11 +5097,11 @@
             });
         }
         function buildPromptTemplateOutput(node){
-            const libId = node.library || 'composition';
+            const libId = normalizePromptTemplateLibraryId(node.library);
             const lib = promptTemplateCache[libId];
             const result = {positive:'', negative:'', presetName:''};
             if(!lib){
-                loadPromptTemplateLibrary(libId).then(() => refreshNodes([node.id], {geometry:false})).catch(() => {});
+                loadPromptTemplateLibrary(libId).then(() => refreshNodes([node.id], {geometry:false, force:true})).catch(() => {});
                 return result;
             }
             const preset = findPromptTemplatePreset(lib, node.presetId);
@@ -5098,12 +5120,13 @@
         function renderPromptTemplateBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'prompt-template-body';
-            const libId = node.library || 'composition';
+            const libId = normalizePromptTemplateLibraryId(node.library);
+            if(node.library !== libId) node.library = libId;
             const lib = promptTemplateCache[libId];
             if(!lib){
                 wrap.innerHTML = `<div class="text-[11px] text-gray-400 py-2">${tr('canvas.promptTemplateLoading')}</div>`;
                 loadPromptTemplateLibrary(libId)
-                    .then(() => refreshNodes([node.id], {geometry:false}))
+                    .then(() => refreshNodes([node.id], {geometry:false, force:true}))
                     .catch(err => {
                         const target = nodesEl.querySelector(`.node[data-id="${CSS.escape(node.id)}"] .prompt-template-body`);
                         if(target) target.innerHTML = `<div class="text-[11px] text-red-300 py-2">${tr('canvas.promptTemplateLoadError')}: ${escapeHtml(String(err.message || err))}</div>`;
@@ -5119,9 +5142,7 @@
             const libOptions = PROMPT_TEMPLATE_LIBRARIES.map(l =>
                 `<option value="${escapeAttr(l.id)}" ${libId === l.id ? 'selected' : ''}>${escapeHtml(tr(l.labelKey))}</option>`
             ).join('');
-            const presetOptions = presets.map(p =>
-                `<option value="${escapeAttr(p.id)}" ${preset && p.id === preset.id ? 'selected' : ''}>${escapeHtml(p.name || p.id)}</option>`
-            ).join('');
+            const presetOptions = buildPromptTemplatePresetOptions(presets, preset && preset.id);
             const modes = [
                 ['positive', tr('canvas.promptTemplateModePositive')],
                 ['negative', tr('canvas.promptTemplateModeNegative')],
@@ -5146,14 +5167,6 @@
                     <div class="ptpl-preview-label">${escapeHtml(seg.label)}</div>
                     <div class="ptpl-preview-text">${escapeHtml(seg.text)}</div>
                 </div>`).join('');
-            const paramsList = preset && preset.params ? Object.entries(preset.params) : [];
-            const paramsHtml = paramsList.length ? `
-                <details class="ptpl-params">
-                    <summary>${escapeHtml(tr('canvas.promptTemplateParamsHint'))}</summary>
-                    <div class="ptpl-params-list">
-                        ${paramsList.map(([platform, val]) => `<div class="ptpl-params-row"><span class="ptpl-params-platform">${escapeHtml(platform)}</span><span class="ptpl-params-value">${escapeHtml(val)}</span></div>`).join('')}
-                    </div>
-                </details>` : '';
             const sceneHtml = preset && preset.scene ? `<div class="ptpl-scene">${escapeHtml(preset.scene)}</div>` : '';
             wrap.innerHTML = `
                 <div class="ptpl-row">
@@ -5172,25 +5185,31 @@
                     <div class="ptpl-mode-group">${modeBtns}</div>
                 </div>
                 <div class="ptpl-section">
-                    <div class="ptpl-section-label">${escapeHtml(tr('canvas.promptTemplatePlaceholders'))}</div>
                     <div class="ptpl-placeholders">${placeholdersHtml}</div>
                 </div>
                 <div class="ptpl-section">
                     <div class="ptpl-section-label">${escapeHtml(tr('canvas.promptTemplatePreview'))}</div>
                     <div class="ptpl-preview">${previewHtml || `<div class="text-[11px] text-gray-400">—</div>`}</div>
                 </div>
-                ${paramsHtml}
             `;
             const libSelect = wrap.querySelector('.ptpl-library');
             const presetSelect = wrap.querySelector('.ptpl-preset');
             libSelect.onchange = e => {
-                node.library = e.target.value;
+                const nextLibrary = normalizePromptTemplateLibraryId(e.target.value);
+                node.library = nextLibrary;
                 node.presetId = '';
                 node.placeholderValues = {};
-                if(!promptTemplateCache[node.library]){
-                    loadPromptTemplateLibrary(node.library).then(() => refreshNodes([node.id], {geometry:false})).catch(() => {});
-                }
-                refreshNodes([node.id], {geometry:false});
+                loadPromptTemplateLibrary(nextLibrary)
+                    .then(libJson => {
+                        if(normalizePromptTemplateLibraryId(node.library) !== nextLibrary) return;
+                        const firstPreset = Array.isArray(libJson.presets) ? libJson.presets[0] : null;
+                        if(!node.presetId && firstPreset) node.presetId = firstPreset.id;
+                        refreshNodes([node.id], {geometry:false, force:true});
+                        syncGeneratorInputs();
+                        refreshGeneratorInputViews();
+                    })
+                    .catch(() => {});
+                refreshNodes([node.id], {geometry:false, force:true});
                 scheduleSave();
                 syncGeneratorInputs();
                 refreshGeneratorInputViews();
@@ -5201,7 +5220,7 @@
                 const newKeys = new Set((newPreset && newPreset.placeholders) || []);
                 Object.keys(node.placeholderValues || {}).forEach(k => { if(!newKeys.has(k)) delete node.placeholderValues[k]; });
                 presetSelect.blur();
-                refreshNodes([node.id], {geometry:false});
+                refreshNodes([node.id], {geometry:false, force:true});
                 scheduleSave();
                 syncGeneratorInputs();
                 refreshGeneratorInputViews();

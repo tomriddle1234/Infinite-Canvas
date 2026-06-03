@@ -20,25 +20,27 @@ This file defines the default project instructions for any new agent conversatio
 - The required command wrapper is:
 
 ```bat
-cmd /c "chcp 65001 > nul && C:\ProgramData\miniforge3\condabin\conda.bat activate OFX_dev && <command>"
+cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && <command>"
 ```
 
-~~`cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && <command>"`~~ (Updated 2026-05-16: miniforge path corrected.)
+~~`cmd /c "chcp 65001 > nul && C:\ProgramData\miniforge3\condabin\conda.bat activate OFX_dev && <command>"`~~ (Corrected 2026-06-03: follow `.agents/rules/cmdrule.md`; the active project env path is `C:\src\miniforge\Scripts\activate.bat`.)
 
 - Do not construct ad-hoc Visual Studio / vcvarsall environment commands — this is a pure Python project.
-- For one-off Python calls, `C:/Users/DAN/.conda/envs/OFX_dev/python.exe <args>` is also acceptable (~~`C:/src/miniforge/envs/OFX_dev/python.exe <args>`~~, Updated 2026-05-16).
+- For one-off Python calls, `C:/src/miniforge/envs/OFX_dev/python.exe <args>` is also acceptable (~~`C:/Users/DAN/.conda/envs/OFX_dev/python.exe <args>`~~, Corrected 2026-06-03: follow `.agents/rules/cmdrule.md`).
 
 ## Run Rule
 
 - ~~`run.bat` is the default Windows end-user entrypoint (uses the embedded `python\python.exe`).~~
-- `run.bat` is the default Windows entrypoint — it activates the `OFX_dev` conda env and launches `main.py`.
-- For development / verification runs, prefer launching `main.py` under the activated `OFX_dev` env:
+- ~~`run.bat` is the default Windows entrypoint — it activates the `OFX_dev` conda env and launches `main.py`.~~
+- `run_refactored.bat` is the default Windows entrypoint — it launches `main_refactored.py` and opens `http://127.0.0.1:3000/`.
+- For development / verification runs in the current checkout, launch `main_refactored.py` under the activated `OFX_dev` env:
 
 ```bat
-cmd /c "chcp 65001 > nul && C:\ProgramData\miniforge3\condabin\conda.bat activate OFX_dev && python main.py"
+cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && python main_refactored.py"
 ```
 
-~~`cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && python main.py"`~~ (Updated 2026-05-16.)
+~~`cmd /c "chcp 65001 > nul && C:\ProgramData\miniforge3\condabin\conda.bat activate OFX_dev && python main.py"`~~ (Corrected 2026-06-03: follow `.agents/rules/cmdrule.md`; the active project env path is `C:\src\miniforge\Scripts\activate.bat`.)
+~~`cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && python main.py"`~~ (Corrected 2026-06-03: current checkout uses `main_refactored.py`; `main.py` is not present.)
 
 - Do not replace these flows with hand-written uvicorn invocations unless the user explicitly asks for that.
 
