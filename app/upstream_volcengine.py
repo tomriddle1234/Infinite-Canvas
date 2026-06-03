@@ -179,7 +179,7 @@ def _seedance_duration(model: str, duration) -> int:
 
 def submit_seedance(payload) -> dict:
     client = _client()
-    model = _valid_model(payload.model, config.SEEDANCE_MODELS, config.SEEDANCE_MODELS["seedance-2.0-fast"])
+    model = _valid_model(payload.model, config.SEEDANCE_MODELS, config.SEEDANCE_MODELS["seedance-1.5-pro"])
     content = [{"type": "text", "text": payload.prompt}]
     image_refs = [ref for ref in payload.reference_images if ref.url]
     video_refs = [ref for ref in (payload.reference_videos or []) if ref.url]
