@@ -203,6 +203,30 @@
         .prompt-counter.over { color:#dc2626; }
         .prompt-sync-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 24px; width:24px; height:22px; padding:0; color:#64748b; background:var(--soft); border:1px solid var(--line-2); border-radius:7px; cursor:pointer; transition:all .15s var(--ease); }
         .prompt-sync-btn:hover { color:var(--text); border-color:var(--strong); background:var(--card-solid); }
+        .audio-node { width:310px; }
+        .audio-body { display:flex; flex-direction:column; gap:8px; }
+        .audio-drop { min-height:96px; border:1px dashed var(--line-2); border-radius:10px; background:var(--soft); color:var(--muted); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:11px; font-weight:800; cursor:pointer; text-align:center; }
+        .audio-drop.drag-over { border-color:var(--strong); background:var(--card-solid); color:var(--text); }
+        .audio-wave { position:relative; height:82px; border:1px solid var(--line-2); border-radius:10px; background:linear-gradient(180deg, rgba(248,250,252,.96), rgba(241,245,249,.78)); overflow:hidden; cursor:crosshair; }
+        .audio-wave-bars { position:absolute; inset:8px 8px 18px; display:flex; align-items:center; gap:1px; }
+        .audio-wave-bar { flex:1; min-width:1px; border-radius:999px; background:#94a3b8; opacity:.68; }
+        .audio-wave-selection { position:absolute; top:0; bottom:0; background:rgba(59,130,246,.16); border-left:2px solid #ef4444; border-right:2px solid #2563eb; pointer-events:none; }
+        .audio-wave-marker { position:absolute; top:0; bottom:0; width:14px; transform:translateX(-7px); cursor:ew-resize; pointer-events:auto; background:transparent; }
+        .audio-wave-marker::before { content:''; position:absolute; top:0; bottom:0; left:6px; width:3px; box-shadow:0 0 0 1px rgba(255,255,255,.72); }
+        .audio-wave-marker.in::before { background:#ef4444; }
+        .audio-wave-marker.out::before { background:#2563eb; }
+        .audio-wave-label { position:absolute; bottom:3px; transform:translateX(-50%); padding:1px 4px; border-radius:999px; color:#fff; font-size:9px; font-weight:900; pointer-events:none; }
+        .audio-wave-label.in { background:#ef4444; }
+        .audio-wave-label.out { background:#2563eb; }
+        .audio-control-row { display:flex; align-items:center; gap:6px; min-width:0; flex-wrap:wrap; }
+        .audio-icon-btn { width:30px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid var(--line-2); background:var(--card-solid); color:var(--text); cursor:pointer; }
+        .audio-icon-btn:hover { border-color:var(--strong); }
+        .audio-range-play-btn { width:34px; }
+        .audio-range-play-btn::before { content:'['; font-size:13px; font-weight:900; color:var(--muted); margin-right:1px; }
+        .audio-range-play-btn::after { content:']'; font-size:13px; font-weight:900; color:var(--muted); margin-left:1px; }
+        .audio-pill { flex:1; min-width:0; height:28px; padding:0 8px; border:1px solid var(--line-2); border-radius:8px; background:var(--soft); color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .audio-native { width:100%; height:30px; }
+        .audio-name { font-size:11px; color:var(--muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
         .prompt-upstream { display:flex; flex-direction:column; gap:4px; padding:6px 8px; background:var(--soft); border:1px solid var(--line-2); border-radius:8px; max-height:120px; overflow-y:auto; }
         .prompt-upstream-label { font-size:9px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
         .prompt-upstream-block { display:flex; flex-direction:column; gap:2px; }
@@ -810,6 +834,7 @@
                 <button class="tool-btn" onclick="addPromptNode()"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
                 <button class="tool-btn" onclick="addPromptTemplateNode()"><i data-lucide="layout-template" class="w-4 h-4"></i><span data-i18n="canvas.promptTemplate">提示词模板</span></button>
                 <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
+                <button class="tool-btn" onclick="addAudioNode()"><i data-lucide="file-audio" class="w-4 h-4"></i>Audio</button>
                 <button class="tool-btn" onclick="addSeedreamNode()"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="tool-btn" onclick="addGptImageNode()"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
                 <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
@@ -859,7 +884,7 @@
         </div>
 
         <div id="board" class="board editor-only">
-            <div id="dropOverlay" class="drop-overlay" data-i18n="canvas.dropImage">拖放图片到画布</div>
+            <div id="dropOverlay" class="drop-overlay" data-i18n="canvas.dropImage">拖放图片或音频到画布</div>
             <div id="selectionBox" class="selection-box"></div>
             <div id="selectionHub" class="selection-hub"></div>
             <div id="outputNodeMenu" class="create-menu output-node-menu"></div>
@@ -867,6 +892,7 @@
                 <button class="menu-btn" onclick="menuAdd('prompt')"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
                 <button class="menu-btn" onclick="menuAdd('promptTemplate')"><i data-lucide="layout-template" class="w-4 h-4"></i><span data-i18n="canvas.promptTemplateNode">提示词模板节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
+                <button class="menu-btn" onclick="menuAdd('audio')"><i data-lucide="file-audio" class="w-4 h-4"></i>Audio</button>
                 <button class="menu-btn" onclick="menuAdd('seedream')"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="menu-btn" onclick="menuAdd('gptimage')"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
                 <button class="menu-btn" onclick="menuAdd('seedance')"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
@@ -1131,6 +1157,10 @@
         const gateStatus = document.getElementById('gateStatus');
         const gateCreateBtn = document.getElementById('gateCreateBtn');
         const gateRefreshBtn = document.getElementById('gateRefreshBtn');
+        function clearCanvasDropOverlay(){
+            dropOverlay?.classList.remove('active');
+            document.querySelectorAll('.audio-drop.drag-over, .blank-image.drag-over, .image-preview-wrap.drag-over').forEach(el => el.classList.remove('drag-over'));
+        }
         const gateBackBtn = document.getElementById('gateBackBtn');
         const gateTrashBtn = document.getElementById('gateTrashBtn');
         const gateTrashCount = document.getElementById('gateTrashCount');
@@ -1739,6 +1769,7 @@
             }
         }
         function setCanvasMode(open){
+            clearCanvasDropOverlay();
             shell.classList.toggle('no-canvas', !open);
             if(!open){
                 nodesEl.innerHTML = '';
@@ -2726,6 +2757,26 @@
             const p = point || defaultPoint(-120, 0);
             addNode({id:uid('img'), type:'image', x:p.x, y:p.y, url:'', name:'空白图片'});
         }
+        function addAudioNode(point, file=null, extra={}){
+            const p = point || defaultPoint(-120, 40);
+            addNode({
+                id:uid('aud'),
+                type:'audio',
+                x:p.x,
+                y:p.y,
+                url:file?.url || '',
+                name:file?.name || 'Audio',
+                contentType:file?.content_type || file?.contentType || '',
+                trimIn:0,
+                trimOut:0,
+                audioDuration:0,
+                waveform:[],
+                waveformCount:0,
+                generatedClip:Boolean(extra.generatedClip || file?.generatedClip || file?.generated_clip),
+                clipSourceUrl:extra.clipSourceUrl || file?.clipSourceUrl || '',
+                clipRange:extra.clipRange || file?.clipRange || null
+            });
+        }
         function addPromptNode(point){
             const p = point || defaultPoint(0, 0);
             addNode({id:uid('prompt'), type:'prompt', x:p.x, y:p.y, text:''});
@@ -3553,6 +3604,7 @@
             if(type === 'promptTemplate') addPromptTemplateNode(menuPoint);
             if(type === 'loop') addLoopNode(menuPoint);
             if(type === 'llm') addLLMNode(menuPoint);
+            if(type === 'audio') addAudioNode(menuPoint);
             if(type === 'generator') addGeneratorNode(menuPoint);
             if(type === 'gptimage') addGptImageNode(menuPoint);
             if(type === 'seedream') addSeedreamNode(menuPoint);
@@ -3575,6 +3627,57 @@
             });
             render();
             scheduleSave();
+        }
+        function hasAudioFiles(items){
+            return [...(items || [])].some(item => item.kind === 'file' && (item.type || '').startsWith('audio/'));
+        }
+        async function uploadAudioFiles(files, point){
+            if(!ensureCanvas()) return;
+            const audios = [...files].filter(file => (file.type || '').startsWith('audio/') || /\.(wav|mp3|m4a|aac|flac|ogg)$/i.test(file.name || ''));
+            if(!audios.length) return;
+            const form = new FormData();
+            audios.forEach(file => form.append('files', file, file.name));
+            const data = await fetch('/api/nodes/media-upload', {method:'POST', body:form}).then(async r => {
+                if(!r.ok) throw new Error(await responseErrorMessage(r, 'Audio upload failed'));
+                return r.json();
+            });
+            const base = point || screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+            (data.files || []).forEach((file, i) => addAudioNode({x:base.x + i * 36, y:base.y + i * 36}, file));
+        }
+        async function fillAudioNode(nodeId, files){
+            if(!ensureCanvas()) return;
+            const audios = [...files].filter(file => (file.type || '').startsWith('audio/') || /\.(wav|mp3|m4a|aac|flac|ogg)$/i.test(file.name || ''));
+            if(!audios.length) return;
+            const form = new FormData();
+            form.append('files', audios[0], audios[0].name);
+            const data = await fetch('/api/nodes/media-upload', {method:'POST', body:form}).then(async r => {
+                if(!r.ok) throw new Error(await responseErrorMessage(r, 'Audio upload failed'));
+                return r.json();
+            });
+            const file = data.files?.[0];
+            const node = nodes.find(n => n.id === nodeId);
+            if(file && node){
+                node.url = file.url;
+                node.name = file.name;
+                node.contentType = file.content_type || '';
+                node.trimIn = 0;
+                node.trimOut = 0;
+                node.audioDuration = 0;
+                node.waveform = [];
+                node.waveformCount = 0;
+                node.generatedClip = false;
+                node.clipSourceUrl = '';
+                node.clipRange = null;
+                render();
+                scheduleSave();
+            }
+        }
+        function pickAudioForNode(nodeId){
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg';
+            input.onchange = () => fillAudioNode(nodeId, input.files);
+            input.click();
         }
         function imageUrlFromDataTransfer(dataTransfer){
             if(!dataTransfer) return '';
@@ -4632,7 +4735,7 @@
             });
         }
         function isNodeControl(target){
-            return !!target.closest('textarea, input, select, option, button, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
+            return !!target.closest('textarea, input, select, option, button, audio, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .audio-body, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
         }
         function isNodeDragSurface(target){
             return !isNodeControl(target) && !target.closest('.port, .resize-handle, .output-img-wrap');
@@ -4655,7 +4758,7 @@
                 else if(!selected.has(node.id)) { selected.clear(); selected.add(node.id); }
                 refreshSelectionVisuals();
             };
-            const title = node.type === 'image' ? 'Image' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptTemplate' ? tr('canvas.promptTemplate') : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'gptimage' ? 'GPT Image 2.0' : node.type === 'seedream' ? 'Seedream' : node.type === 'seedance' ? 'Seedance' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
+            const title = node.type === 'image' ? 'Image' : node.type === 'audio' ? 'Audio' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptTemplate' ? tr('canvas.promptTemplate') : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'gptimage' ? 'GPT Image 2.0' : node.type === 'seedream' ? 'Seedream' : node.type === 'seedance' ? 'Seedance' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
             // 失败徽章只在一键运行模式中显示，单节点失败已通过 alert 提示
             const showStatus = ['generator','gptimage','seedream','seedance','msgen','comfy','llm'].includes(node.type) && node.runStatus
                 && (node.runStatus !== 'failed' || node._cascadeFailed);
@@ -4747,6 +4850,7 @@
                     scheduleSave();
                 };
             }
+            if(node.type === 'audio') body.appendChild(renderAudioBody(node));
             if(node.type === 'loop') body.appendChild(renderLoopBody(node));
             if(node.type === 'promptTemplate') body.appendChild(renderPromptTemplateBody(node));
             if(node.type === 'group') {
@@ -4839,7 +4943,7 @@
                 };
             }
             const canInput = ['prompt','generator','gptimage','seedream','seedance','comfy','output','llm','msgen','video'].includes(node.type);
-            const canOutput = ['image','prompt','promptTemplate','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
+            const canOutput = ['image','audio','prompt','promptTemplate','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
             el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
@@ -4943,6 +5047,7 @@
         }
         function defaultNodeSize(type){
             if(type === 'image') return {w:260, h:336};
+            if(type === 'audio') return {w:310, h:0};
             if(type === 'prompt') return {w:310, h:0};
             if(type === 'loop') return {w:340, h:0};
             if(type === 'llm') return {w:420, h:590};
@@ -6406,8 +6511,10 @@
             refreshNodes([node.id], {geometry:false});
             scheduleSave();
         }
-        function seedanceImagePayload(node, imageInputs){
-            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
+        function seedanceImagePayload(node, imageInputs, hasReferenceMediaOverride=null){
+            const hasReferenceMedia = hasReferenceMediaOverride == null
+                ? Boolean((node.refVideos || []).length || (node.refAudios || []).length)
+                : Boolean(hasReferenceMediaOverride);
             const slots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
             const byId = new Map(imageInputs.map(src => [src.id, src]));
             const refs = [];
@@ -6426,6 +6533,28 @@
                 refCount:slots.references.length,
                 hasReferenceMedia
             };
+        }
+        function seedanceConnectedAudioRefs(sources){
+            const seen = new Set();
+            return (sources || []).flatMap(src => src.audioRefs || []).filter(ref => {
+                const url = ref?.url || '';
+                if(!url || seen.has(url)) return false;
+                seen.add(url);
+                return true;
+            });
+        }
+        function seedanceAudioPayload(node, sources){
+            const seen = new Set();
+            return [...(node.refAudios || []), ...seedanceConnectedAudioRefs(sources)].filter(ref => {
+                const url = ref?.url || '';
+                if(!url || seen.has(url)) return false;
+                seen.add(url);
+                return true;
+            }).slice(0, 3).map(ref => ({...ref, role:ref.role || 'reference_audio'}));
+        }
+        function seedanceAudioSupported(ref){
+            const text = `${ref?.url || ''} ${ref?.name || ''} ${ref?.content_type || ref?.contentType || ''}`.toLowerCase();
+            return /\.(mp3|wav)(\?|$|\s)/.test(text) || text.includes('audio/mpeg') || text.includes('audio/wav') || text.includes('audio/x-wav');
         }
         function seedanceRuns(node){
             if(!Array.isArray(node.seedanceRuns)) node.seedanceRuns = [];
@@ -6536,9 +6665,20 @@
             const ordered = orderedSources(node, inputSources);
             const imageInputs = ordered.filter(src => src.refs?.length);
             const promptInputs = ordered.filter(src => src.prompt && !src.refs?.length);
-            const hasReferenceMedia = Boolean((node.refVideos || []).length || (node.refAudios || []).length);
-            const imageSlots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
             const seedanceDefaultModel = 'doubao-seedance-1-5-pro-251215';
+            const supportsReferenceMedia = seedanceSupportsReferenceMedia(node.model || seedanceDefaultModel);
+            const connectedAudioRefs = supportsReferenceMedia ? seedanceConnectedAudioRefs(ordered) : [];
+            const audioRefs = supportsReferenceMedia ? seedanceAudioPayload(node, ordered) : [];
+            const referenceVideos = supportsReferenceMedia ? (node.refVideos || []) : [];
+            const hasReferenceMedia = Boolean(referenceVideos.length || audioRefs.length);
+            const imageSlots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
+            const referenceMediaHtml = supportsReferenceMedia ? `
+                    <div class="gen-settings-row seedance-reference-media-row">
+                        <button type="button" class="secondary-btn seedance-video-upload" style="height:32px;padding:0 10px;font-size:11px">参考视频 (${referenceVideos.length}/3)</button>
+                        <button type="button" class="secondary-btn seedance-audio-upload" style="height:32px;padding:0 10px;font-size:11px">参考音频 (${audioRefs.length}/3)</button>
+                    </div>
+                    <div class="text-[11px] text-slate-400">${[...referenceVideos, ...audioRefs].map(item => escapeHtml(item.name || item.url)).join(' · ')}</div>
+                    ${connectedAudioRefs.length ? `<div class="text-[10.5px] text-blue-500">${connectedAudioRefs.length} connected audio input${connectedAudioRefs.length > 1 ? 's' : ''}</div>` : ''}` : '';
             const modelOptions = [
                 ['doubao-seedance-1-5-pro-251215', 'Seedance 1.5 Pro'],
                 ['doubao-seedance-2-0-260128', 'Seedance 2.0'],
@@ -6565,11 +6705,7 @@
                         <button type="button" class="setting-check ${node.generateAudio ? 'active' : ''}" data-seedance-toggle="generateAudio"><span class="check-dot"></span>${tr('canvas.videoGenerateAudio')}</button>
                         <button type="button" class="setting-check ${node.returnLastFrame ? 'active' : ''}" data-seedance-toggle="returnLastFrame"><span class="check-dot"></span>Return last frame</button>
                     </div>
-                    <div class="gen-settings-row">
-                        <button type="button" class="secondary-btn seedance-video-upload" style="height:32px;padding:0 10px;font-size:11px">参考视频 (${(node.refVideos || []).length}/3)</button>
-                        <button type="button" class="secondary-btn seedance-audio-upload" style="height:32px;padding:0 10px;font-size:11px">参考音频 (${(node.refAudios || []).length}/3)</button>
-                    </div>
-                    <div class="text-[11px] text-slate-400">${[...(node.refVideos || []), ...(node.refAudios || [])].map(item => escapeHtml(item.name || item.url)).join(' · ')}</div>
+                    ${referenceMediaHtml}
                 </div>
                 ${seedanceTaskListHtml(node)}
                 ${latestNodePreviewHtml(node)}
@@ -6590,15 +6726,23 @@
                 input.onmousedown = e => e.stopPropagation();
                 input.onclick = e => e.stopPropagation();
             });
-            modelSelect.onchange = e => { node.model = e.target.value; scheduleSave(); };
+            modelSelect.onchange = e => {
+                e.stopPropagation();
+                node.model = e.target.value;
+                sanitizeConnections();
+                refreshNodes([node.id], {force:true});
+                scheduleSave();
+            };
             durationInput.oninput = e => { node.duration = Math.max(4, Math.min(15, Number(e.target.value || 5))); scheduleSave(); };
             aspectSelect.onchange = e => { node.aspectRatio = e.target.value; scheduleSave(); };
             resolutionSelect.onchange = e => { node.resolution = e.target.value; scheduleSave(); };
             wrap.querySelectorAll('[data-seedance-toggle]').forEach(btn => {
                 btn.onclick = e => { e.stopPropagation(); node[btn.dataset.seedanceToggle] = !node[btn.dataset.seedanceToggle]; render(); scheduleSave(); };
             });
-            wrap.querySelector('.seedance-video-upload').onclick = e => { e.stopPropagation(); pickNodeMedia(node.id, 'refVideos', 'video/mp4,video/quicktime,.mp4,.mov'); };
-            wrap.querySelector('.seedance-audio-upload').onclick = e => { e.stopPropagation(); pickNodeMedia(node.id, 'refAudios', 'audio/mpeg,audio/wav,.mp3,.wav'); };
+            const videoUpload = wrap.querySelector('.seedance-video-upload');
+            const audioUpload = wrap.querySelector('.seedance-audio-upload');
+            if(videoUpload) videoUpload.onclick = e => { e.stopPropagation(); pickNodeMedia(node.id, 'refVideos', 'video/mp4,video/quicktime,.mp4,.mov'); };
+            if(audioUpload) audioUpload.onclick = e => { e.stopPropagation(); pickNodeMedia(node.id, 'refAudios', 'audio/mpeg,audio/wav,.mp3,.wav'); };
             const grid = wrap.querySelector('.seedance-slot-grid');
             const byId = new Map(imageInputs.map(src => [src.id, src]));
             const refSlotCount = imageInputs.length
@@ -6679,6 +6823,312 @@
         function renderPromptPreview(container, promptInputs){
             if(!container) return;
             container.innerHTML = promptInputs.length ? `<div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Prompts</div>${promptInputs.map(src => `<div class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 whitespace-pre-wrap break-words" style="max-height:160px;overflow-y:auto">${escapeHtml(src.prompt || src.label)}</div>`).join('')}` : '';
+        }
+        const audioDecodeCache = new Map();
+        const AUDIO_TRIM_MIN_GAP = 0.01;
+        function audioFormatTime(value){
+            const total = Math.max(0, Number(value || 0));
+            const m = Math.floor(total / 60);
+            const s = Math.floor(total % 60);
+            const ms = Math.floor((total - Math.floor(total)) * 10);
+            return `${m}:${String(s).padStart(2, '0')}.${ms}`;
+        }
+        function clampAudioRangeValue(value, duration){
+            return Math.max(0, Math.min(Math.max(0, Number(duration || 0)), Number(value || 0)));
+        }
+        function normalizeAudioTrim(node){
+            const duration = Math.max(0, Number(node.audioDuration || 0));
+            let start = Math.max(0, Number(node.trimIn || 0));
+            let end = Math.max(0, Number(node.trimOut || 0));
+            if(duration){
+                start = Math.min(start, Math.max(0, duration - AUDIO_TRIM_MIN_GAP));
+                if(!end || end > duration) end = duration;
+                if(end - start < AUDIO_TRIM_MIN_GAP) end = Math.min(duration, start + AUDIO_TRIM_MIN_GAP);
+                if(end - start < AUDIO_TRIM_MIN_GAP) start = Math.max(0, end - AUDIO_TRIM_MIN_GAP);
+            }
+            return {start, end, duration};
+        }
+        function setAudioTrimPoint(node, kind, value){
+            const duration = Math.max(0, Number(node.audioDuration || 0));
+            if(!duration) return normalizeAudioTrim(node);
+            let {start, end} = normalizeAudioTrim(node);
+            const next = clampAudioRangeValue(value, duration);
+            if(kind === 'in') start = Math.min(next, Math.max(0, end - AUDIO_TRIM_MIN_GAP));
+            else end = Math.max(next, Math.min(duration, start + AUDIO_TRIM_MIN_GAP));
+            node.trimIn = start;
+            node.trimOut = end;
+            return normalizeAudioTrim(node);
+        }
+        function audioWaveformBarCount(node){
+            const width = Math.max(220, Number(node?.w || defaultNodeSize('audio').w || 310));
+            return Math.max(96, Math.min(640, Math.round((width - 28) / 3)));
+        }
+        function audioPeaksFromBuffer(buffer, count=96){
+            const peaks = [];
+            const channelCount = Math.max(1, buffer.numberOfChannels || 1);
+            const length = buffer.length || 1;
+            const safeCount = Math.max(16, Math.round(Number(count || 96)));
+            const step = Math.max(1, Math.floor(length / safeCount));
+            for(let i = 0; i < safeCount; i++){
+                const begin = i * step;
+                const finish = Math.min(length, begin + step);
+                let peak = 0;
+                for(let ch = 0; ch < channelCount; ch++){
+                    const data = buffer.getChannelData(ch);
+                    for(let j = begin; j < finish; j += Math.max(1, Math.floor(step / 64))){
+                        peak = Math.max(peak, Math.abs(data[j] || 0));
+                    }
+                }
+                peaks.push(Math.max(0.04, Math.min(1, peak)));
+            }
+            return peaks;
+        }
+        async function decodedAudioForUrl(url){
+            if(!url) throw new Error('Missing audio URL');
+            if(audioDecodeCache.has(url)) return audioDecodeCache.get(url);
+            const promise = (async () => {
+                const response = await fetch(url);
+                if(!response.ok) throw new Error('Audio load failed');
+                const bytes = await response.arrayBuffer();
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if(!AudioCtx) throw new Error('Browser audio decoding is unavailable');
+                const ctx = new AudioCtx();
+                try {
+                    return await ctx.decodeAudioData(bytes.slice(0));
+                } finally {
+                    try { ctx.close(); } catch(_) {}
+                }
+            })();
+            audioDecodeCache.set(url, promise);
+            return promise;
+        }
+        function ensureAudioWaveform(node, targetCount=null){
+            const desiredCount = targetCount || audioWaveformBarCount(node);
+            const existingCount = Array.isArray(node?.waveform) ? node.waveform.length : 0;
+            if(!node?.url || (existingCount >= desiredCount && node.audioDuration && node.waveformCount === desiredCount)) return;
+            decodedAudioForUrl(node.url).then(buffer => {
+                const live = nodes.find(n => n.id === node.id);
+                if(!live || live.url !== node.url) return;
+                live.audioDuration = buffer.duration || 0;
+                live.waveform = audioPeaksFromBuffer(buffer, desiredCount);
+                live.waveformCount = desiredCount;
+                if(!live.trimOut || live.trimOut > live.audioDuration) live.trimOut = live.audioDuration;
+                refreshNodes([live.id], {geometry:false});
+                scheduleSave();
+            }).catch(err => {
+                const live = nodes.find(n => n.id === node.id);
+                if(!live || live.url !== node.url) return;
+                live.audioError = err.message || String(err);
+                refreshNodes([live.id], {geometry:false});
+            });
+        }
+        function updateAudioTrimDom(wrap, node){
+            const {start, end, duration} = normalizeAudioTrim(node);
+            const startPct = duration ? Math.max(0, Math.min(100, start / duration * 100)) : 0;
+            const endPct = duration ? Math.max(0, Math.min(100, end / duration * 100)) : 100;
+            const selection = wrap.querySelector('.audio-wave-selection');
+            const inMarker = wrap.querySelector('.audio-marker-in');
+            const outMarker = wrap.querySelector('.audio-marker-out');
+            const inLabel = wrap.querySelector('.audio-label-in');
+            const outLabel = wrap.querySelector('.audio-label-out');
+            const rangeText = wrap.querySelector('.audio-range-text');
+            if(selection){ selection.style.left = `${startPct}%`; selection.style.width = `${Math.max(0, endPct - startPct)}%`; }
+            if(inMarker) inMarker.style.left = `${startPct}%`;
+            if(outMarker) outMarker.style.left = `${endPct}%`;
+            if(inLabel){ inLabel.style.left = `${startPct}%`; inLabel.textContent = 'IN'; }
+            if(outLabel){ outLabel.style.left = `${endPct}%`; outLabel.textContent = 'OUT'; }
+            if(rangeText) rangeText.textContent = `${audioFormatTime(start)} - ${audioFormatTime(end || duration)} / ${audioFormatTime(duration)}`;
+        }
+        function renderAudioBody(node){
+            const wrap = document.createElement('div');
+            wrap.className = 'audio-body';
+            if(!node.url){
+                wrap.innerHTML = `<div class="audio-drop"><i data-lucide="file-audio" class="w-7 h-7"></i><div>Click or drop audio</div><div style="font-size:10px;font-weight:700">WAV, MP3, M4A, AAC, FLAC, OGG</div></div>`;
+                const drop = wrap.querySelector('.audio-drop');
+                drop.onclick = e => { e.stopPropagation(); pickAudioForNode(node.id); };
+                drop.ondragover = e => { if(hasAudioFiles(e.dataTransfer?.items)){ e.preventDefault(); e.stopPropagation(); drop.classList.add('drag-over'); } };
+                drop.ondragleave = e => { e.stopPropagation(); drop.classList.remove('drag-over'); };
+                drop.ondrop = e => { if(hasAudioFiles(e.dataTransfer?.items)){ e.preventDefault(); e.stopPropagation(); clearCanvasDropOverlay(); fillAudioNode(node.id, e.dataTransfer.files); } };
+                return wrap;
+            }
+            const waveformCount = audioWaveformBarCount(node);
+            ensureAudioWaveform(node, waveformCount);
+            const {start, end, duration} = normalizeAudioTrim(node);
+            const peaks = Array.isArray(node.waveform) && node.waveform.length ? node.waveform : Array.from({length:waveformCount}, () => 0.12);
+            const startPct = duration ? Math.max(0, Math.min(100, start / duration * 100)) : 0;
+            const endPct = duration ? Math.max(0, Math.min(100, (end || duration) / duration * 100)) : 100;
+            wrap.innerHTML = `
+                <div class="audio-name" title="${escapeAttr(node.name || node.url)}">${escapeHtml(node.name || outputImageName(node.url))}</div>
+                <audio class="audio-native" src="${escapeAttr(node.url)}" controls preload="metadata"></audio>
+                <div class="audio-wave">
+                    <div class="audio-wave-bars">${peaks.map(v => `<span class="audio-wave-bar" style="height:${Math.round(Math.max(4, Math.min(100, v * 100)))}%"></span>`).join('')}</div>
+                    <div class="audio-wave-selection" style="left:${startPct}%;width:${Math.max(0, endPct - startPct)}%"></div>
+                    <div class="audio-wave-marker audio-marker-in in" data-trim-marker="in" style="left:${startPct}%"></div>
+                    <div class="audio-wave-marker audio-marker-out out" data-trim-marker="out" style="left:${endPct}%"></div>
+                    <div class="audio-wave-label audio-label-in in" style="left:${startPct}%">IN</div>
+                    <div class="audio-wave-label audio-label-out out" style="left:${endPct}%">OUT</div>
+                </div>
+                <div class="audio-control-row">
+                    <button class="audio-icon-btn audio-range-play-btn audio-play-range" type="button" title="Play range"><i data-lucide="play" class="w-3.5 h-3.5"></i></button>
+                    <button class="audio-icon-btn audio-clear-range" type="button" title="Clear range"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i></button>
+                    <button class="audio-icon-btn audio-clip" type="button" title="Clip to WAV"><i data-lucide="scissors" class="w-3.5 h-3.5"></i></button>
+                    <div class="audio-pill audio-range-text">${audioFormatTime(start)} - ${audioFormatTime(end || duration)} / ${audioFormatTime(duration)}</div>
+                </div>
+                ${node.audioError ? `<div class="text-[10px] text-red-500">${escapeHtml(node.audioError)}</div>` : ''}
+            `;
+            const audio = wrap.querySelector('audio');
+            audio.onloadedmetadata = () => {
+                if(audio.duration && Number.isFinite(audio.duration) && (!node.audioDuration || Math.abs(node.audioDuration - audio.duration) > 0.05)){
+                    node.audioDuration = audio.duration;
+                    if(!node.trimOut || node.trimOut > audio.duration) node.trimOut = audio.duration;
+                    refreshNodes([node.id], {geometry:false});
+                    scheduleSave();
+                }
+            };
+            const wave = wrap.querySelector('.audio-wave');
+            const timeFromPointer = e => {
+                const rect = wave.getBoundingClientRect();
+                const ratio = rect.width ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0;
+                return ratio * Number(node.audioDuration || duration || 0);
+            };
+            const nearestMarkerKind = value => {
+                const cur = normalizeAudioTrim(node);
+                return Math.abs(value - cur.start) <= Math.abs(value - cur.end) ? 'in' : 'out';
+            };
+            let dragMarker = '';
+            let dragLastValue = 0;
+            let dragFrame = 0;
+            const moveMarker = (kind, value, options={}) => {
+                const preview = Boolean(options.preview);
+                const save = options.save !== false;
+                const cur = setAudioTrimPoint(node, kind, value);
+                if(preview) audio.currentTime = kind === 'in' ? cur.start : cur.end;
+                updateAudioTrimDom(wrap, node);
+                if(save) scheduleSave();
+            };
+            wave.onclick = e => {
+                if(!duration || e.target?.dataset?.trimMarker) return;
+                const value = timeFromPointer(e);
+                moveMarker(nearestMarkerKind(value), value, {preview:true});
+            };
+            wave.querySelectorAll('[data-trim-marker]').forEach(marker => {
+                marker.onmousedown = e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dragMarker = marker.dataset.trimMarker || '';
+                    dragLastValue = timeFromPointer(e);
+                    moveMarker(dragMarker, dragLastValue, {save:false});
+                    window.addEventListener('mousemove', onAudioMarkerMove);
+                    window.addEventListener('mouseup', onAudioMarkerUp, {once:true});
+                };
+            });
+            function onAudioMarkerMove(e){
+                if(!dragMarker) return;
+                e.preventDefault();
+                dragLastValue = timeFromPointer(e);
+                if(dragFrame) return;
+                dragFrame = requestAnimationFrame(() => {
+                    dragFrame = 0;
+                    if(dragMarker) moveMarker(dragMarker, dragLastValue, {save:false});
+                });
+            }
+            function onAudioMarkerUp(){
+                if(dragFrame){
+                    cancelAnimationFrame(dragFrame);
+                    dragFrame = 0;
+                }
+                if(dragMarker) moveMarker(dragMarker, dragLastValue, {preview:true, save:true});
+                dragMarker = '';
+                window.removeEventListener('mousemove', onAudioMarkerMove);
+            };
+            wrap.querySelector('.audio-play-range').onclick = () => {
+                const cur = normalizeAudioTrim(node);
+                audio.currentTime = cur.start;
+                if(audio._rangeStopHandler) audio.removeEventListener('timeupdate', audio._rangeStopHandler);
+                audio._rangeStopHandler = () => {
+                    if(audio.currentTime >= (cur.end || cur.duration)){
+                        audio.pause();
+                        audio.removeEventListener('timeupdate', audio._rangeStopHandler);
+                        audio._rangeStopHandler = null;
+                    }
+                };
+                audio.addEventListener('timeupdate', audio._rangeStopHandler);
+                audio.play();
+            };
+            wrap.querySelector('.audio-clear-range').onclick = () => {
+                node.trimIn = 0;
+                node.trimOut = Number(node.audioDuration || audio.duration || 0);
+                updateAudioTrimDom(wrap, node);
+                scheduleSave();
+            };
+            wrap.querySelector('.audio-clip').onclick = () => clipAudioNode(node.id);
+            return wrap;
+        }
+        function writeAscii(view, offset, text){
+            for(let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+        }
+        function wavBlobFromBuffer(buffer, startSeconds, endSeconds){
+            const sampleRate = buffer.sampleRate;
+            const channels = Math.min(2, Math.max(1, buffer.numberOfChannels || 1));
+            const start = Math.max(0, Math.floor(startSeconds * sampleRate));
+            const end = Math.max(start + 1, Math.min(buffer.length, Math.floor(endSeconds * sampleRate)));
+            const frames = end - start;
+            const bytesPerSample = 2;
+            const dataSize = frames * channels * bytesPerSample;
+            const array = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(array);
+            writeAscii(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeAscii(view, 8, 'WAVE');
+            writeAscii(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, channels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+            view.setUint16(32, channels * bytesPerSample, true);
+            view.setUint16(34, 16, true);
+            writeAscii(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+            const channelData = Array.from({length:channels}, (_, ch) => buffer.getChannelData(Math.min(ch, buffer.numberOfChannels - 1)));
+            let offset = 44;
+            for(let i = start; i < end; i++){
+                for(let ch = 0; ch < channels; ch++){
+                    const value = Math.max(-1, Math.min(1, channelData[ch][i] || 0));
+                    view.setInt16(offset, value < 0 ? value * 0x8000 : value * 0x7fff, true);
+                    offset += 2;
+                }
+            }
+            return new Blob([array], {type:'audio/wav'});
+        }
+        async function clipAudioNode(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node?.url) return;
+            const {start, end, duration} = normalizeAudioTrim(node);
+            if(!duration || end - start < 0.05){
+                showErrorModal('Audio range is too short.');
+                return;
+            }
+            try {
+                const buffer = await decodedAudioForUrl(node.url);
+                const blob = wavBlobFromBuffer(buffer, start, end);
+                const base = (node.name || 'audio').replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 48) || 'audio';
+                const stamp = `${Date.now()}_${Math.round(start * 1000)}_${Math.round(end * 1000)}`;
+                const form = new FormData();
+                form.append('files', blob, `${base}_clip_${stamp}.wav`);
+                const data = await fetch('/api/nodes/media-upload', {method:'POST', body:form}).then(async r => {
+                    if(!r.ok) throw new Error(await responseErrorMessage(r, 'Audio clip upload failed'));
+                    return r.json();
+                });
+                const file = data.files?.[0];
+                if(file) addAudioNode({x:node.x + 36, y:node.y + 132}, file, {
+                    generatedClip:true,
+                    clipSourceUrl:node.url,
+                    clipRange:{start, end}
+                });
+            } catch(err) {
+                showErrorModal(err.message || String(err));
+            }
         }
         function comfyWorkflowOptions(selected){
             const opts = comfyWorkflows.map(w => `<option value="${escapeHtml(w.name)}" ${w.name === selected ? 'selected' : ''}>${escapeHtml(w.title || w.name.replace('.json',''))}</option>`).join('');
@@ -7016,6 +7466,7 @@
                     if(last) return {id:n.id, type:'outputImage', label:'上游输出', preview:last, refs:[{url:last, name:'output.png'}], prompt:''};
                 }
                 if(n.type === 'image' && n.url) return {id:n.id, type:'image', label:n.name || 'image', preview:n.url, refs:[{url:n.url, name:n.name || 'image', role:n.role || ''}], prompt:''};
+                if(n.type === 'audio' && n.url) return {id:n.id, type:'audio', label:n.name || 'audio', refs:[], audioRefs:[{url:n.url, name:n.name || 'audio', role:'reference_audio'}], prompt:''};
                 if(n.type === 'group') {
                     const items = (n.items || []).map(id => nodes.find(x => x.id === id)).filter(Boolean);
                     const sources = items.filter(x => x.type === 'image' && x.url).map(img => ({
@@ -7453,7 +7904,11 @@
         const seedancePollTimers = new Map();
         const SEEDANCE_POLL_MAX_MS = 4 * 60 * 60 * 1000;
         function isSeedance20Model(model){
-            return String(model || '').includes('seedance-2-0');
+            return /seedance[-_]?2[-_.]?0/i.test(String(model || ''));
+        }
+        function seedanceSupportsReferenceMedia(modelOrNode){
+            const model = typeof modelOrNode === 'string' ? modelOrNode : modelOrNode?.model;
+            return isSeedance20Model(model || 'doubao-seedance-1-5-pro-251215');
         }
         function seedancePollInterval(node){
             return isSeedance20Model(node?.model) ? 60 * 1000 : 20 * 1000;
@@ -7617,7 +8072,12 @@
             const sources = orderedSources(node, generatorSources(node));
             const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
             const imageInputs = sources.filter(src => src.refs?.length);
-            const {refs:imageRefs, hasFirst, hasLast, refCount, hasReferenceMedia} = seedanceImagePayload(node, imageInputs);
+            const model = node.model || 'doubao-seedance-1-5-pro-251215';
+            const supportsReferenceMedia = seedanceSupportsReferenceMedia(model);
+            const audioRefs = supportsReferenceMedia ? seedanceAudioPayload(node, sources) : [];
+            const referenceVideos = supportsReferenceMedia ? (node.refVideos || []) : [];
+            const hasReferenceMediaInput = Boolean(referenceVideos.length || audioRefs.length);
+            const {refs:imageRefs, hasFirst, hasLast, refCount, hasReferenceMedia} = seedanceImagePayload(node, imageInputs, hasReferenceMediaInput);
             if(!prompt){ showErrorModal(tr('canvas.videoNeedsPrompt')); return; }
             if(hasLast && !hasFirst){
                 showErrorModal(tr('canvas.seedanceLastNeedsFirst'));
@@ -7627,13 +8087,22 @@
                 showErrorModal(tr('canvas.seedanceFrameRefConflict'));
                 return;
             }
+            if(audioRefs.length && !imageRefs.length && !referenceVideos.length){
+                showErrorModal('Seedance reference audio requires at least one reference image or reference video.');
+                return;
+            }
+            const unsupportedAudio = audioRefs.find(ref => !seedanceAudioSupported(ref));
+            if(unsupportedAudio){
+                showErrorModal('Seedance only accepts MP3 or WAV reference audio. Use the audio node Clip button to create a WAV file first.');
+                return;
+            }
             const out = outputForNode(node);
             const pendingId = uid('p');
             const run = runSnapshot(node, prompt, imageRefs);
             const runId = uid('seedance_run');
             const inputSignature = JSON.stringify({
                 prompt,
-                model:node.model || 'doubao-seedance-1-5-pro-251215',
+                model,
                 duration:Number(node.duration || 5),
                 aspectRatio:node.aspectRatio || '16:9',
                 resolution:node.resolution || '720p',
@@ -7641,15 +8110,15 @@
                 generateAudio:Boolean(node.generateAudio),
                 returnLastFrame:Boolean(node.returnLastFrame),
                 referenceImages:imageRefs.map(ref => ({url:ref.url || '', role:ref.role || ''})),
-                referenceVideos:(node.refVideos || []).map(ref => ref.url || ''),
-                referenceAudios:(node.refAudios || []).map(ref => ref.url || '')
+                referenceVideos:referenceVideos.map(ref => ref.url || ''),
+                referenceAudios:audioRefs.map(ref => ref.url || '')
             });
             const seedanceRun = {
                 runId,
                 pendingId,
                 status:'submitting',
                 taskIds:[],
-                model:node.model || 'doubao-seedance-1-5-pro-251215',
+                model,
                 submittedAt:Date.now(),
                 inputSignature
             };
@@ -7670,7 +8139,7 @@
                         node_id:node.id,
                         input_signature:inputSignature,
                         prompt,
-                        model:node.model || 'doubao-seedance-1-5-pro-251215',
+                        model,
                         duration:Number(node.duration || 5),
                         aspect_ratio:node.aspectRatio || '16:9',
                         resolution:node.resolution || '720p',
@@ -7678,8 +8147,8 @@
                         generate_audio:Boolean(node.generateAudio),
                         return_last_frame:Boolean(node.returnLastFrame),
                         reference_images:imageRefs,
-                        reference_videos:node.refVideos || [],
-                        reference_audios:node.refAudios || []
+                        reference_videos:referenceVideos,
+                        reference_audios:audioRefs
                     })
                 }).then(async r => { if(!r.ok) throw await responseError(r, tr('canvas.videoFailed')); return r.json(); });
                 node.taskIds = result.task_ids || [];
@@ -8554,14 +9023,24 @@
             }
         }
 
+        function deleteGeneratedAudioClipFile(node){
+            if(!node || node.type !== 'audio' || !node.generatedClip || !node.url) return;
+            fetch('/api/nodes/media-delete', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({url:node.url})
+            }).catch(err => console.warn('Failed to delete generated audio clip', err));
+        }
         function deleteNode(id, event){
-            event.stopPropagation();
+            event?.stopPropagation();
             pushUndo();
+            const node = nodes.find(n => n.id === id);
             const timer = seedancePollTimers.get(id);
             if(timer){ clearTimeout(timer); seedancePollTimers.delete(id); }
             nodes = nodes.filter(n => n.id !== id);
             connections = connections.filter(c => c.from !== id && c.to !== id);
             selected.delete(id);
+            deleteGeneratedAudioClipFile(node);
             render();
             scheduleSave();
         }
@@ -9532,12 +10011,13 @@
             const from = nodes.find(n => n.id === fromId);
             const to = nodes.find(n => n.id === toId);
             if(!from || !to) return false;
+            if(from.type === 'audio') return to.type === 'seedance' && seedanceSupportsReferenceMedia(to);
             if(to.type === 'loop') return Boolean(to.imageInput) && ['image','group','output'].includes(from.type);
             if(['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(from.type)) return to.type === 'output';
             if(to.type === 'llm') return ['prompt','loop','promptGroup','llm','image','group','output'].includes(from.type);
             if(from.type === 'llm') return ['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(to.type);
             if(to.type === 'prompt') return from.type === 'promptTemplate' || from.type === 'prompt';
-            return ['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(to.type) && ['image','prompt','promptTemplate','loop','group','promptGroup','output'].includes(from.type);
+            return ['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(to.type) && ['image','audio','prompt','promptTemplate','loop','group','promptGroup','output'].includes(from.type);
         }
         function sanitizeConnections(){
             connections = (connections || []).filter(c => canConnect(c.from, c.to));
@@ -9895,18 +10375,20 @@
                 dropOverlay.classList.remove('active');
                 return;
             }
-            if(hasImageDropData(e.dataTransfer) || hasOutputImageDrag(e.dataTransfer)){
+            if(hasImageDropData(e.dataTransfer) || hasAudioFiles(e.dataTransfer?.items) || hasOutputImageDrag(e.dataTransfer)){
                 e.preventDefault();
                 e.dataTransfer.dropEffect = hasOutputImageDrag(e.dataTransfer) ? 'copy' : 'move';
                 dropOverlay.classList.add('active');
+            } else {
+                clearCanvasDropOverlay();
             }
         });
         board.addEventListener('dragleave', e => {
-            if(e.target === board || !board.contains(e.relatedTarget)) dropOverlay.classList.remove('active');
+            if(e.target === board || !board.contains(e.relatedTarget)) clearCanvasDropOverlay();
         });
         board.addEventListener('drop', e => {
             e.preventDefault();
-            dropOverlay.classList.remove('active');
+            clearCanvasDropOverlay();
             if(e.target.closest?.('.image-node')) return;
             if(hasOutputImageDrag(e.dataTransfer)) {
                 createImageCardFromOutput(e.dataTransfer.getData('application/x-canvas-output-image'), screenToWorld(e.clientX, e.clientY));
@@ -9920,11 +10402,16 @@
                 uploadImages(e.dataTransfer.files, screenToWorld(e.clientX, e.clientY));
                 return;
             }
+            if(hasAudioFiles(e.dataTransfer?.items)){
+                uploadAudioFiles(e.dataTransfer.files, screenToWorld(e.clientX, e.clientY)).catch(err => showErrorModal(err.message || String(err)));
+                return;
+            }
             const droppedUrl = imageUrlFromDataTransfer(e.dataTransfer);
             if(droppedUrl) createImageCardFromUrl(droppedUrl, screenToWorld(e.clientX, e.clientY), outputImageName(droppedUrl));
         });
-        window.addEventListener('dragend', () => dropOverlay.classList.remove('active'));
-        window.addEventListener('drop', () => dropOverlay.classList.remove('active'));
+        window.addEventListener('dragend', clearCanvasDropOverlay, true);
+        window.addEventListener('drop', clearCanvasDropOverlay, true);
+        window.addEventListener('blur', clearCanvasDropOverlay);
         window.addEventListener('paste', e => {
             if(!canvas) return;
             const files = [...(e.clipboardData?.items || [])].filter(x => x.kind === 'file' && x.type.startsWith('image/')).map(x => x.getAsFile());

@@ -11,11 +11,16 @@ from typing import List
 import requests
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel
 
 from .. import comfyui, config, imageproc, store
 from ..models import CanvasAssetCheckRequest, CanvasAssetDownloadRequest, DeleteHistoryRequest
 
 router = APIRouter()
+
+
+class NodeMediaDeleteRequest(BaseModel):
+    url: str = ""
 
 
 @router.get("/")
@@ -178,6 +183,32 @@ async def upload_node_media(files: List[UploadFile] = File(...)):
             "content_type": imageproc.content_type_for_path(path),
         })
     return {"files": uploaded}
+
+
+@router.post("/api/nodes/media-delete")
+async def delete_node_media(payload: NodeMediaDeleteRequest):
+    path = imageproc.output_file_from_url(payload.url)
+    if not path:
+        return {"deleted": False}
+
+    abs_path = os.path.abspath(path)
+    input_root = os.path.abspath(config.OUTPUT_INPUT_DIR)
+    filename = os.path.basename(abs_path)
+    ext = os.path.splitext(filename)[1].lower()
+    if (
+        os.path.commonpath([input_root, abs_path]) != input_root
+        or not filename.startswith("node_media_")
+        or ext != ".wav"
+    ):
+        raise HTTPException(status_code=400, detail="Only generated project WAV media can be deleted")
+
+    try:
+        os.remove(abs_path)
+        return {"deleted": True}
+    except FileNotFoundError:
+        return {"deleted": False}
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete media: {exc}") from exc
 
 
 @router.get("/api/history")
