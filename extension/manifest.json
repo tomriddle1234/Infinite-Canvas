@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Infinite Canvas Webgen Bridge",
+  "description": "Session clipboard bridge for chat-style image generation pages and Infinite Canvas.",
+  "version": "0.1.0",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel",
+    "storage",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Webgen Bridge"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "adapters/chatgpt.js",
+        "adapters/generic-chat-image.js",
+        "content-generator.js",
+        "content-canvas.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

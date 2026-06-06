@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Webgen Bridge</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <main class="bridge">
+    <header class="topbar">
+      <div>
+        <h1>网页生图桥 <span>Webgen Bridge</span></h1>
+        <p id="pageContext">正在识别页面 / Detecting page...</p>
+      </div>
+      <button id="refreshBtn" class="icon-btn" title="刷新 / Refresh">↻</button>
+    </header>
+
+    <section class="top-actions">
+      <button id="pullCanvasPromptBtn">读取画布选中提示词 <span>Pull Canvas Prompt</span></button>
+    </section>
+
+    <section class="grid-head">
+      <span>提示词 / Prompts</span>
+      <span>图片 / Images</span>
+      <span>控制 / Controls</span>
+    </section>
+    <section id="rows" class="rows"></section>
+
+    <section class="controls">
+      <button id="createNodeBtn">创建节点 <span>Create Node</span></button>
+      <button id="clearImportedBtn">清除已导入 <span>Clear Imported</span></button>
+    </section>
+
+    <footer id="status" class="status">仅当前会话暂存。Chrome 重启后清空。/ Session clipboard only.</footer>
+  </main>
+  <script src="panel.js"></script>
+</body>
+</html>

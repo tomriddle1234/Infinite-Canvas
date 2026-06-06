@@ -9,8 +9,9 @@ from io import BytesIO
 from typing import List
 
 import requests
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+from PIL import Image
 from pydantic import BaseModel
 
 from .. import comfyui, config, imageproc, store
@@ -148,6 +149,71 @@ async def upload_ai_reference(files: List[UploadFile] = File(...)):
             handle.write(content)
         uploaded.append({"url": imageproc.output_url_for(filename, "input"), "name": file.filename or filename})
     return {"files": uploaded}
+
+
+@router.post("/api/extension/webgen-import")
+async def import_web_generator_image(
+    file: UploadFile = File(...),
+    prompt: str = Form(""),
+    prompt_id: str = Form(""),
+    source_url: str = Form(""),
+    source_site: str = Form(""),
+    source_tab_title: str = Form(""),
+    captured_at: str = Form(""),
+    width: str = Form(""),
+    height: str = Form(""),
+    byte_size: str = Form(""),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty image file")
+
+    max_bytes = 64 * 1024 * 1024
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=413, detail="Image file is too large")
+
+    content_type = (file.content_type or "").lower()
+    if content_type and not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail=f"Unsupported image content type: {file.content_type}")
+
+    try:
+        with Image.open(BytesIO(content)) as img:
+            img.verify()
+        with Image.open(BytesIO(content)) as img:
+            detected_format = (img.format or "").upper()
+            detected_width, detected_height = img.size
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image") from exc
+
+    ext_by_format = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}
+    ext = ext_by_format.get(detected_format)
+    if not ext:
+        raise HTTPException(status_code=400, detail=f"Unsupported image format: {detected_format or file.content_type or file.filename}")
+
+    filename = f"webgen_{uuid.uuid4().hex[:12]}{ext}"
+    path = imageproc.output_path_for(filename, "output")
+    with open(path, "wb") as handle:
+        handle.write(content)
+
+    local_url = imageproc.output_url_for(filename, "output")
+    return {
+        "url": local_url,
+        "filename": filename,
+        "name": file.filename or filename,
+        "content_type": imageproc.content_type_for_path(path),
+        "width": width or detected_width,
+        "height": height or detected_height,
+        "byte_size": byte_size or len(content),
+        "metadata": {
+            "prompt": prompt,
+            "prompt_id": prompt_id,
+            "source": "chat-image-web-extension",
+            "source_site": source_site,
+            "source_url": source_url,
+            "source_tab_title": source_tab_title,
+            "captured_at": captured_at,
+        },
+    }
 
 
 @router.post("/api/nodes/media-upload")
