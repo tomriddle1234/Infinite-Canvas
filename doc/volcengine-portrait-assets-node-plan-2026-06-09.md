@@ -571,3 +571,38 @@ Implementation note:
 - `GetAsset` works for known platform preset virtual portrait asset IDs and can return a real preview URL; the existing preview route can cache that image locally under `assets/cache/volcengine_assets/`.
 - `ListAssets(GroupType=AIGC)` still must not be used for the platform preset library because it targets the paid private AIGC asset capability.
 - Until the Ark experience center's private list/search endpoint is captured, the preset virtual search endpoint reads a local catalog (`data/volcengine_preset_portraits.json`) plus a small built-in seed list of known public examples. This makes the node UI and output contract correct now, while keeping the data source replaceable once the real console catalog endpoint is confirmed.
+
+## Update 2026-06-09: Preset Library API Captured
+
+Follow-up Chrome/CDP inspection of the Ark experience center showed that the visible preset virtual portrait library is not the paid/private `AIGC` asset list and must not be represented by a local JSON catalog.
+
+Corrected implementation direction:
+
+- Fetch platform preset virtual portraits from Volcengine over the network.
+- Use `ListMediaAssetGroup`, not `ListAssets(GroupType=AIGC)` and not `ListActiveAIGCAssetGroup`.
+- Request body shape for the preset portrait tab:
+
+```json
+{
+  "Query": {},
+  "Filters": [
+    {
+      "Field": "metadata.type",
+      "Op": "must",
+      "Conds": {
+        "StrValues": ["portrait"]
+      }
+    }
+  ],
+  "PageNum": 1,
+  "PageSize": 30,
+  "ProjectName": "default",
+  "SortBy": "score",
+  "SortOrder": "desc"
+}
+```
+
+- When the user searches, send `Query.Text` and keep the same `metadata.type = portrait` filter.
+- Normalize each `Items[].AssetGroup` card from `Title`, `Description`, `Tags`, `Metadata`, and `Content.Image[0]` / `Content.Video[0]`.
+- Keep pagination, because the page scrolls beyond the first 30 visible portraits.
+- The old local catalog / built-in A-Ling seed approach is obsolete and should not be reintroduced.

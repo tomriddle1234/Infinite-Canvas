@@ -1,9 +1,10 @@
 """Volcengine Ark portrait asset library helpers.
 
-This module only browses and previews existing real-person portrait assets.
+This module browses and previews existing real-person portrait assets.
 It does not create, upload, verify, update, or delete portrait assets.
-Preset virtual portraits are platform-provided asset IDs copied from the Ark
-experience center and should not use this paid private Assets API.
+Preset virtual portraits are platform-provided media asset groups exposed by
+the Ark experience center. They are fetched from Volcengine over the network;
+do not maintain a local JSON catalog for this library.
 """
 
 import datetime
@@ -26,23 +27,11 @@ VOLCENGINE_ARK_ASSET_SERVICE = "ark"
 VOLCENGINE_ARK_ASSET_VERSION = "2024-01-01"
 GROUP_TYPES = {"LivenessFace"}
 ASSET_STATUSES = {"Active", "Processing", "Failed"}
-PRESET_VIRTUAL_CATALOG_FILE = os.path.join(config.DATA_DIR, "volcengine_preset_portraits.json")
-PRESET_VIRTUAL_SEED_ASSETS = [
-    {
-        "asset_id": "asset-20260320095733-gx8rw",
-        "name": "A-Ling",
-        "description": "官方预置虚拟人像示例；公开 Seedance 2.0 用例中描述为金色长直发。",
-        "tags": ["A-Ling", "女性", "金色长直发", "公开示例"],
-        "source": "preset_virtual_seed",
-    },
-    {
-        "asset_id": "asset-20260320095351-q975r",
-        "name": "A-Ling",
-        "description": "官方预置虚拟人像示例；公开 Seedance 2.0 用例中描述为黑色柔顺长发、空气刘海。",
-        "tags": ["A-Ling", "女性", "黑色长发", "空气刘海", "公开示例"],
-        "source": "preset_virtual_seed",
-    },
-]
+PRESET_VIRTUAL_PORTRAIT_FILTER = {
+    "Field": "metadata.type",
+    "Op": "must",
+    "Conds": {"StrValues": ["portrait"]},
+}
 
 
 def _project_name(project_name: str = "") -> str:
@@ -211,81 +200,101 @@ def _normalize_asset(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _first_media(content: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+    images = content.get("Image") if isinstance(content.get("Image"), list) else []
+    videos = content.get("Video") if isinstance(content.get("Video"), list) else []
+    if images and isinstance(images[0], dict):
+        return "Image", images[0]
+    if videos and isinstance(videos[0], dict):
+        return "Video", videos[0]
+    return "Image", {}
+
+
 def _normalize_preset_virtual_asset(item: Dict[str, Any]) -> Dict[str, Any]:
-    asset_id = str(item.get("asset_id") or item.get("AssetId") or item.get("id") or item.get("Id") or "").strip()
-    name = str(item.get("name") or item.get("Name") or item.get("title") or item.get("Title") or asset_id or "预置虚拟人像")
-    tags = item.get("tags") or item.get("Tags") or []
+    group = item.get("AssetGroup") if isinstance(item.get("AssetGroup"), dict) else item
+    content = group.get("Content") if isinstance(group.get("Content"), dict) else {}
+    asset_type, media = _first_media(content)
+    asset_id = str(
+        media.get("AssetID")
+        or media.get("AssetId")
+        or item.get("SID")
+        or group.get("SID")
+        or item.get("asset_id")
+        or item.get("AssetId")
+        or item.get("id")
+        or item.get("Id")
+        or ""
+    ).strip()
+    name = str(
+        group.get("Name")
+        or group.get("Title")
+        or item.get("Name")
+        or item.get("Title")
+        or asset_id
+        or "Preset virtual portrait"
+    )
+    tags = group.get("Tags") or item.get("Tags") or item.get("tags") or []
     if isinstance(tags, str):
-        tags = [part.strip() for part in re.split(r"[,，\s]+", tags) if part.strip()]
+        tags = [part.strip() for part in re.split(r"[,\s]+", tags) if part.strip()]
     if not isinstance(tags, list):
         tags = []
-    preview_url = str(item.get("preview_url") or item.get("PreviewURL") or item.get("url") or item.get("URL") or "")
+    preview_url = str(
+        item.get("preview_url")
+        or item.get("PreviewURL")
+        or item.get("CoverURL")
+        or group.get("CoverURL")
+        or media.get("CoverURL")
+        or media.get("URL")
+        or item.get("url")
+        or item.get("URL")
+        or ""
+    )
+    asset_uri_value = str(media.get("AssetURI") or group.get("AssetURI") or item.get("AssetURI") or "").strip()
+    metadata = group.get("Metadata") if isinstance(group.get("Metadata"), dict) else {}
     return {
         "id": asset_id,
         "asset_id": asset_id,
-        "asset_uri": asset_uri(asset_id) if asset_id else "",
+        "asset_uri": asset_uri_value or (asset_uri(asset_id) if asset_id else ""),
         "name": name,
-        "title": str(item.get("title") or item.get("Title") or ""),
-        "description": str(item.get("description") or item.get("Description") or ""),
+        "title": str(group.get("Title") or item.get("Title") or ""),
+        "description": str(group.get("Description") or item.get("Description") or ""),
         "tags": [str(tag) for tag in tags],
-        "source": str(item.get("source") or item.get("Source") or "preset_virtual"),
-        "asset_type": str(item.get("asset_type") or item.get("AssetType") or "Image"),
+        "metadata": metadata,
+        "source": "volcengine_preset_virtual",
+        "asset_type": asset_type,
+        "score": item.get("Score"),
         "preview_url": preview_url or (f"/api/volcengine/assets/preview/{urllib.parse.quote(asset_id, safe='')}" if asset_id else ""),
     }
-
-
-def _load_preset_virtual_catalog() -> List[Dict[str, Any]]:
-    items: List[Dict[str, Any]] = []
-    if os.path.exists(PRESET_VIRTUAL_CATALOG_FILE):
-        try:
-            with open(PRESET_VIRTUAL_CATALOG_FILE, "r", encoding="utf-8") as handle:
-                raw = json.load(handle)
-            if isinstance(raw, dict):
-                raw = raw.get("items") or raw.get("assets") or []
-            if isinstance(raw, list):
-                items.extend(item for item in raw if isinstance(item, dict))
-        except Exception:
-            pass
-    items.extend(PRESET_VIRTUAL_SEED_ASSETS)
-    by_id: Dict[str, Dict[str, Any]] = {}
-    for item in items:
-        normalized = _normalize_preset_virtual_asset(item)
-        if normalized.get("asset_id"):
-            by_id[normalized["asset_id"]] = normalized
-    return list(by_id.values())
-
-
-def _preset_matches(item: Dict[str, Any], query: str) -> bool:
-    text = (query or "").strip().lower()
-    if not text:
-        return True
-    haystack = " ".join([
-        str(item.get("asset_id") or ""),
-        str(item.get("name") or ""),
-        str(item.get("title") or ""),
-        str(item.get("description") or ""),
-        " ".join(str(tag) for tag in item.get("tags") or []),
-    ]).lower()
-    return all(part in haystack for part in text.split())
 
 
 async def search_preset_virtual_portraits(query: str = "", page: int = 1, page_size: int = 24) -> Dict[str, Any]:
     clean_page = _page(page)
     clean_page_size = _page(page_size, default=24)
-    all_items = [item for item in _load_preset_virtual_catalog() if _preset_matches(item, query)]
-    start = (clean_page - 1) * clean_page_size
-    end = start + clean_page_size
-    page_items = all_items[start:end]
+    clean_query = (query or "").strip()
+    body: Dict[str, Any] = {
+        "Query": {"Text": clean_query} if clean_query else {},
+        "Filters": [PRESET_VIRTUAL_PORTRAIT_FILTER],
+        "PageNum": clean_page,
+        "PageSize": clean_page_size,
+        "ProjectName": _project_name(),
+    }
+    if not clean_query:
+        body["SortBy"] = "score"
+        body["SortOrder"] = "desc"
+    raw = await asset_call("ListMediaAssetGroup", body)
+    raw_items = raw.get("Items") or []
+    page_items = [
+        _normalize_preset_virtual_asset(item)
+        for item in raw_items
+        if isinstance(item, dict)
+    ]
     return {
         "items": page_items,
-        "total": len(all_items),
-        "page": clean_page,
-        "page_size": clean_page_size,
-        "has_local_catalog": os.path.exists(PRESET_VIRTUAL_CATALOG_FILE),
-        "catalog_file": PRESET_VIRTUAL_CATALOG_FILE,
-        "source": "preset_virtual_catalog",
+        "total": int(raw.get("Total") or raw.get("TotalCount") or len(page_items)),
+        "page": int(raw.get("PageNum") or raw.get("PageNumber") or clean_page),
+        "page_size": int(raw.get("PageSize") or clean_page_size),
+        "source": "volcengine_list_media_asset_group",
     }
-
 
 async def list_asset_groups(group_type: str = "LivenessFace", query: str = "", page: int = 1, page_size: int = 20) -> Dict[str, Any]:
     filter_body: Dict[str, Any] = {"GroupType": normalize_group_type(group_type)}
