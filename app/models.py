@@ -79,6 +79,10 @@ class CanvasVideoRequest(BaseModel):
 class FirstPartyKeysPayload(BaseModel):
     openai_api_key: Optional[str] = None
     volcengine_ark_api_key: Optional[str] = None
+    volcengine_access_key_id: Optional[str] = None
+    volcengine_secret_access_key: Optional[str] = None
+    volcengine_project_name: Optional[str] = None
+    volcengine_region: Optional[str] = None
 
 
 class GptImage2Request(BaseModel):

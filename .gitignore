@@ -33,6 +33,7 @@ data/api_providers.json
 API/.env
 doc/prompt_ref/
 static/system-prompts/templates/core-presets.local.json
+API/*
 
 # IDE / OS
 .vscode/

@@ -36,6 +36,12 @@ async def ai_config():
         "openai_key_preview": providers.mask_secret(config.OPENAI_API_KEY),
         "has_volcengine_ark_key": bool(config.VOLCENGINE_ARK_API_KEY),
         "volcengine_ark_key_preview": providers.mask_secret(config.VOLCENGINE_ARK_API_KEY),
+        "has_volcengine_access_key": bool(config.VOLCENGINE_ACCESS_KEY_ID),
+        "volcengine_access_key_preview": providers.mask_secret(config.VOLCENGINE_ACCESS_KEY_ID),
+        "has_volcengine_secret_key": bool(config.VOLCENGINE_SECRET_ACCESS_KEY),
+        "volcengine_secret_key_preview": providers.mask_secret(config.VOLCENGINE_SECRET_ACCESS_KEY),
+        "volcengine_project_name": config.VOLCENGINE_PROJECT_NAME,
+        "volcengine_region": config.VOLCENGINE_REGION,
     }
 
 
@@ -60,6 +66,12 @@ async def first_party_keys_get():
         "openai_key_preview": providers.mask_secret(config.OPENAI_API_KEY),
         "has_volcengine_ark_key": bool(config.VOLCENGINE_ARK_API_KEY),
         "volcengine_ark_key_preview": providers.mask_secret(config.VOLCENGINE_ARK_API_KEY),
+        "has_volcengine_access_key": bool(config.VOLCENGINE_ACCESS_KEY_ID),
+        "volcengine_access_key_preview": providers.mask_secret(config.VOLCENGINE_ACCESS_KEY_ID),
+        "has_volcengine_secret_key": bool(config.VOLCENGINE_SECRET_ACCESS_KEY),
+        "volcengine_secret_key_preview": providers.mask_secret(config.VOLCENGINE_SECRET_ACCESS_KEY),
+        "volcengine_project_name": config.VOLCENGINE_PROJECT_NAME,
+        "volcengine_region": config.VOLCENGINE_REGION,
     }
 
 
@@ -70,6 +82,14 @@ async def first_party_keys_save(payload: FirstPartyKeysPayload):
         updates["OPENAI_API_KEY"] = payload.openai_api_key.strip()
     if payload.volcengine_ark_api_key is not None:
         updates["VOLCENGINE_ARK_API_KEY"] = payload.volcengine_ark_api_key.strip()
+    if payload.volcengine_access_key_id is not None:
+        updates["VOLCENGINE_ACCESS_KEY_ID"] = payload.volcengine_access_key_id.strip()
+    if payload.volcengine_secret_access_key is not None:
+        updates["VOLCENGINE_SECRET_ACCESS_KEY"] = payload.volcengine_secret_access_key.strip()
+    if payload.volcengine_project_name is not None:
+        updates["VOLCENGINE_PROJECT_NAME"] = payload.volcengine_project_name.strip() or "default"
+    if payload.volcengine_region is not None:
+        updates["VOLCENGINE_REGION"] = payload.volcengine_region.strip() or "cn-beijing"
     if updates:
         providers.update_env_values(updates)
         config.reload_env_globals()

@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 from .. import ws
-from . import canvas, chat, conversation, generate, provider, public, workflow
+from . import canvas, chat, conversation, generate, provider, public, volcengine_assets, workflow
 
 
 def register_routers(app: FastAPI) -> None:
@@ -15,7 +15,7 @@ def register_routers(app: FastAPI) -> None:
         conversation.router,
         chat.router,
         generate.router,
+        volcengine_assets.router,
         workflow.router,
     ):
         app.include_router(router)
-

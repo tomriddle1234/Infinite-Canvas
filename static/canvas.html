@@ -195,6 +195,29 @@
         .blank-image { height:190px; border:1px dashed #cbd5e1; border-radius:14px; background:#f8fafc; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#94a3b8; cursor:pointer; transition:all .2s var(--ease); }
         .node.sized .blank-image { height:100%; min-height:72px; }
         .blank-image:hover,.blank-image.drag-over { border-color:#111827; color:#111827; background:#fff; }
+        .portraitAsset-node .node-body { overflow:hidden !important; }
+        .portrait-asset-body { height:100%; display:flex; flex-direction:column; gap:8px; min-height:0; }
+        .portrait-toolbar { display:flex; gap:6px; align-items:center; }
+        .portrait-tabs { display:flex; gap:4px; padding:3px; border:1px solid var(--line-2); border-radius:10px; background:var(--soft); }
+        .portrait-tabs button { height:26px; padding:0 8px; border-radius:7px; font-size:11px; font-weight:900; color:var(--muted); background:transparent; cursor:pointer; }
+        .portrait-tabs button.active { color:#fff; background:var(--strong); }
+        .portrait-refresh { width:30px; height:30px; flex:0 0 30px; border:1px solid var(--line-2); border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--text); background:var(--card-solid); cursor:pointer; }
+        .portrait-search { flex:1; min-width:0; height:30px; border:1px solid var(--line-2); border-radius:9px; padding:0 9px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
+        .portrait-group { width:100%; height:30px; border:1px solid var(--line-2); border-radius:9px; padding:0 8px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
+        .portrait-empty { grid-column:1/-1; padding:12px 4px; color:var(--muted); font-size:11px; font-weight:800; line-height:1.45; }
+        .portrait-selected-uri { min-height:38px; padding:8px; border:1px solid var(--line-2); border-radius:9px; background:var(--soft); color:var(--text); font-size:11px; line-height:1.35; font-weight:800; word-break:break-all; }
+        .portrait-grid { flex:1; min-height:136px; overflow:auto; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; padding-right:2px; }
+        .portrait-card { min-width:0; border:1px solid var(--line-2); border-radius:10px; background:var(--card-solid); overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+        .portrait-card.active { border-color:var(--strong); box-shadow:0 0 0 2px rgba(17,24,39,.12); }
+        .portrait-thumb { position:relative; aspect-ratio:1/1; background:var(--soft); display:flex; align-items:center; justify-content:center; color:var(--muted); }
+        .portrait-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .portrait-thumb i { opacity:.7; }
+        .portrait-name { height:24px; padding:0 6px; display:flex; align-items:center; font-size:10px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .portrait-asset-id-line { padding:0 6px 6px; margin-top:-2px; color:var(--muted); font-size:9px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .portrait-status { flex:0 0 auto; min-height:24px; color:var(--muted); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .portrait-status.error { color:#dc2626; }
+        .portrait-status.notice { color:#64748b; }
+        .portrait-load-more { height:26px; padding:0 9px; border-radius:8px; border:1px solid var(--line-2); background:var(--card-solid); color:var(--text); font-size:11px; font-weight:900; cursor:pointer; }
         .prompt-node { width:310px; }
         .prompt-node .node-body { overflow:hidden !important; }
         .prompt-node textarea { width:100%; height:140px; min-height:72px; resize:none; overflow-y:auto; scrollbar-width:thin; border:1px solid #edf2f7; border-radius:14px; outline:none; padding:9px; background:#fbfdff; font-size:13px; line-height:1.55; }
@@ -837,6 +860,7 @@
                 <button class="tool-btn" onclick="addPromptTemplateNode()"><i data-lucide="layout-template" class="w-4 h-4"></i><span data-i18n="canvas.promptTemplate">提示词模板</span></button>
                 <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
                 <button class="tool-btn" onclick="addAudioNode()"><i data-lucide="file-audio" class="w-4 h-4"></i>Audio</button>
+                <button class="tool-btn" onclick="addPortraitAssetNode()"><i data-lucide="square-user" class="w-4 h-4"></i>人像资产</button>
                 <button class="tool-btn" onclick="addSeedreamNode()"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="tool-btn" onclick="addGptImageNode()"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
                 <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
@@ -895,6 +919,7 @@
                 <button class="menu-btn" onclick="menuAdd('promptTemplate')"><i data-lucide="layout-template" class="w-4 h-4"></i><span data-i18n="canvas.promptTemplateNode">提示词模板节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
                 <button class="menu-btn" onclick="menuAdd('audio')"><i data-lucide="file-audio" class="w-4 h-4"></i>Audio</button>
+                <button class="menu-btn" onclick="menuAdd('portraitAsset')"><i data-lucide="square-user" class="w-4 h-4"></i>人像资产</button>
                 <button class="menu-btn" onclick="menuAdd('seedream')"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="menu-btn" onclick="menuAdd('gptimage')"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
                 <button class="menu-btn" onclick="menuAdd('seedance')"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
@@ -1335,6 +1360,7 @@
         const MANAGED_CHAT_MODELS_KEY = 'canvas_chat_models_ordered';
         const CANVAS_THEME_KEY = 'canvas_theme';
         const QUICK_TOOLBAR_COLLAPSED_KEY = 'canvas_quick_toolbar_collapsed';
+        const portraitAssetAutoLoad = new Set();
         const DEFAULT_VIDEO_MODELS = [
             // Veo
             'veo2', 'veo2-fast', 'veo2-pro',
@@ -2915,6 +2941,30 @@
                 lastOutputs:[]
             });
         }
+        function addPortraitAssetNode(point){
+            const p = point || defaultPoint(135, 0);
+            addNode({
+                id:uid('portrait'),
+                type:'portraitAsset',
+                x:p.x,
+                y:p.y,
+                libraryType:'PresetVirtual',
+                query:'',
+                manualAssetId:'',
+                manualAssetName:'',
+                groupId:'',
+                groups:[],
+                assets:[],
+                selectedAsset:null,
+                page:1,
+                total:0,
+                hasMore:false,
+                loading:false,
+                error:'',
+                notice:'',
+                role:'reference_image'
+            });
+        }
         async function getImageDimensions(url){
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -2933,6 +2983,254 @@
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
             });
+        }
+        function portraitAssetLibraryType(node){
+            return node?.libraryType === 'LivenessFace' ? 'LivenessFace' : 'PresetVirtual';
+        }
+        function portraitAssetLabel(node){
+            return portraitAssetLibraryType(node) === 'LivenessFace' ? '真人人像库' : '预置虚拟人像';
+        }
+        function normalizePortraitAssetUri(value){
+            const text = String(value || '').trim();
+            if(!text) return '';
+            const cleaned = text.replace(/^asset:\/\//, '').trim();
+            if(!cleaned) return '';
+            if(!/^asset-[a-zA-Z0-9_-]+$/.test(cleaned)) return '';
+            return `asset://${cleaned}`;
+        }
+        function portraitAssetRef(node){
+            const asset = node?.selectedAsset || null;
+            const uri = asset?.asset_uri || (asset?.asset_id ? `asset://${asset.asset_id}` : '');
+            if(node?.type !== 'portraitAsset' || !uri) return null;
+            return {
+                url:uri,
+                name:asset.name || asset.title || asset.asset_id || 'portrait asset',
+                role:node.role || '',
+                preview:asset.preview_url || ''
+            };
+        }
+        async function portraitFetchJson(url, body){
+            const res = await fetch(url, {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify(body || {})
+            });
+            if(!res.ok) throw await responseError(res, '火山人像素材库请求失败');
+            return await res.json();
+        }
+        async function loadPortraitAssetGroups(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || portraitAssetLibraryType(node) !== 'LivenessFace') return;
+            const data = await portraitFetchJson('/api/volcengine/assets/groups', {
+                group_type:portraitAssetLibraryType(node),
+                query:'',
+                page:1,
+                page_size:50
+            });
+            node.groups = data.items || [];
+            if(node.groupId && !node.groups.some(g => g.id === node.groupId)) node.groupId = '';
+        }
+        async function loadPortraitAssets(nodeId, opts={}){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || node.loading) return;
+            const libraryType = portraitAssetLibraryType(node);
+            const append = opts.append === true;
+            node.loading = true;
+            node.error = '';
+            node.notice = '';
+            if(!append) {
+                node.page = 1;
+                node.assets = [];
+                node.total = 0;
+                node.hasMore = false;
+            }
+            refreshNodes([node.id], {geometry:false});
+            try {
+                if(libraryType === 'LivenessFace' && !append && !(node.groups || []).length) await loadPortraitAssetGroups(node.id);
+                const page = append ? Math.max(1, Number(node.page || 1) + 1) : 1;
+                const data = libraryType === 'LivenessFace'
+                    ? await portraitFetchJson('/api/volcengine/assets/list', {
+                        group_type:libraryType,
+                        group_id:node.groupId || '',
+                        query:node.query || '',
+                        statuses:['Active'],
+                        page,
+                        page_size:24
+                    })
+                    : await portraitFetchJson('/api/volcengine/preset-portraits/search', {
+                        query:node.query || '',
+                        page,
+                        page_size:24
+                    });
+                const incoming = data.items || [];
+                node.page = Number(data.page || page) || page;
+                node.total = Number(data.total || 0) || 0;
+                node.assets = append ? [...(node.assets || []), ...incoming] : incoming;
+                node.hasMore = node.total > node.assets.length;
+                if(libraryType === 'PresetVirtual' && !data.has_local_catalog && !incoming.length){
+                    node.notice = '未找到预置虚拟人像缓存目录；需要先导入体验中心素材索引。';
+                }
+                if(node.selectedAsset && !node.assets.some(a => a.asset_id === node.selectedAsset.asset_id)) {
+                    const match = incoming.find(a => a.asset_id === node.selectedAsset.asset_id);
+                    if(match) node.selectedAsset = match;
+                }
+            } catch(err) {
+                const message = err.message || '人像素材库加载失败';
+                node.error = message;
+            } finally {
+                node.loading = false;
+                refreshNodes([node.id], {geometry:false});
+                scheduleSave();
+            }
+        }
+        function resetPortraitAssetLibrary(nodeId, libraryType){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node) return;
+            node.libraryType = libraryType;
+            node.groupId = '';
+            node.groups = [];
+            node.assets = [];
+            node.selectedAsset = null;
+            node.page = 1;
+            node.total = 0;
+            node.hasMore = false;
+            node.error = '';
+            node.notice = '';
+            portraitAssetAutoLoad.delete(node.id);
+            render();
+            loadPortraitAssets(node.id);
+        }
+        function applyManualPortraitAsset(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node) return;
+            const uri = normalizePortraitAssetUri(node.manualAssetId || '');
+            if(!uri){
+                node.error = '请输入从火山方舟体验中心复制的 asset ID 或 asset:// URI';
+                refreshNodes([node.id], {geometry:false});
+                return;
+            }
+            const assetId = uri.replace('asset://', '');
+            node.error = '';
+            node.notice = '';
+            node.selectedAsset = {
+                id:assetId,
+                asset_id:assetId,
+                asset_uri:uri,
+                name:(node.manualAssetName || '').trim() || '预置虚拟人像',
+                preview_url:'',
+                source:'preset_virtual'
+            };
+            refreshNodes([node.id], {geometry:false});
+            syncGeneratorInputs();
+            refreshGeneratorInputViews();
+            scheduleSave();
+        }
+        function selectPortraitAsset(nodeId, assetId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node) return;
+            const asset = (node.assets || []).find(a => a.asset_id === assetId);
+            if(!asset) return;
+            node.selectedAsset = asset;
+            refreshNodes([node.id], {geometry:false});
+            syncGeneratorInputs();
+            refreshGeneratorInputViews();
+            scheduleSave();
+        }
+        function renderPortraitAssetBody(node){
+            node.libraryType = portraitAssetLibraryType(node);
+            if(node.selectedAsset?.asset_uri && !node.manualAssetId && node.selectedAsset.source === 'preset_virtual') {
+                node.manualAssetId = node.selectedAsset.asset_uri;
+            }
+            node.groups = Array.isArray(node.groups) ? node.groups : [];
+            node.assets = Array.isArray(node.assets) ? node.assets : [];
+            const wrap = document.createElement('div');
+            wrap.className = 'portrait-asset-body';
+            const selectedId = node.selectedAsset?.asset_id || '';
+            const isRealLibrary = node.libraryType === 'LivenessFace';
+            const groupOptions = [`<option value="">全部素材组</option>`].concat((node.groups || []).map(g =>
+                `<option value="${escapeAttr(g.id)}" ${g.id === node.groupId ? 'selected' : ''}>${escapeHtml(g.name || g.id || '素材组')}</option>`
+            )).join('');
+            const assetsHtml = node.assets.length ? node.assets.map(asset => {
+                const active = asset.asset_id === selectedId ? 'active' : '';
+                const preview = asset.preview_url || '';
+                const cardTitle = [asset.name || asset.asset_id, asset.description || '', asset.asset_uri || ''].filter(Boolean).join('\n');
+                return `
+                    <button type="button" class="portrait-card ${active}" data-portrait-asset="${escapeAttr(asset.asset_id)}" title="${escapeAttr(cardTitle)}">
+                        <div class="portrait-thumb">
+                            ${preview ? `<img src="${escapeAttr(preview)}" loading="lazy" onerror="this.remove()">` : ''}
+                            <i data-lucide="square-user" class="w-5 h-5"></i>
+                        </div>
+                        <div class="portrait-name">${escapeHtml(asset.name || asset.asset_id || '未命名素材')}</div>
+                        <div class="portrait-asset-id-line">${escapeHtml(asset.asset_id || '')}</div>
+                    </button>
+                `;
+            }).join('') : `<div class="portrait-empty">${node.loading ? '加载中...' : '没有可显示的人像素材'}</div>`;
+            const selectedUriText = node.selectedAsset?.asset_uri
+                ? '输出：' + escapeHtml(node.selectedAsset.asset_uri)
+                : '请选择一个人像；选中后本节点会输出 asset:// 引用给 Seedance。';
+            const selectedUriHtml = `<div class="portrait-selected-uri">${selectedUriText}</div>`;
+            wrap.innerHTML = `
+                <div class="portrait-toolbar">
+                    <div class="portrait-tabs">
+                        <button type="button" data-portrait-library="PresetVirtual" class="${node.libraryType === 'PresetVirtual' ? 'active' : ''}">预置虚拟</button>
+                        <button type="button" data-portrait-library="LivenessFace" class="${node.libraryType === 'LivenessFace' ? 'active' : ''}">真人</button>
+                    </div>
+                    <input class="portrait-search" value="${escapeAttr(node.query || '')}" placeholder="${isRealLibrary ? '搜索真人人像' : '搜索预置虚拟人像'}">
+                    <button class="portrait-refresh" type="button" title="刷新"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                </div>
+                ${isRealLibrary ? `<select class="portrait-group">${groupOptions}</select>` : ''}
+                <div class="portrait-grid">${assetsHtml}</div>
+                ${selectedUriHtml}
+                <div class="portrait-status ${node.error ? 'error' : node.notice ? 'notice' : ''}">
+                    <span>${node.error ? escapeHtml(node.error) : node.notice ? escapeHtml(node.notice) : (node.selectedAsset ? `已选择：${escapeHtml(node.selectedAsset.name || node.selectedAsset.asset_id || '')}` : `${portraitAssetLabel(node)} · ${node.total || node.assets.length || 0}`)}</span>
+                    ${node.hasMore ? '<button class="portrait-load-more" type="button">更多</button>' : ''}
+                </div>
+            `;
+            wrap.querySelectorAll('[data-portrait-library]').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    const next = btn.dataset.portraitLibrary || 'PresetVirtual';
+                    if(next !== node.libraryType) resetPortraitAssetLibrary(node.id, next);
+                };
+            });
+            const search = wrap.querySelector('.portrait-search');
+            if(search) search.oninput = e => {
+                node.query = e.target.value;
+                scheduleSave();
+            };
+            if(search) search.onkeydown = e => {
+                if(e.key === 'Enter'){
+                    e.preventDefault();
+                    loadPortraitAssets(node.id);
+                }
+            };
+            const refreshBtn = wrap.querySelector('.portrait-refresh');
+            if(refreshBtn) refreshBtn.onclick = e => {
+                e.stopPropagation();
+                node.groups = [];
+                loadPortraitAssets(node.id);
+            };
+            const groupSelect = wrap.querySelector('.portrait-group');
+            if(groupSelect) groupSelect.onchange = e => {
+                node.groupId = e.target.value;
+                loadPortraitAssets(node.id);
+            };
+            wrap.querySelectorAll('[data-portrait-asset]').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    selectPortraitAsset(node.id, btn.dataset.portraitAsset);
+                };
+            });
+            const more = wrap.querySelector('.portrait-load-more');
+            if(more) more.onclick = e => {
+                e.stopPropagation();
+                loadPortraitAssets(node.id, {append:true});
+            };
+            if(!node.loading && !node.error && !node.assets.length && !portraitAssetAutoLoad.has(node.id)){
+                portraitAssetAutoLoad.add(node.id);
+                setTimeout(() => loadPortraitAssets(node.id), 0);
+            }
+            return wrap;
         }
         function renderMsGenBody(node){
             const wrap = document.createElement('div');
@@ -3607,6 +3905,7 @@
             if(type === 'loop') addLoopNode(menuPoint);
             if(type === 'llm') addLLMNode(menuPoint);
             if(type === 'audio') addAudioNode(menuPoint);
+            if(type === 'portraitAsset') addPortraitAssetNode(menuPoint);
             if(type === 'generator') addGeneratorNode(menuPoint);
             if(type === 'gptimage') addGptImageNode(menuPoint);
             if(type === 'seedream') addSeedreamNode(menuPoint);
@@ -4897,7 +5196,7 @@
             });
         }
         function isNodeControl(target){
-            return !!target.closest('textarea, input, select, option, button, audio, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .audio-body, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
+            return !!target.closest('textarea, input, select, option, button, audio, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .audio-body, .portrait-asset-body, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
         }
         function isNodeDragSurface(target){
             return !isNodeControl(target) && !target.closest('.port, .resize-handle, .output-img-wrap');
@@ -4920,7 +5219,7 @@
                 else if(!selected.has(node.id)) { selected.clear(); selected.add(node.id); }
                 refreshSelectionVisuals();
             };
-            const title = node.type === 'image' ? 'Image' : node.type === 'audio' ? 'Audio' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptTemplate' ? tr('canvas.promptTemplate') : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'gptimage' ? 'GPT Image 2.0' : node.type === 'seedream' ? 'Seedream' : node.type === 'seedance' ? 'Seedance' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
+            const title = node.type === 'image' ? 'Image' : node.type === 'audio' ? 'Audio' : node.type === 'portraitAsset' ? '人像资产' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptTemplate' ? tr('canvas.promptTemplate') : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'gptimage' ? 'GPT Image 2.0' : node.type === 'seedream' ? 'Seedream' : node.type === 'seedance' ? 'Seedance' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
             // 失败徽章只在一键运行模式中显示，单节点失败已通过 alert 提示
             const showStatus = ['generator','gptimage','seedream','seedance','msgen','comfy','llm'].includes(node.type) && node.runStatus
                 && (node.runStatus !== 'failed' || node._cascadeFailed);
@@ -4991,6 +5290,7 @@
                     blank.ondrop = e => { if(hasImageFiles(e.dataTransfer?.items)){ e.preventDefault(); e.stopPropagation(); blank.classList.remove('drag-over'); fillImageNode(node.id, e.dataTransfer.files); } };
                 }
             }
+            if(node.type === 'portraitAsset') body.appendChild(renderPortraitAssetBody(node));
             if(node.type === 'prompt') {
                 body.innerHTML = `<div class="prompt-editor"><textarea placeholder="${tr('canvas.promptPlaceholder')}">${escapeHtml(node.text || '')}</textarea>${promptCounterHtml(node.text || '')}</div>`;
                 const textarea = body.querySelector('textarea');
@@ -5111,7 +5411,7 @@
                 };
             }
             const canInput = ['prompt','generator','gptimage','seedream','seedance','comfy','output','llm','msgen','video'].includes(node.type);
-            const canOutput = ['image','audio','prompt','promptTemplate','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
+            const canOutput = ['image','audio','portraitAsset','prompt','promptTemplate','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
             el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
@@ -5216,6 +5516,7 @@
         function defaultNodeSize(type){
             if(type === 'image') return {w:260, h:336};
             if(type === 'audio') return {w:310, h:0};
+            if(type === 'portraitAsset') return {w:330, h:390};
             if(type === 'prompt') return {w:310, h:0};
             if(type === 'loop') return {w:340, h:0};
             if(type === 'llm') return {w:420, h:590};
@@ -5268,11 +5569,14 @@
         function imageRefsFromNode(n){
             if(!n) return [];
             if(n.type === 'image' && n.url) return [{url:n.url, name:n.name || 'image', role:n.role || ''}];
+            if(n.type === 'portraitAsset') {
+                const ref = portraitAssetRef(n);
+                return ref ? [{url:ref.url, name:ref.name, role:ref.role || ''}] : [];
+            }
             if(n.type === 'group'){
                 return (n.items || [])
                     .map(id => nodes.find(x => x.id === id))
-                    .filter(x => x?.type === 'image' && x?.url)
-                    .map(img => ({url:img.url, name:img.name || 'image', role:img.role || ''}));
+                    .flatMap(x => imageRefsFromNode(x));
             }
             if(n.type === 'output'){
                 return (n.images || [])
@@ -7634,19 +7938,42 @@
                     if(last) return {id:n.id, type:'outputImage', label:'上游输出', preview:last, refs:[{url:last, name:'output.png'}], prompt:''};
                 }
                 if(n.type === 'image' && n.url) return {id:n.id, type:'image', label:n.name || 'image', preview:n.url, refs:[{url:n.url, name:n.name || 'image', role:n.role || ''}], prompt:''};
+                if(n.type === 'portraitAsset') {
+                    const ref = portraitAssetRef(n);
+                    if(ref) return {id:n.id, type:'portraitAsset', label:ref.name || '人像资产', preview:ref.preview || '', refs:[{url:ref.url, name:ref.name || 'portrait asset', role:ref.role || ''}], prompt:''};
+                }
                 if(n.type === 'audio' && n.url) return {id:n.id, type:'audio', label:n.name || 'audio', refs:[], audioRefs:[{url:n.url, name:n.name || 'audio', role:'reference_audio'}], prompt:''};
                 if(n.type === 'group') {
                     const items = (n.items || []).map(id => nodes.find(x => x.id === id)).filter(Boolean);
-                    const sources = items.filter(x => x.type === 'image' && x.url).map(img => ({
-                        id:`${n.id}:${img.id}`,
-                        type:'groupImage',
-                        groupId:n.id,
-                        imageId:img.id,
-                        label:img.name || 'image',
-                        preview:img.url,
-                        refs:[{url:img.url, name:img.name || 'image', role:img.role || ''}],
-                        prompt:''
-                    }));
+                    const sources = items.flatMap(img => {
+                        if(img.type === 'image' && img.url) {
+                            return [{
+                                id:`${n.id}:${img.id}`,
+                                type:'groupImage',
+                                groupId:n.id,
+                                imageId:img.id,
+                                label:img.name || 'image',
+                                preview:img.url,
+                                refs:[{url:img.url, name:img.name || 'image', role:img.role || ''}],
+                                prompt:''
+                            }];
+                        }
+                        if(img.type === 'portraitAsset') {
+                            const ref = portraitAssetRef(img);
+                            if(!ref) return [];
+                            return [{
+                                id:`${n.id}:${img.id}`,
+                                type:'groupPortraitAsset',
+                                groupId:n.id,
+                                imageId:img.id,
+                                label:ref.name || '人像资产',
+                                preview:ref.preview || '',
+                                refs:[{url:ref.url, name:ref.name || 'portrait asset', role:ref.role || ''}],
+                                prompt:''
+                            }];
+                        }
+                        return [];
+                    });
                     const prompts = items.filter(x => x.type === 'prompt').map(p => p.text || '').filter(Boolean);
                     if(prompts.length){
                         const combined = prompts.join('\n\n');
@@ -10180,6 +10507,7 @@
             const to = nodes.find(n => n.id === toId);
             if(!from || !to) return false;
             if(from.type === 'audio') return to.type === 'seedance' && seedanceSupportsReferenceMedia(to);
+            if(from.type === 'portraitAsset') return to.type === 'seedance';
             if(to.type === 'loop') return Boolean(to.imageInput) && ['image','group','output'].includes(from.type);
             if(['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(from.type)) return to.type === 'output';
             if(to.type === 'llm') return ['prompt','loop','promptGroup','llm','image','group','output'].includes(from.type);

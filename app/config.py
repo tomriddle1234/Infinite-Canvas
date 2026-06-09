@@ -54,6 +54,8 @@ WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "Z-Image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+ASSETS_CACHE_DIR = os.path.join(ASSETS_DIR, "cache")
+VOLCENGINE_ASSET_CACHE_DIR = os.path.join(ASSETS_CACHE_DIR, "volcengine_assets")
 OUTPUT_INPUT_DIR = os.path.join(ASSETS_DIR, "input")
 OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
 HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
@@ -165,6 +167,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 VOLCENGINE_ARK_API_KEY = os.getenv("VOLCENGINE_ARK_API_KEY", "")
 VOLCENGINE_ARK_BASE_URL = os.getenv("VOLCENGINE_ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3").rstrip("/")
+VOLCENGINE_ACCESS_KEY_ID = os.getenv("VOLCENGINE_ACCESS_KEY_ID", "")
+VOLCENGINE_SECRET_ACCESS_KEY = os.getenv("VOLCENGINE_SECRET_ACCESS_KEY", "")
+VOLCENGINE_PROJECT_NAME = os.getenv("VOLCENGINE_PROJECT_NAME", "default").strip() or "default"
+VOLCENGINE_REGION = os.getenv("VOLCENGINE_REGION", "cn-beijing").strip() or "cn-beijing"
 
 SEEDREAM_MODELS = {
     "seedream-4.0": "doubao-seedream-4-0-250828",
@@ -272,6 +278,7 @@ def reload_env_globals():
     """保存 API 设置后，把 os.environ 里的最新值同步回模块全局变量，
     避免保存后需要重启才能生效。"""
     global MODELSCOPE_API_KEY, AI_API_KEY, AI_BASE_URL, OPENAI_API_KEY, OPENAI_API_BASE_URL, VOLCENGINE_ARK_API_KEY, VOLCENGINE_ARK_BASE_URL
+    global VOLCENGINE_ACCESS_KEY_ID, VOLCENGINE_SECRET_ACCESS_KEY, VOLCENGINE_PROJECT_NAME, VOLCENGINE_REGION
     global IMAGE_MODELS, CHAT_MODELS, VIDEO_MODELS, MODELSCOPE_CHAT_MODELS
     MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
     AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
@@ -280,6 +287,10 @@ def reload_env_globals():
     OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     VOLCENGINE_ARK_API_KEY = os.getenv("VOLCENGINE_ARK_API_KEY", "")
     VOLCENGINE_ARK_BASE_URL = os.getenv("VOLCENGINE_ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3").rstrip("/")
+    VOLCENGINE_ACCESS_KEY_ID = os.getenv("VOLCENGINE_ACCESS_KEY_ID", "")
+    VOLCENGINE_SECRET_ACCESS_KEY = os.getenv("VOLCENGINE_SECRET_ACCESS_KEY", "")
+    VOLCENGINE_PROJECT_NAME = os.getenv("VOLCENGINE_PROJECT_NAME", "default").strip() or "default"
+    VOLCENGINE_REGION = os.getenv("VOLCENGINE_REGION", "cn-beijing").strip() or "cn-beijing"
     IMAGE_MODELS = _model_list("IMAGE_MODELS", os.getenv("IMAGE_MODEL", IMAGE_MODEL), ["nano-banana-pro"])
     CHAT_MODELS = _model_list("CHAT_MODELS", os.getenv("CHAT_MODEL", CHAT_MODEL), ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
     VIDEO_MODELS = _model_list("VIDEO_MODELS", "veo3-fast", [
@@ -303,6 +314,6 @@ def reload_env_globals():
 
 # --- 启动期目录创建 ---
 
-for _d in (OUTPUT_DIR, ASSETS_DIR, OUTPUT_INPUT_DIR, OUTPUT_OUTPUT_DIR, STATIC_DIR,
+for _d in (OUTPUT_DIR, ASSETS_DIR, ASSETS_CACHE_DIR, VOLCENGINE_ASSET_CACHE_DIR, OUTPUT_INPUT_DIR, OUTPUT_OUTPUT_DIR, STATIC_DIR,
            WORKFLOW_DIR, CONVERSATION_DIR, CANVAS_DIR):
     os.makedirs(_d, exist_ok=True)

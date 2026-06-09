@@ -1042,12 +1042,12 @@
             panel.innerHTML = `
                 <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px">
                     <div>
-                        <div style="font-size:14px;font-weight:900;color:var(--ink)">专用节点 Key</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:4px">用于 GPT Image 2.0、Seedream、Seedance。不会注册其它 API 平台。</div>
+                        <div style="font-size:14px;font-weight:900;color:var(--ink)">专用节点与火山素材 Key</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:4px">用于 GPT Image 2.0、Seedream、Seedance，以及火山人像素材库浏览。不会注册其它 API 平台。</div>
                     </div>
                     <div id="firstPartyKeyStatus" style="font-size:11px;color:var(--muted);font-weight:800"></div>
                 </div>
-                <div class="form" style="margin:0">
+                <div class="form" style="margin:0;display:flex;flex-direction:column;gap:12px">
                     <label class="field">
                         <span>OpenAI API Key</span>
                         <input id="firstPartyOpenAIKey" type="password" placeholder="留空表示不修改">
@@ -1056,10 +1056,26 @@
                         <span>Volcengine Ark API Key</span>
                         <input id="firstPartyVolcKey" type="password" placeholder="留空表示不修改">
                     </label>
+                    <label class="field">
+                        <span>Volcengine Access Key ID</span>
+                        <input id="firstPartyVolcAccessKeyId" type="password" placeholder="留空表示不修改">
+                    </label>
+                    <label class="field">
+                        <span>Volcengine Secret Access Key</span>
+                        <input id="firstPartyVolcSecretKey" type="password" placeholder="留空表示不修改">
+                    </label>
+                    <label class="field">
+                        <span>Project Name</span>
+                        <input id="firstPartyVolcProjectName" type="text" placeholder="default">
+                    </label>
+                    <label class="field">
+                        <span>Region</span>
+                        <input id="firstPartyVolcRegion" type="text" placeholder="cn-beijing">
+                    </label>
                 </div>
                 <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
                     <button class="ghost-btn" type="button" id="firstPartyReloadBtn">刷新状态</button>
-                    <button class="save-btn" type="button" id="firstPartySaveBtn">保存专用 Key</button>
+                    <button class="save-btn" type="button" id="firstPartySaveBtn">保存设置</button>
                 </div>
             `;
             head?.insertAdjacentElement('afterend', panel);
@@ -1073,9 +1089,19 @@
             status.textContent = '读取中...';
             try {
                 const data = await fetch('/api/first-party-keys').then(r => r.json());
+                panel.querySelector('#firstPartyVolcProjectName').value = data.volcengine_project_name || 'default';
+                panel.querySelector('#firstPartyVolcRegion').value = data.volcengine_region || 'cn-beijing';
+                panel.querySelector('#firstPartyOpenAIKey').placeholder = data.has_openai_key ? `保持当前 ${data.openai_key_preview || ''}` : '留空表示不修改';
+                panel.querySelector('#firstPartyVolcKey').placeholder = data.has_volcengine_ark_key ? `保持当前 ${data.volcengine_ark_key_preview || ''}` : '留空表示不修改';
+                panel.querySelector('#firstPartyVolcAccessKeyId').placeholder = data.has_volcengine_access_key ? `保持当前 ${data.volcengine_access_key_preview || ''}` : '留空表示不修改';
+                panel.querySelector('#firstPartyVolcSecretKey').placeholder = data.has_volcengine_secret_key ? `保持当前 ${data.volcengine_secret_key_preview || ''}` : '留空表示不修改';
                 status.textContent = [
                     data.has_openai_key ? `OpenAI ${data.openai_key_preview || '已配置'}` : 'OpenAI 未配置',
-                    data.has_volcengine_ark_key ? `火山 ${data.volcengine_ark_key_preview || '已配置'}` : '火山未配置'
+                    data.has_volcengine_ark_key ? `Ark ${data.volcengine_ark_key_preview || '已配置'}` : 'Ark 未配置',
+                    data.has_volcengine_access_key ? `AK ${data.volcengine_access_key_preview || '已配置'}` : 'AK 未配置',
+                    data.has_volcengine_secret_key ? `SK ${data.volcengine_secret_key_preview || '已配置'}` : 'SK 未配置',
+                    `Project ${data.volcengine_project_name || 'default'}`,
+                    `Region ${data.volcengine_region || 'cn-beijing'}`
                 ].join(' · ');
             } catch(err) {
                 status.textContent = '读取失败';
@@ -1085,12 +1111,20 @@
             const panel = ensureFirstPartyKeyPanel();
             const openai = panel.querySelector('#firstPartyOpenAIKey');
             const volc = panel.querySelector('#firstPartyVolcKey');
+            const volcAk = panel.querySelector('#firstPartyVolcAccessKeyId');
+            const volcSk = panel.querySelector('#firstPartyVolcSecretKey');
+            const volcProject = panel.querySelector('#firstPartyVolcProjectName');
+            const volcRegion = panel.querySelector('#firstPartyVolcRegion');
             const status = panel.querySelector('#firstPartyKeyStatus');
             const payload = {};
             if(openai.value.trim()) payload.openai_api_key = openai.value.trim();
             if(volc.value.trim()) payload.volcengine_ark_api_key = volc.value.trim();
+            if(volcAk.value.trim()) payload.volcengine_access_key_id = volcAk.value.trim();
+            if(volcSk.value.trim()) payload.volcengine_secret_access_key = volcSk.value.trim();
+            payload.volcengine_project_name = volcProject.value.trim() || 'default';
+            payload.volcengine_region = volcRegion.value.trim() || 'cn-beijing';
             if(!Object.keys(payload).length){
-                status.textContent = '没有要保存的新 Key';
+                status.textContent = '没有要保存的设置';
                 return;
             }
             status.textContent = '保存中...';
@@ -1103,6 +1137,8 @@
                 if(!res.ok) throw new Error((await res.json()).detail || '保存失败');
                 openai.value = '';
                 volc.value = '';
+                volcAk.value = '';
+                volcSk.value = '';
                 await loadFirstPartyKeys();
                 try { new BroadcastChannel('studio-api').postMessage({ type:'providers-changed' }); } catch(e) {}
             } catch(err) {

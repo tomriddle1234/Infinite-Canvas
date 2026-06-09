@@ -36,7 +36,7 @@ def _data_url(ref, max_size=None) -> str:
     url = data.get("url", "")
     if not url:
         return ""
-    if url.startswith("http://") or url.startswith("https://") or url.startswith("data:"):
+    if url.startswith("http://") or url.startswith("https://") or url.startswith("data:") or url.startswith("asset://"):
         return url
     path = imageproc.output_file_from_url(url)
     if not path:
