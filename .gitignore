@@ -7,6 +7,20 @@ __pycache__/
 build/
 dist/
 
+# Go
+app-go/bin/
+app-go/dist/
+app-go/build/
+app-go/tmp/
+app-go/vendor/
+app-go/*.exe
+app-go/*.test
+app-go/*.out
+app-go/coverage.*
+app-go/cpu.out
+app-go/mem.out
+app-go/web/static/system-prompts/templates/core-presets.local.json
+
 #backup folder
 .git.backup-pre-filter/
 

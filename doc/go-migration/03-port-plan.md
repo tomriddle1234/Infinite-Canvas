@@ -131,12 +131,31 @@ Side work — `internal/upstream/`:
 - `apimart.go`: async submit → poll loop with backoff.
 - `openai.go`: chat completion, image generation, SSE streaming for
   chat replies.
+- `volcengine.go`: Ark Seedream image generation and Seedance video
+  content-generation tasks. Use the official Go SDK package
+  `github.com/volcengine/volcengine-go-sdk/service/arkruntime` for
+  `GenerateImages`, `GenerateImagesStreaming`,
+  `CreateContentGenerationTask`, `GetContentGenerationTask`, and
+  `ListContentGenerationTasks`.
+- `volcengine_assets.go`: port the existing Ark asset-library calls
+  (`ListAssetGroups`, `ListAssets`, `GetAsset`, `ListMediaAssetGroup`).
+  These are hand-signed AK/SK HTTP calls in Python today, so a Go
+  implementation can either reuse the official SDK if a generated method
+  is available or keep a small Volcengine Signature V4 helper.
 - `modelscope.go`: generation + polling.
 - `comfyui.go`: workflow JSON modification, queue prompt, poll
   history, download outputs.
 - `extract.go`: helpers that probe many possible JSON paths
   (port of `extract_image`, `extract_task_id`,
   `unwrap_apimart_response`, `text_from_chat_response`).
+
+Updated 2026-06-10: Volcengine Ark is not a blocker for the Go port.
+The current Python implementation uses `volcengine-python-sdk[ark]` in
+`app/upstream_volcengine.py` for Seedream / Seedance, and hand-signed
+HTTP in `app/upstream_volcengine_assets.py` for asset browsing and
+preview caching. The Go SDK exposes the runtime methods needed for the
+generation path; see [`07-volcengine-ark.md`](07-volcengine-ark.md) for
+the mapping and links.
 
 Acceptance test: hit each generate endpoint with the canvas UI,
 verify images / videos land in `output/` and are pushed via WS.

@@ -17,12 +17,14 @@ workflows remain external so frontend-only edits do not force a Python rebuild.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -37,6 +39,7 @@ STANDALONE_STAGING = BUILD_DIR / "main_refactored.dist"
 ONEFILE_STAGING = BUILD_DIR / f"{APP_NAME}.exe"
 MANIFEST = BUILD_DIR / "manifest.json"
 RUNTIME_FILES_MANIFEST = BUILD_DIR / "runtime_files.json"
+PACKAGE_MANIFEST = BUILD_DIR / "package_manifest.json"
 
 NUITKA_COMPILE_ARGS_VERSION = 4
 
@@ -104,6 +107,24 @@ def load_manifest() -> dict[str, object]:
 def save_manifest(signature: dict[str, object]) -> None:
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(signature, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def format_seconds(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, rest = divmod(seconds, 60)
+    return f"{int(minutes)}m {rest:.1f}s"
+
+
+@contextmanager
+def timed_step(label: str):
+    started = time.perf_counter()
+    print(f"[time] {label} ...")
+    try:
+        yield
+    finally:
+        elapsed = time.perf_counter() - started
+        print(f"[time] {label}: {format_seconds(elapsed)}")
 
 
 def manifest_matches_compile_inputs(manifest: dict[str, object], signature: dict[str, object]) -> bool:
@@ -194,6 +215,42 @@ def load_json_list(path: Path) -> set[str]:
 def save_json_list(path: Path, items: set[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(sorted(items), indent=2), encoding="utf-8")
+
+
+def write_text_if_changed(path: Path, text: str, encoding: str) -> None:
+    if path.exists():
+        try:
+            if path.read_text(encoding=encoding) == text:
+                return
+        except Exception:
+            pass
+    path.write_text(text, encoding=encoding)
+
+
+def package_signature() -> dict[str, object]:
+    files: dict[str, dict[str, object]] = {}
+    if not FINAL_DIR.exists():
+        return {"files": files}
+    for path in iter_tree_files(FINAL_DIR):
+        rel_name = tree_rel(path, FINAL_DIR)
+        files[rel_name] = {
+            "size": path.stat().st_size,
+            "sha256": hash_file(path),
+        }
+    return {
+        "base": rel(FINAL_DIR),
+        "files": files,
+    }
+
+
+def load_json_dict(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def prune_empty_dirs(root: Path) -> None:
@@ -331,7 +388,7 @@ def write_launcher(mode: str) -> None:
         'start "" /min cmd /c "timeout /t 3 /nobreak >nul & start "" http://127.0.0.1:3000/"',
         f'"{exe_path}"',
     ]
-    (FINAL_DIR / "Start.bat").write_text("\r\n".join(lines) + "\r\n", encoding="ascii")
+    write_text_if_changed(FINAL_DIR / "Start.bat", "\r\n".join(lines) + "\r\n", encoding="ascii")
 
 
 def write_readme(mode: str) -> None:
@@ -364,14 +421,20 @@ in place because they are not present in this package.
 
 For a fresh install, launch once and configure API keys from the UI.
 """
-    (FINAL_DIR / "README.txt").write_text(text, encoding="utf-8")
+    write_text_if_changed(FINAL_DIR / "README.txt", text, encoding="utf-8")
 
 
-def write_package_zip() -> None:
+def write_package_zip(force: bool = False) -> None:
     remove_user_runtime_artifacts()
+    signature = package_signature()
+    previous = load_json_dict(PACKAGE_MANIFEST)
+    if not force and PACKAGE_ZIP.exists() and previous == signature:
+        print(f"Zip skipped: package content unchanged ({rel(PACKAGE_ZIP)}).")
+        return
     remove_path(PACKAGE_ZIP)
     archive_base = PACKAGE_ZIP.with_suffix("")
     shutil.make_archive(str(archive_base), "zip", root_dir=FINAL_DIR.parent, base_dir=FINAL_DIR.name)
+    PACKAGE_MANIFEST.write_text(json.dumps(signature, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def default_jobs() -> int:
@@ -474,20 +537,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=default_jobs(), help="Parallel C compiler jobs. Default: min(cpu-1, 32), or NUITKA_JOBS.")
     parser.add_argument("--lto", choices=("yes", "no", "auto"), default="no", help="Nuitka C compiler link-time optimization. Default: no for faster builds.")
     parser.add_argument("--no-zip", action="store_true", help="Skip creating dist/Infinite-Canvas.zip.")
+    parser.add_argument("--force-zip", action="store_true", help="Recreate dist/Infinite-Canvas.zip even when package files are unchanged.")
     parser.add_argument("--assets-only", action="store_true", help="Do not run Nuitka; only refresh static/workflow assets and package files.")
     parser.add_argument("--skip-pip", action="store_true", help="Do not auto-install Nuitka if it is missing.")
     return parser.parse_args()
 
 
 def main() -> int:
+    total_start = time.perf_counter()
     args = parse_args()
     mode = "onefile" if args.onefile else args.mode
 
     if args.clean:
         remove_path(BUILD_DIR)
         remove_path(FINAL_DIR)
+        remove_path(PACKAGE_ZIP)
 
-    ensure_nuitka(skip_pip=args.skip_pip)
+    with timed_step("Check Nuitka"):
+        ensure_nuitka(skip_pip=args.skip_pip)
 
     signature = source_signature(mode, args.lto)
     manifest = load_manifest()
@@ -513,20 +580,24 @@ def main() -> int:
                 print(f"  ... {len(changes) - 30} more")
 
     if needs_compile:
-        run_nuitka(mode, max(1, args.jobs), args.lto)
-        promote_build(mode)
+        with timed_step("Nuitka compile"):
+            run_nuitka(mode, max(1, args.jobs), args.lto)
+        with timed_step("Promote runtime"):
+            promote_build(mode)
         save_manifest(signature)
     else:
         print(f"Nuitka skipped: Python sources unchanged for {mode} build.")
 
-    remove_user_runtime_artifacts()
-    sync_external_assets()
-    write_launcher(mode)
-    write_readme(mode)
+    with timed_step("Sync package files"):
+        remove_user_runtime_artifacts()
+        sync_external_assets()
+        write_launcher(mode)
+        write_readme(mode)
     if args.no_zip:
         print("Zip skipped by --no-zip.")
     else:
-        write_package_zip()
+        with timed_step("Zip package"):
+            write_package_zip(force=args.force_zip)
 
     print()
     print("=" * 60)
@@ -537,6 +608,7 @@ def main() -> int:
     print(f"Launch : {FINAL_DIR / 'Start.bat'}")
     if not needs_compile:
         print("Only static/workflow/API files were refreshed.")
+    print(f"Elapsed: {format_seconds(time.perf_counter() - total_start)}")
     print("=" * 60)
     return 0
 

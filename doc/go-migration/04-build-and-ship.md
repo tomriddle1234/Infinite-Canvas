@@ -160,3 +160,26 @@ Users download one file and run it.
 | Cold start | ~1 s | <50 ms |
 | Cross-platform build | per-platform venv | `make cross`, three files |
 | Updating | re-clone + reinstall | drop new exe in place |
+
+Updated 2026-06-10: the current Nuitka release path is better than a
+loose Python venv for end users, but it still has a high developer-time
+cost. A small Python source change can invalidate the compiled module
+graph and make Nuitka walk thousands of generated C / extension files
+again. The packaging script can reuse copied runtime files and skip
+unchanged zips, but it cannot turn Nuitka into a cheap incremental
+compiler for arbitrary Python edits. A Go target avoids this class of
+problem because the runtime, server code, and static frontend build into
+one normal executable with `go build`.
+
+For the Go release artifact, keep the distribution shape deliberately
+boring:
+
+```
+dist/
+  Infinite-Canvas.exe
+  Start.bat
+  README.txt
+```
+
+`Start.bat` should only launch the exe next to it. It should not create
+or activate Python environments.

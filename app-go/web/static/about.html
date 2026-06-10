@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于 Infinite Canvas V</title>
+    <script src="/static/theme.js?v=20260512-about"></script>
+    <link rel="stylesheet" href="/static/theme.css?v=20260512-about">
+    <style>
+        :root {
+            --bg: #f6f7fb;
+            --panel: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --line: #e5e7eb;
+            --accent: #2563eb;
+        }
+        html.studio-theme-dark, body.studio-theme-dark {
+            --bg: #0f141d;
+            --panel: #161d29;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --line: #2a3444;
+            --accent: #60a5fa;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, "Microsoft YaHei", Arial, sans-serif;
+        }
+        .wrap {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 56px 28px;
+        }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+        }
+        h1 {
+            margin: 0 0 14px;
+            font-size: 28px;
+            line-height: 1.2;
+        }
+        p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            line-height: 1.8;
+            font-size: 15px;
+        }
+        .repo {
+            display: block;
+            padding: 12px 14px;
+            margin-top: 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 700;
+            word-break: break-all;
+        }
+        .repo:hover { text-decoration: underline; }
+        .label {
+            margin-top: 22px;
+            color: var(--text);
+            font-weight: 800;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <main class="wrap">
+        <section class="card">
+            <h1>关于 Infinite Canvas V</h1>
+            <p>感谢原作者 hero8152 开源 Infinite-Canvas，为这个项目打下了最初的基础和灵感来源。</p>
+            <div class="label">原作者与原库</div>
+            <a class="repo" href="https://github.com/hero8152/Infinite-Canvas" target="_blank" rel="noopener noreferrer">hero8152 / Infinite-Canvas</a>
+            <p style="margin-top:18px">当前新作者为 tomriddle1234，新库是一个以无限画布为主、不依赖 ComfyUI 的开发版。</p>
+            <div class="label">新作者与新库</div>
+            <a class="repo" href="https://github.com/tomriddle1234/Infinite-Canvas" target="_blank" rel="noopener noreferrer">tomriddle1234 / Infinite-Canvas</a>
+        </section>
+    </main>
+    <script>
+        window.addEventListener('message', event => {
+            if (event.data && event.data.type === 'studio-theme' && window.StudioTheme) {
+                window.StudioTheme.apply(event.data.theme);
+            }
+        });
+    </script>
+</body>
+</html>

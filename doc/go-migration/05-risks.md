@@ -173,3 +173,41 @@ format.
   (`{"error": "...", "details": [...]}`) the frontend expects.
 - Grep the frontend for how it consumes validation errors before
   finalizing the format.
+
+## 13. Volcengine Ark SDK surface drift
+
+Updated 2026-06-10.
+
+**Risk.** The current Python backend uses
+`volcengine-python-sdk[ark]` for Seedream / Seedance, while the Go port
+will use `github.com/volcengine/volcengine-go-sdk/service/arkruntime`.
+The Go package currently exposes the methods needed by this project, but
+Ark model fields and response shapes have been changing quickly.
+
+**Mitigation.**
+
+- Wrap all Ark calls behind `internal/upstream/volcengine.go` instead of
+  leaking SDK structs into handlers.
+- Keep our own DTOs for frontend responses (`task_id`, `status`,
+  `videos`, `raw`, etc.) and normalize SDK responses immediately.
+- Add table-driven tests from captured Seedream and Seedance responses.
+- Pin the Go SDK version in `go.mod`, then upgrade deliberately.
+
+## 14. Ark asset-library APIs may not map cleanly to generated SDK calls
+
+Updated 2026-06-10.
+
+**Risk.** `app/upstream_volcengine_assets.py` currently calls Ark
+asset-library actions such as `ListAssetGroups`, `ListAssets`,
+`GetAsset`, and `ListMediaAssetGroup` through hand-signed AK/SK HTTP.
+Generated Go SDK methods may exist for some actions but not all, or the
+generated request types may lag the console / documentation.
+
+**Mitigation.**
+
+- Port the existing Signature V4 helper to Go first; it is small and
+  gives parity with today's Python implementation.
+- Only replace individual calls with generated SDK methods after parity
+  tests pass against the same account and project.
+- Keep request / response normalization separate from signing so the
+  transport can be swapped later without touching handlers.

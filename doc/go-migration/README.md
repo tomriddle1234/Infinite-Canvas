@@ -38,6 +38,11 @@ embedded.
 6. [`06-testing.md`](06-testing.md) — unit / integration / parity
    testing strategy, tooling, CI, coverage targets.
 
+Updated 2026-06-10:
+
+7. [`07-volcengine-ark.md`](07-volcengine-ark.md) — Volcengine Ark Go
+   SDK research and the Seedream / Seedance / asset-library port map.
+
 ## Quick summary
 
 - **Framework:** Gin (`github.com/gin-gonic/gin`)
@@ -45,6 +50,9 @@ embedded.
   `fogleman/gg` (composition / drawing). Both pure Go, no CGO.
 - **WebSocket:** `gorilla/websocket`
 - **Validation:** `go-playground/validator/v10` (Gin's default binder)
+- **Volcengine Ark:** `github.com/volcengine/volcengine-go-sdk/service/arkruntime`
+  for Seedream / Seedance; hand-signed AK/SK HTTP remains acceptable for
+  asset-library APIs that are currently hand-signed in Python.
 - **Static / workflows:** `embed.FS` at build time
 - **Estimated effort:** ~5 working days for a Go-fluent developer.
 - **Output:** `infinite-canvas.exe` (~15-20 MB), runs anywhere with no
