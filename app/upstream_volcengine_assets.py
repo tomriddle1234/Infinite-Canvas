@@ -181,6 +181,7 @@ def _normalize_asset(item: Dict[str, Any]) -> Dict[str, Any]:
     asset_id = str(item.get("Id") or item.get("AssetId") or "").strip()
     name = str(item.get("Name") or item.get("Title") or asset_id or "未命名素材")
     url = str(item.get("URL") or item.get("Url") or item.get("url") or item.get("PreviewURL") or "")
+    preview_url = url or (f"/api/volcengine/assets/preview/{urllib.parse.quote(asset_id, safe='')}" if asset_id else "")
     return {
         "id": asset_id,
         "asset_id": asset_id,
@@ -196,7 +197,8 @@ def _normalize_asset(item: Dict[str, Any]) -> Dict[str, Any]:
         "create_time": str(item.get("CreateTime") or ""),
         "update_time": str(item.get("UpdateTime") or ""),
         "url": url,
-        "preview_url": f"/api/volcengine/assets/preview/{urllib.parse.quote(asset_id, safe='')}" if asset_id else "",
+        "preview_url": preview_url,
+        "preview_proxy_url": f"/api/volcengine/assets/preview/{urllib.parse.quote(asset_id, safe='')}" if asset_id else "",
     }
 
 

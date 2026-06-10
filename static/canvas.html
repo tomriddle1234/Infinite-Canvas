@@ -206,13 +206,17 @@
         .portrait-group { width:100%; height:30px; border:1px solid var(--line-2); border-radius:9px; padding:0 8px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
         .portrait-empty { grid-column:1/-1; padding:12px 4px; color:var(--muted); font-size:11px; font-weight:800; line-height:1.45; }
         .portrait-selected-uri { min-height:38px; padding:8px; border:1px solid var(--line-2); border-radius:9px; background:var(--soft); color:var(--text); font-size:11px; line-height:1.35; font-weight:800; word-break:break-all; }
-        .portrait-grid { flex:1; min-height:250px; overflow:auto; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-rows:minmax(178px, auto); gap:8px; padding-right:4px; overscroll-behavior:contain; }
-        .portrait-card { min-width:0; min-height:178px; border:1px solid var(--line-2); border-radius:10px; background:var(--card-solid); overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
-        .portrait-card.active { border-color:var(--strong); box-shadow:0 0 0 2px rgba(17,24,39,.12); }
+        .portrait-grid { flex:1; min-height:250px; overflow:auto; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-rows:minmax(178px, auto); gap:8px; padding-right:10px; overscroll-behavior:contain; scrollbar-gutter:stable; scrollbar-width:auto; }
+        .portrait-grid::-webkit-scrollbar { width:14px; height:14px; }
+        .portrait-grid::-webkit-scrollbar-track { background:var(--soft); border-radius:999px; }
+        .portrait-grid::-webkit-scrollbar-thumb { background:var(--line-strong); border:3px solid var(--soft); border-radius:999px; }
+        .portrait-grid::-webkit-scrollbar-thumb:hover { background:var(--muted); }
+        .portrait-card { position:relative; min-width:0; min-height:178px; border:1px solid var(--line-2); border-radius:10px; background:var(--card-solid); overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+        .portrait-card.active { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.35), 0 8px 18px rgba(37,99,235,.16); }
+        .portrait-card.active::after { content:""; position:absolute; top:7px; right:7px; width:18px; height:18px; border-radius:999px; background:#2563eb; box-shadow:0 0 0 2px var(--card-solid); z-index:2; }
+        .portrait-card.active::before { content:""; position:absolute; top:11px; right:12px; width:7px; height:4px; border-left:2px solid #fff; border-bottom:2px solid #fff; transform:rotate(-45deg); z-index:3; }
         .portrait-thumb { position:relative; aspect-ratio:2/3; background:var(--soft); display:flex; align-items:center; justify-content:center; color:var(--muted); overflow:hidden; }
         .portrait-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
-        .portrait-thumb i { position:absolute; inset:auto; opacity:.7; }
-        .portrait-thumb img + i { display:none; }
         .portrait-name { height:24px; padding:0 6px; display:flex; align-items:center; font-size:10px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .portrait-asset-id-line { padding:0 6px 6px; margin-top:-2px; color:var(--muted); font-size:9px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .portrait-status { flex:0 0 auto; min-height:24px; color:var(--muted); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -412,7 +416,7 @@
         .port::after { content:""; position:absolute; left:15px; top:15px; width:14px; height:14px; border-radius:50%; border:2px solid #fff; background:#111827; box-shadow:0 0 0 1px #94a3b8; transition:transform .14s var(--ease); }
         .port:hover::after { transform:scale(1.25); }
         .port.in { left:-29px; cursor:crosshair; }
-        .port.out { right:-15px; }
+        .port.out { right:-43px; }
         .node > .port { top:50%; }
         .group-node,.promptGroup-node { min-width:260px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 16px 42px rgba(15,23,42,.08); z-index:0; }
         .group-node .node-head,.promptGroup-node .node-head { background:#fff; border-bottom:1px solid #f1f5f9; }
@@ -2935,6 +2939,8 @@
                 seedanceImageSlots:null,
                 refVideos:[],
                 refAudios:[],
+                _seedanceDurationManual:false,
+                _seedanceDurationAudioUrls:'',
                 taskIds:[],
                 seedanceRuns:[],
                 inputs:[],
@@ -3012,11 +3018,12 @@
                 preview:asset.preview_url || ''
             };
         }
-        async function portraitFetchJson(url, body){
+        async function portraitFetchJson(url, body, opts={}){
             const res = await fetch(url, {
                 method:'POST',
                 headers:{'Content-Type':'application/json'},
-                body:JSON.stringify(body || {})
+                body:JSON.stringify(body || {}),
+                signal:opts.signal
             });
             if(!res.ok) throw await responseError(res, '火山人像素材库请求失败');
             return await res.json();
@@ -3038,6 +3045,11 @@
             if(!node || (node.loading && opts.append)) return;
             const libraryType = portraitAssetLibraryType(node);
             const append = opts.append === true;
+            if(!append && node._portraitAbortController) {
+                try { node._portraitAbortController.abort(); } catch(_) {}
+            }
+            const abortController = !append && window.AbortController ? new AbortController() : null;
+            if(abortController) node._portraitAbortController = abortController;
             const requestSeq = (Number(node._portraitRequestSeq || 0) || 0) + 1;
             node._portraitRequestSeq = requestSeq;
             node.loading = true;
@@ -3061,12 +3073,12 @@
                         statuses:['Active'],
                         page,
                         page_size:24
-                    })
+                    }, {signal:abortController?.signal})
                     : await portraitFetchJson('/api/volcengine/preset-portraits/search', {
                         query:node.query || '',
                         page,
                         page_size:24
-                    });
+                    }, {signal:abortController?.signal});
                 if(node._portraitRequestSeq !== requestSeq) return;
                 const incoming = data.items || [];
                 node.page = Number(data.page || page) || page;
@@ -3078,11 +3090,13 @@
                     if(match) node.selectedAsset = match;
                 }
             } catch(err) {
+                if(err?.name === 'AbortError') return;
                 if(node._portraitRequestSeq !== requestSeq) return;
                 const message = err.message || '人像素材库加载失败';
                 node.error = message;
             } finally {
                 if(node._portraitRequestSeq === requestSeq) {
+                    if(node._portraitAbortController === abortController) node._portraitAbortController = null;
                     node.loading = false;
                     refreshNodes([node.id], {geometry:false});
                     scheduleSave();
@@ -3148,10 +3162,32 @@
             const asset = (node.assets || []).find(a => a.asset_id === assetId);
             if(!asset) return;
             node.selectedAsset = asset;
-            refreshNodes([node.id], {geometry:false});
+            updatePortraitAssetSelectionView(node);
             syncGeneratorInputs();
             refreshGeneratorInputViews();
             scheduleSave();
+        }
+        function updatePortraitAssetSelectionView(node){
+            const el = nodesEl.querySelector(`.portraitAsset-node[data-id="${CSS.escape(node.id)}"]`);
+            if(!el) {
+                refreshNodes([node.id], {geometry:false});
+                return;
+            }
+            const selectedId = node.selectedAsset?.asset_id || '';
+            el.querySelectorAll('[data-portrait-asset]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.portraitAsset === selectedId);
+            });
+            const uri = el.querySelector('.portrait-selected-uri');
+            if(uri) {
+                uri.textContent = node.selectedAsset?.asset_uri
+                    ? '输出：' + node.selectedAsset.asset_uri
+                    : '请选择一个人像；选中后本节点会输出 asset:// 引用给 Seedance。';
+            }
+            const status = el.querySelector('.portrait-status');
+            const statusText = status?.querySelector('span');
+            if(statusText && node.selectedAsset) {
+                statusText.textContent = '已选择：' + (node.selectedAsset.name || node.selectedAsset.asset_id || '');
+            }
         }
         function renderPortraitAssetBody(node){
             node.libraryType = portraitAssetLibraryType(node);
@@ -3170,12 +3206,12 @@
             const assetsHtml = node.assets.length ? node.assets.map(asset => {
                 const active = asset.asset_id === selectedId ? 'active' : '';
                 const preview = asset.preview_url || '';
+                const fallbackPreview = asset.preview_proxy_url && asset.preview_proxy_url !== preview ? asset.preview_proxy_url : '';
                 const cardTitle = [asset.name || asset.asset_id, asset.description || '', asset.asset_uri || ''].filter(Boolean).join('\n');
                 return `
                     <button type="button" class="portrait-card ${active}" data-portrait-asset="${escapeAttr(asset.asset_id)}" title="${escapeAttr(cardTitle)}">
                         <div class="portrait-thumb">
-                            ${preview ? `<img src="${escapeAttr(preview)}" loading="lazy" onerror="this.remove()">` : ''}
-                            <i data-lucide="square-user" class="w-5 h-5"></i>
+                            ${preview ? `<img src="${escapeAttr(preview)}" ${fallbackPreview ? `data-fallback-src="${escapeAttr(fallbackPreview)}"` : ''} loading="lazy" onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){ this.src = this.dataset.fallbackSrc; delete this.dataset.fallbackSrc; } else { this.remove(); }">` : ''}
                         </div>
                         <div class="portrait-name">${escapeHtml(asset.name || asset.asset_id || '未命名素材')}</div>
                         <div class="portrait-asset-id-line">${escapeHtml(asset.asset_id || '')}</div>
@@ -3247,6 +3283,7 @@
             };
             wrap.querySelectorAll('[data-portrait-asset]').forEach(btn => {
                 btn.onclick = e => {
+                    e.preventDefault();
                     e.stopPropagation();
                     selectPortraitAsset(node.id, btn.dataset.portraitAsset);
                 };
@@ -5169,7 +5206,7 @@
         }
         function captureNodeScrolls(nodeEl){
             const scrolls = [];
-            const candidates = nodeEl.querySelectorAll('.node-body, .prompt-editor, .prompt-upstream, .prompt-list, .ptpl-preview, .llm-chat-log, .llm-output, .loop-preview, .seedance-slot-grid, [style*="overflow"]');
+            const candidates = nodeEl.querySelectorAll('.node-body, .prompt-editor, .prompt-upstream, .prompt-list, .ptpl-preview, .llm-chat-log, .llm-output, .loop-preview, .seedance-slot-grid, .portrait-grid, [style*="overflow"]');
             candidates.forEach(el => {
                 if(el.scrollTop > 0 || el.scrollLeft > 0){
                     scrolls.push({ path: domPath(nodeEl, el), top:el.scrollTop, left:el.scrollLeft });
@@ -7054,6 +7091,44 @@
             const text = `${ref?.url || ''} ${ref?.name || ''} ${ref?.content_type || ref?.contentType || ''}`.toLowerCase();
             return /\.(mp3|wav)(\?|$|\s)/.test(text) || text.includes('audio/mpeg') || text.includes('audio/wav') || text.includes('audio/x-wav');
         }
+        function seedanceMaxDuration(model){
+            const text = String(model || '').toLowerCase();
+            return /seedance[-_]?1[-_.]?5/.test(text) ? 12 : 15;
+        }
+        function seedanceClampDuration(model, value){
+            const maxDuration = seedanceMaxDuration(model);
+            const raw = Math.floor(Number(value || 5));
+            return Math.max(4, Math.min(maxDuration, Number.isFinite(raw) ? raw : 5));
+        }
+        function seedanceAudioDurationDefault(model, audioRefs){
+            const known = (audioRefs || []).map(ref => Number(ref?.duration || ref?.audioDuration || 0)).find(value => Number.isFinite(value) && value > 0);
+            if(!known) return null;
+            return seedanceClampDuration(model, Math.floor(known));
+        }
+        function seedanceAudioUrlSignature(audioRefs){
+            return (audioRefs || []).map(ref => ref?.url || '').filter(Boolean).join('|');
+        }
+        function seedanceSyncDurationFromAudio(node, audioRefs){
+            const model = node.model || 'doubao-seedance-1-5-pro-251215';
+            const maxDuration = seedanceMaxDuration(model);
+            const current = Number(node.duration || 5);
+            if(node._seedanceDurationManual == null && Number.isFinite(current) && current !== 5) node._seedanceDurationManual = true;
+            if(!Number.isFinite(current) || current < 4 || current > maxDuration || current !== Math.floor(current)) {
+                node.duration = seedanceClampDuration(model, current);
+            }
+            const audioUrls = seedanceAudioUrlSignature(audioRefs);
+            const defaultDuration = seedanceAudioDurationDefault(model, audioRefs);
+            if(!audioUrls || defaultDuration == null){
+                node._seedanceDurationAudioUrls = audioUrls;
+                return;
+            }
+            const audioChanged = node._seedanceDurationAudioUrls !== audioUrls;
+            if(audioChanged || !node._seedanceDurationManual){
+                node.duration = defaultDuration;
+                node._seedanceDurationManual = false;
+            }
+            node._seedanceDurationAudioUrls = audioUrls;
+        }
         function seedanceRuns(node){
             if(!Array.isArray(node.seedanceRuns)) node.seedanceRuns = [];
             return node.seedanceRuns;
@@ -7167,6 +7242,8 @@
             const supportsReferenceMedia = seedanceSupportsReferenceMedia(node.model || seedanceDefaultModel);
             const connectedAudioRefs = supportsReferenceMedia ? seedanceConnectedAudioRefs(ordered) : [];
             const audioRefs = supportsReferenceMedia ? seedanceAudioPayload(node, ordered) : [];
+            seedanceSyncDurationFromAudio(node, audioRefs);
+            const seedanceDurationMax = seedanceMaxDuration(node.model || seedanceDefaultModel);
             const referenceVideos = supportsReferenceMedia ? (node.refVideos || []) : [];
             const hasReferenceMedia = Boolean(referenceVideos.length || audioRefs.length);
             const imageSlots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
@@ -7195,7 +7272,7 @@
                         <select class="select-lite seedance-model" style="flex:2">${modelOptions}</select>
                     </div>
                     <div class="gen-settings-row">
-                        <label class="field" style="flex:1"><div class="setting-title">${tr('canvas.videoDuration')}</div><input class="setting-input seedance-duration" type="number" min="4" max="15" step="1" value="${Number(node.duration || 5)}"></label>
+                        <label class="field" style="flex:1"><div class="setting-title">${tr('canvas.videoDuration')}</div><input class="setting-input seedance-duration" type="number" min="4" max="${seedanceDurationMax}" step="1" value="${Number(node.duration || 5)}"></label>
                         <label class="field" style="flex:1"><div class="setting-title">${tr('canvas.videoAspect')}</div><select class="select-lite seedance-aspect compact-select"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="21:9">21:9</option></select></label>
                         <label class="field" style="flex:1"><div class="setting-title">${tr('canvas.videoResolution')}</div><select class="select-lite seedance-resolution compact-select"><option value="480p">480p</option><option value="720p">720p</option><option value="1080p">1080p</option></select></label>
                     </div>
@@ -7231,7 +7308,12 @@
                 refreshNodes([node.id], {force:true});
                 scheduleSave();
             };
-            durationInput.oninput = e => { node.duration = Math.max(4, Math.min(15, Number(e.target.value || 5))); scheduleSave(); };
+            durationInput.oninput = e => {
+                node._seedanceDurationManual = true;
+                node.duration = seedanceClampDuration(node.model || seedanceDefaultModel, e.target.value || 5);
+                e.target.value = String(node.duration);
+                scheduleSave();
+            };
             aspectSelect.onchange = e => { node.aspectRatio = e.target.value; scheduleSave(); };
             resolutionSelect.onchange = e => { node.resolution = e.target.value; scheduleSave(); };
             wrap.querySelectorAll('[data-seedance-toggle]').forEach(btn => {
@@ -7411,7 +7493,8 @@
                 live.waveform = audioPeaksFromBuffer(buffer, desiredCount);
                 live.waveformCount = desiredCount;
                 if(!live.trimOut || live.trimOut > live.audioDuration) live.trimOut = live.audioDuration;
-                refreshNodes([live.id], {geometry:false});
+                const seedanceTargets = connections.filter(c => c.from === live.id).map(c => nodes.find(n => n.id === c.to)).filter(n => n?.type === 'seedance').map(n => n.id);
+                refreshNodes([live.id, ...seedanceTargets], {geometry:false});
                 scheduleSave();
             }).catch(err => {
                 const live = nodes.find(n => n.id === node.id);
@@ -7479,7 +7562,8 @@
                 if(audio.duration && Number.isFinite(audio.duration) && (!node.audioDuration || Math.abs(node.audioDuration - audio.duration) > 0.05)){
                     node.audioDuration = audio.duration;
                     if(!node.trimOut || node.trimOut > audio.duration) node.trimOut = audio.duration;
-                    refreshNodes([node.id], {geometry:false});
+                    const seedanceTargets = connections.filter(c => c.from === node.id).map(c => nodes.find(n => n.id === c.to)).filter(n => n?.type === 'seedance').map(n => n.id);
+                    refreshNodes([node.id, ...seedanceTargets], {geometry:false});
                     scheduleSave();
                 }
             };
@@ -7968,7 +8052,7 @@
                     const ref = portraitAssetRef(n);
                     if(ref) return {id:n.id, type:'portraitAsset', label:ref.name || '人像资产', preview:ref.preview || '', refs:[{url:ref.url, name:ref.name || 'portrait asset', role:ref.role || ''}], prompt:''};
                 }
-                if(n.type === 'audio' && n.url) return {id:n.id, type:'audio', label:n.name || 'audio', refs:[], audioRefs:[{url:n.url, name:n.name || 'audio', role:'reference_audio'}], prompt:''};
+                if(n.type === 'audio' && n.url) return {id:n.id, type:'audio', label:n.name || 'audio', refs:[], audioRefs:[{url:n.url, name:n.name || 'audio', role:'reference_audio', duration:Number(n.audioDuration || 0)}], prompt:''};
                 if(n.type === 'group') {
                     const items = (n.items || []).map(id => nodes.find(x => x.id === id)).filter(Boolean);
                     const sources = items.flatMap(img => {
@@ -8599,6 +8683,8 @@
             const referenceVideos = supportsReferenceMedia ? (node.refVideos || []) : [];
             const hasReferenceMediaInput = Boolean(referenceVideos.length || audioRefs.length);
             const {refs:imageRefs, hasFirst, hasLast, refCount, hasReferenceMedia} = seedanceImagePayload(node, imageInputs, hasReferenceMediaInput);
+            const duration = seedanceClampDuration(model, node.duration || 5);
+            node.duration = duration;
             if(!prompt){ showErrorModal(tr('canvas.videoNeedsPrompt')); return; }
             if(hasLast && !hasFirst){
                 showErrorModal(tr('canvas.seedanceLastNeedsFirst'));
@@ -8624,7 +8710,7 @@
             const inputSignature = JSON.stringify({
                 prompt,
                 model,
-                duration:Number(node.duration || 5),
+                duration,
                 aspectRatio:node.aspectRatio || '16:9',
                 resolution:node.resolution || '720p',
                 seed:node.seed === '' || node.seed == null ? null : Number(node.seed),
@@ -8661,7 +8747,7 @@
                         input_signature:inputSignature,
                         prompt,
                         model,
-                        duration:Number(node.duration || 5),
+                        duration,
                         aspect_ratio:node.aspectRatio || '16:9',
                         resolution:node.resolution || '720p',
                         seed:node.seed === '' || node.seed == null ? null : Number(node.seed),

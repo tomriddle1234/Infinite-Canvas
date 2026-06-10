@@ -36,8 +36,9 @@ RUNTIME_DIR = FINAL_DIR / "runtime"
 STANDALONE_STAGING = BUILD_DIR / "main_refactored.dist"
 ONEFILE_STAGING = BUILD_DIR / f"{APP_NAME}.exe"
 MANIFEST = BUILD_DIR / "manifest.json"
+RUNTIME_FILES_MANIFEST = BUILD_DIR / "runtime_files.json"
 
-NUITKA_COMPILE_ARGS_VERSION = 3
+NUITKA_COMPILE_ARGS_VERSION = 4
 
 PYTHON_COMPILE_PATTERNS = (
     "main_refactored.py",
@@ -160,12 +161,114 @@ def remove_path(path: Path) -> None:
         path.unlink()
 
 
-def copy_tree(src: Path, dst: Path) -> None:
-    if not src.exists():
+def iter_tree_files(root: Path) -> list[Path]:
+    if not root.exists():
+        return []
+    return sorted(path for path in root.rglob("*") if path.is_file())
+
+
+def tree_rel(path: Path, root: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def files_equal(left: Path, right: Path) -> bool:
+    if not left.exists() or not right.exists():
+        return False
+    if left.stat().st_size != right.stat().st_size:
+        return False
+    return hash_file(left) == hash_file(right)
+
+
+def load_json_list(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    if not isinstance(data, list):
+        return set()
+    return {item for item in data if isinstance(item, str)}
+
+
+def save_json_list(path: Path, items: set[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(sorted(items), indent=2), encoding="utf-8")
+
+
+def prune_empty_dirs(root: Path) -> None:
+    if not root.exists():
         return
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    for path in sorted((p for p in root.rglob("*") if p.is_dir()), reverse=True):
+        try:
+            path.rmdir()
+        except OSError:
+            pass
+
+
+def sync_tree_incremental(
+    src: Path,
+    dst: Path,
+    *,
+    previous_manifest: set[str] | None = None,
+    delete_unmatched: bool = False,
+    ignore_names: set[str] | None = None,
+    ignore_suffixes: set[str] | None = None,
+) -> set[str]:
+    if not src.exists():
+        return set()
+    dst.mkdir(parents=True, exist_ok=True)
+    ignore_names = ignore_names or set()
+    ignore_suffixes = ignore_suffixes or set()
+
+    current: set[str] = set()
+    copied = 0
+    reused = 0
+    skipped = 0
+    for src_file in iter_tree_files(src):
+        if any(part in ignore_names for part in src_file.relative_to(src).parts):
+            skipped += 1
+            continue
+        if src_file.suffix.lower() in ignore_suffixes:
+            skipped += 1
+            continue
+        rel_name = tree_rel(src_file, src)
+        current.add(rel_name)
+        dst_file = dst / rel_name
+        if files_equal(src_file, dst_file):
+            reused += 1
+            continue
+        dst_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_file, dst_file)
+        copied += 1
+
+    removed = 0
+    stale_candidates = previous_manifest or set()
+    if delete_unmatched:
+        stale_candidates = {tree_rel(path, dst) for path in iter_tree_files(dst)}
+    if stale_candidates:
+        for rel_name in sorted(stale_candidates - current):
+            target = dst / rel_name
+            if target.exists() and target.is_file():
+                target.unlink()
+                removed += 1
+        prune_empty_dirs(dst)
+
+    print(
+        f"Synced {rel(src)} -> {rel(dst)}: "
+        f"{copied} copied, {reused} reused, {removed} removed, {skipped} skipped."
+    )
+    return current
+
+
+def copy_tree(src: Path, dst: Path) -> None:
+    sync_tree_incremental(
+        src,
+        dst,
+        delete_unmatched=True,
+        ignore_names={"__pycache__"},
+        ignore_suffixes={".pyc"},
+    )
 
 
 def sync_external_assets() -> None:
@@ -339,14 +442,26 @@ def promote_build(mode: str) -> None:
     if mode == "onefile":
         if not ONEFILE_STAGING.exists():
             raise SystemExit(f"[ERROR] Expected Nuitka output not found: {ONEFILE_STAGING}")
-        remove_path(FINAL_DIR / f"{APP_NAME}.exe")
-        shutil.move(str(ONEFILE_STAGING), str(FINAL_DIR / f"{APP_NAME}.exe"))
+        final_exe = FINAL_DIR / f"{APP_NAME}.exe"
+        if files_equal(ONEFILE_STAGING, final_exe):
+            ONEFILE_STAGING.unlink()
+            print(f"Reused unchanged onefile executable: {rel(final_exe)}")
+        else:
+            remove_path(final_exe)
+            shutil.move(str(ONEFILE_STAGING), str(final_exe))
+            print(f"Updated onefile executable: {rel(final_exe)}")
         remove_path(RUNTIME_DIR)
     else:
         if not STANDALONE_STAGING.exists():
             raise SystemExit(f"[ERROR] Expected Nuitka output not found: {STANDALONE_STAGING}")
-        remove_path(RUNTIME_DIR)
-        shutil.move(str(STANDALONE_STAGING), str(RUNTIME_DIR))
+        previous_files = load_json_list(RUNTIME_FILES_MANIFEST)
+        current_files = sync_tree_incremental(
+            STANDALONE_STAGING,
+            RUNTIME_DIR,
+            previous_manifest=previous_files,
+        )
+        save_json_list(RUNTIME_FILES_MANIFEST, current_files)
+        remove_path(STANDALONE_STAGING)
         remove_path(FINAL_DIR / f"{APP_NAME}.exe")
 
 
