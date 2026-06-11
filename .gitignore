@@ -8,6 +8,7 @@ build/
 dist/
 
 # Go
+.go/
 app-go/bin/
 app-go/dist/
 app-go/build/
