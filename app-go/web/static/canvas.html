@@ -298,7 +298,8 @@
         .node.sized.generator-node .generator-body { height:100%; display:flex; flex-direction:column; }
         .latest-node-preview { position:relative; width:100%; margin-top:3px; cursor:zoom-in; }
         .latest-node-preview img,
-        .latest-node-preview video { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; }
+        .latest-node-preview video,
+        .latest-node-preview .canvas-video-placeholder { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; }
         .latest-node-preview.video { aspect-ratio:16/9; background:#0f172a; border-radius:16px; }
         .latest-node-preview.image { max-height:260px; }
         .node.sized.comfy-node .node-body { overflow:hidden; }
@@ -398,6 +399,11 @@
         .output-grid img { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; cursor:zoom-in; transition:border-color .2s var(--ease); }
         .output-grid img:active { cursor:grabbing; }
         .output-grid video { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#0f172a; cursor:pointer; }
+        .canvas-video-placeholder { position:relative; width:100%; height:100%; min-height:72px; display:flex; align-items:center; justify-content:center; border-radius:16px; border:1px solid #1e293b; background:linear-gradient(145deg,#020617,#172033); color:#fff; cursor:pointer; overflow:hidden; }
+        .canvas-video-placeholder::before { content:""; position:absolute; inset:0; background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.14), transparent 34%); pointer-events:none; }
+        .canvas-video-placeholder .canvas-video-playmark { position:relative; z-index:1; width:46px; height:46px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.28); box-shadow:0 12px 30px rgba(0,0,0,.28); }
+        .canvas-video-placeholder .canvas-video-playmark i,
+        .canvas-video-placeholder .canvas-video-playmark svg { width:20px !important; height:20px !important; margin-left:2px; }
         .output-grid video::-webkit-media-controls,
         .output-grid video::-webkit-media-controls-enclosure,
         .output-grid video::-webkit-media-controls-panel,
@@ -406,6 +412,7 @@
         .output-single-video::-webkit-media-controls-enclosure { display:none !important; appearance:none; opacity:0; visibility:hidden; }
         .output-grid video::-internal-media-controls-download-button { display:none !important; -webkit-appearance:none; }
         .output-img-wrap:hover img { border-color:#94a3b8; }
+        .output-img-wrap:hover .canvas-video-placeholder { border-color:#475569; }
         .output-video-badge { position:absolute; left:7px; bottom:7px; height:22px; padding:0 8px; border-radius:999px; display:flex; align-items:center; gap:4px; background:rgba(15,23,42,.78); color:#fff; font-size:10px; font-weight:800; pointer-events:none; }
         .output-img-wrap.loading-wrap { width:100%; aspect-ratio:1; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; display:flex; align-items:center; justify-content:center; min-height:80px; }
         .output-spinner { width:28px; height:28px; border:3px solid #e2e8f0; border-top-color:#94a3b8; border-radius:50%; animation:spin .8s linear infinite; }
@@ -1156,6 +1163,10 @@
             const original = String(url || '');
             const preview = canvasMediaPreviewUrl(original, size);
             return `<img src="${escapeAttr(preview)}" data-preview-src="${escapeAttr(preview)}" data-original-src="${escapeAttr(original)}" data-url="${escapeAttr(original)}"${attrs ? ` ${attrs}` : ''}>`;
+        }
+        function canvasVideoPlaceholderHtml(url, attrs=''){
+            const safe = escapeAttr(url || '');
+            return `<div class="canvas-video-placeholder" data-url="${safe}" role="button" tabindex="0"${attrs ? ` ${attrs}` : ''}><span class="canvas-video-playmark"><i data-lucide="play"></i></span></div>`;
         }
         function bindCanvasPreviewImageFallbacks(root=document){
             root.querySelectorAll?.('img[data-preview-src][data-original-src]:not([data-preview-fallback-bound])').forEach(img => {
@@ -5441,6 +5452,7 @@
                 body.querySelectorAll('.output-img-wrap').forEach(wrap => {
                     const img = wrap.querySelector('img');
                     const video = wrap.querySelector('video');
+                    const placeholder = wrap.querySelector('.canvas-video-placeholder');
                     const del = wrap.querySelector('.output-del');
                     if(img){
                         img.draggable = true;
@@ -5465,6 +5477,18 @@
                             openOutputLightbox(video.dataset.url, node);
                         };
                     }
+                    if(placeholder){
+                        placeholder.onclick = e => {
+                            e.stopPropagation();
+                            openOutputLightbox(placeholder.dataset.url, node);
+                        };
+                        placeholder.onkeydown = e => {
+                            if(e.key !== 'Enter' && e.key !== ' ') return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openOutputLightbox(placeholder.dataset.url, node);
+                        };
+                    }
                     del.onmousedown = e => e.stopPropagation();
                     del.onclick = e => {
                         e.stopPropagation();
@@ -5472,7 +5496,7 @@
                         if(pid){
                             node._pending = (node._pending || []).filter(p => p.id !== pid);
                         } else {
-                            const url = img?.dataset.url || video?.dataset.url || '';
+                            const url = img?.dataset.url || video?.dataset.url || placeholder?.dataset.url || wrap.dataset.outputUrl || '';
                             node.images = (node.images || []).filter(item => outputUrlValue(item) !== url);
                             if(node.imageComparisons) delete node.imageComparisons[url];
                             scheduleSave();
@@ -5514,6 +5538,7 @@
         function bindOutputWrap(wrap, node){
             const img = wrap.querySelector('img');
             const video = wrap.querySelector('video');
+            const placeholder = wrap.querySelector('.canvas-video-placeholder');
             const del = wrap.querySelector('.output-del');
             if(img){
                 img.draggable = true;
@@ -5538,6 +5563,18 @@
                     openOutputLightbox(video.dataset.url, node);
                 };
             }
+            if(placeholder){
+                placeholder.onclick = e => {
+                    e.stopPropagation();
+                    openOutputLightbox(placeholder.dataset.url, node);
+                };
+                placeholder.onkeydown = e => {
+                    if(e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openOutputLightbox(placeholder.dataset.url, node);
+                };
+            }
             if(del){
                 del.onmousedown = e => e.stopPropagation();
                 del.onclick = e => {
@@ -5546,7 +5583,7 @@
                     if(pid){
                         node._pending = (node._pending || []).filter(p => p.id !== pid);
                     } else {
-                        const url = img?.dataset.url || video?.dataset.url || wrap.dataset.outputUrl || wrap.dataset.missingUrl || '';
+                        const url = img?.dataset.url || video?.dataset.url || placeholder?.dataset.url || wrap.dataset.outputUrl || wrap.dataset.missingUrl || '';
                         node.images = (node.images || []).filter(item => outputUrlValue(item) !== url);
                         if(node.imageComparisons) delete node.imageComparisons[url];
                         scheduleSave();
@@ -6820,13 +6857,19 @@
             const latest = [...(node.lastOutputs || [])].reverse().find(Boolean);
             if(!latest) return '';
             if(isVideoUrl(latest)){
-                return `<div class="latest-node-preview video"><video src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" muted playsinline></video></div>`;
+                return `<div class="latest-node-preview video">${canvasVideoPlaceholderHtml(latest)}</div>`;
             }
             return `<div class="latest-node-preview image">${canvasPreviewImgHtml(latest, 320, 'draggable="false"')}</div>`;
         }
         function bindLatestPreview(wrap, node){
-            wrap.querySelectorAll('.latest-node-preview img, .latest-node-preview video, .output-img-wrap img, .output-img-wrap video').forEach(el => {
+            wrap.querySelectorAll('.latest-node-preview img, .latest-node-preview video, .latest-node-preview .canvas-video-placeholder, .output-img-wrap img, .output-img-wrap video, .output-img-wrap .canvas-video-placeholder').forEach(el => {
                 el.onclick = e => {
+                    e.stopPropagation();
+                    openOutputLightbox(el.dataset.url || el.getAttribute('src'), null);
+                };
+                el.onkeydown = e => {
+                    if(e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
                     e.stopPropagation();
                     openOutputLightbox(el.dataset.url || el.getAttribute('src'), null);
                 };
@@ -9924,7 +9967,7 @@
                 return `<div class="output-img-wrap" data-output-url="${safe}" data-missing-url="${safe}"${gridStyle}>${missingAssetHtml(url, true)}${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
             if(isVideoUrl(url)){
-                return `<div class="output-img-wrap"><video src="${safe}" data-url="${safe}" preload="metadata" muted playsinline disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
+                return `<div class="output-img-wrap" data-output-url="${safe}"${gridStyle}>${canvasVideoPlaceholderHtml(url)}${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
             return `<div class="output-img-wrap">${canvasPreviewImgHtml(url, 512, 'alt="generated output"')}${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
         }
