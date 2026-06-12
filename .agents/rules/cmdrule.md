@@ -48,32 +48,40 @@ Prefer the `cmd /c "...activate.bat OFX_dev && ..."` wrapper when the command ne
 
 ## Run / Launch Rule
 
-- The default Windows entrypoint for end users is run_refactored.bat, which launches `main_refactored.py` and opens `http://127.0.0.1:3000/`.
-- For development verification, prefer running `main.py` under the `OFX_dev` env:
+- ~~The default Windows entrypoint for end users is run_refactored.bat, which launches `main_refactored.py` and opens `http://127.0.0.1:3000/`.~~
+- Updated 2026-06-12: the default Windows entrypoint is now `run_go.bat` at the repository root. It activates `OFX_dev`, runs `app-go/cmd/server`, and opens `http://127.0.0.1:3000/`.
+- Updated 2026-06-12: use `build_go.bat` for a Go compile/test build and `package_go.bat` for the standalone package.
+- ~~For development verification, prefer running `main.py` under the `OFX_dev` env:~~
 
 `cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && python main.py"`
 
 - Do not invent ad-hoc launch scripts when `run.bat` or the env-activated `python main.py` already covers the workflow.
+- Updated 2026-06-12: do not invent ad-hoc Go launch commands when `run_go.bat`, `build_go.bat`, or `package_go.bat` covers the workflow.
 
 ## Dependency Rule
 
-- Project Python dependencies are declared in `requirements.txt`.
-- Install / inspect dependencies inside `OFX_dev`, not against system Python:
+- ~~Project Python dependencies are declared in `requirements.txt`.~~
+- Updated 2026-06-12: the active app is Go-first under `app-go/`; legacy Python dependencies moved to `deprecated/python/requirements.txt`.
+- ~~Install / inspect dependencies inside `OFX_dev`, not against system Python:~~
 
 `cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && pip install -r requirements.txt"`
 
 ## Editing Rule
 
-- Make focused source changes; avoid unrelated refactors of the FastAPI app shell, logging setup, or static asset layout unless the task requires it.
-- When adding routes or workflow handlers, follow the existing patterns in `main.py` rather than introducing a new framework/abstraction layer.
+- ~~Make focused source changes; avoid unrelated refactors of the FastAPI app shell, logging setup, or static asset layout unless the task requires it.~~
+- Updated 2026-06-12: make active backend changes in `app-go/internal/` and active frontend changes in `app-go/web/static/`.
+- Updated 2026-06-12: legacy Python app, root static assets, workflows, and Python test/smoke scripts live under `deprecated/python/`.
+- ~~When adding routes or workflow handlers, follow the existing patterns in `main.py` rather than introducing a new framework/abstraction layer.~~
+- Updated 2026-06-12: when adding routes, follow `app-go/internal/server/routes.go` and the existing Gin handler patterns in `app-go/internal/handler/`.
 
 ## Verification Rule
 
-- After meaningful code changes, verify by:
-  1. Python syntax / import check via the env interpreter, e.g.(`C:/src/miniforge/envs/OFX_dev/python.exe -c "import main"`).
-  2. Booting the FastAPI app and hitting the relevant endpoint when the change is server-side behavior.
+- ~~After meaningful code changes, verify by:~~
+  1. ~~Python syntax / import check via the env interpreter, e.g.(`C:/src/miniforge/envs/OFX_dev/python.exe -c "import main"`).~~
+  2. ~~Booting the FastAPI app and hitting the relevant endpoint when the change is server-side behavior.~~
+- Updated 2026-06-12: after meaningful Go changes, run `build_go.bat` or at minimum `cmd /c "chcp 65001 > nul && C:\src\miniforge\Scripts\activate.bat OFX_dev && cd app-go && go test ./..."`.
 - Report clearly whether:
-  - the import / boot succeeded,
+  - the Go test/build or app boot succeeded,
   - a runtime error remains and where it is raised,
   - or the change is UI-only and was not browser-tested (say so explicitly rather than claiming success).
 

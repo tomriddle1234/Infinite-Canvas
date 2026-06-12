@@ -1,11 +1,16 @@
 # Infinite Canvas Go Backend
 
-This is the temporary Gin port that runs side-by-side with the existing
-Python backend.
+~~This is the temporary Gin port that runs side-by-side with the existing
+Python backend.~~
+
+Updated 2026-06-12: this is now the active Go-first app. The legacy Python
+backend and root static tree live under `deprecated/python/`.
 
 Current scope:
 
-- Serves the copied frontend from `web/static` on `http://127.0.0.1:8080/`.
+- ~~Serves the copied frontend from `web/static` on `http://127.0.0.1:8080/`.~~
+- Serves the embedded frontend from `web/static` on `http://127.0.0.1:3000/`
+  when launched through the root `run_go.bat`.
 - Serves existing runtime files from the repository root: `data/`,
   `output/`, `assets/`, `workflows/`, and `API/.env`.
 - Implements the Phase 1 read-only endpoints from `doc/go-migration`.
@@ -13,7 +18,7 @@ Current scope:
 Run:
 
 ```bat
-run_go.bat
+..\run_go.bat
 ```
 
 Or:
@@ -24,10 +29,11 @@ go run ./cmd/server
 
 ## Packaging
 
-Updated 2026-06-10: use `package_go.bat` to build the standalone Go package:
+Updated 2026-06-10: ~~use `package_go.bat` to build the standalone Go package~~.
+Updated 2026-06-12: use the root `package_go.bat` to build the standalone Go package:
 
 ```bat
-package_go.bat
+..\package_go.bat
 ```
 
 The output is written to `dist/Infinite-Canvas-Go/` and includes

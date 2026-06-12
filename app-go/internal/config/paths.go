@@ -13,7 +13,7 @@ func findRepoRoot() (string, error) {
 	}
 	dir := wd
 	for {
-		if exists(filepath.Join(dir, "AGENTS.md")) && exists(filepath.Join(dir, "static")) && exists(filepath.Join(dir, "workflows")) {
+		if exists(filepath.Join(dir, "AGENTS.md")) && exists(filepath.Join(dir, "app-go", "go.mod")) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)

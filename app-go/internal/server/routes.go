@@ -31,6 +31,7 @@ func (a *App) registerRoutes(h *handler.Handler) {
 	a.engine.POST("/api/history/delete", h.DeleteHistory)
 	a.engine.GET("/api/view", h.ProxyComfyView)
 	a.engine.GET("/api/download-output", h.DownloadOutput)
+	a.engine.GET("/api/media-preview", h.MediaPreview)
 	a.engine.GET("/api/queue_status", h.GetQueueStatus)
 	a.engine.POST("/api/canvas-assets/check", h.CheckCanvasAssets)
 	a.engine.POST("/api/canvas-assets/download", h.DownloadCanvasAssets)

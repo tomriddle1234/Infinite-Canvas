@@ -22,6 +22,7 @@ type Config struct {
 	AssetsDir        string
 	OutputInputDir   string
 	OutputOutputDir  string
+	MediaPreviewDir  string
 	DataDir          string
 	ConversationDir  string
 	CanvasDir        string
@@ -65,6 +66,10 @@ func Load() (*Config, error) {
 		}
 	}
 	baseDir := getenv("INFINITE_CANVAS_BASE_DIR", repoRoot)
+	workflowDir := filepath.Join(baseDir, "workflows")
+	if baseDir == repoRoot && !pathExists(workflowDir) {
+		workflowDir = filepath.Join(repoRoot, "app-go", "web", "workflows")
+	}
 
 	cfg := &Config{
 		Host: getenv("INFINITE_CANVAS_GO_HOST", "0.0.0.0"),
@@ -74,12 +79,13 @@ func Load() (*Config, error) {
 		BaseDir:  baseDir,
 
 		StaticDir:        filepath.Join(baseDir, "static"),
-		WorkflowDir:      filepath.Join(baseDir, "workflows"),
+		WorkflowDir:      workflowDir,
 		OutputDir:        filepath.Join(baseDir, "output"),
 		AssetsDir:        filepath.Join(baseDir, "assets"),
 		OutputInputDir:   filepath.Join(baseDir, "assets", "input"),
 		OutputOutputDir:  filepath.Join(baseDir, "assets", "output"),
 		DataDir:          filepath.Join(baseDir, "data"),
+		MediaPreviewDir:  filepath.Join(baseDir, "data", "media_previews"),
 		ConversationDir:  filepath.Join(baseDir, "data", "conversations"),
 		CanvasDir:        filepath.Join(baseDir, "data", "canvases"),
 		APIEnvFile:       filepath.Join(baseDir, "API", ".env"),
@@ -104,6 +110,7 @@ func Load() (*Config, error) {
 		cfg.OutputInputDir,
 		cfg.OutputOutputDir,
 		cfg.DataDir,
+		cfg.MediaPreviewDir,
 		cfg.ConversationDir,
 		cfg.CanvasDir,
 		filepath.Dir(cfg.APIEnvFile),
@@ -151,6 +158,11 @@ func getenv(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func nonEmpty(value, fallback string) string {

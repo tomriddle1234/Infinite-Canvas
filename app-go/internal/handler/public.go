@@ -3,13 +3,16 @@ package handler
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"image"
 	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	"image/jpeg"
+	"image/png"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -20,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 
 	"infinite-canvas/app-go/internal/store"
@@ -98,6 +102,64 @@ func (h *Handler) DownloadOutput(c *gin.Context) {
 	}
 	c.Header("Content-Disposition", contentDisposition(filename))
 	c.File(path)
+}
+
+func (h *Handler) MediaPreview(c *gin.Context) {
+	path := h.store.OutputFileFromURL(c.Query("url"))
+	if path == "" {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "媒体文件不存在"})
+		return
+	}
+	if !isPreviewImagePath(path) {
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"detail": "当前预览接口仅支持图片缩略图"})
+		return
+	}
+	width, err := strconv.Atoi(c.DefaultQuery("w", "512"))
+	if err != nil {
+		width = 512
+	}
+	width = clampInt(width, 64, 2048)
+
+	cachePath, mediaType, ok := h.mediaPreviewCache(path, width)
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "媒体文件不存在"})
+		return
+	}
+	if _, err := os.Stat(cachePath); err == nil {
+		c.Header("Content-Type", mediaType)
+		c.File(cachePath)
+		return
+	}
+
+	if err := os.MkdirAll(h.cfg.MediaPreviewDir, 0o755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "创建预览缓存目录失败：" + err.Error()})
+		return
+	}
+	if err := generateImagePreview(path, cachePath, width, mediaType); err != nil {
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"detail": "无法生成预览图：" + err.Error()})
+		return
+	}
+	c.Header("Content-Type", mediaType)
+	c.File(cachePath)
+}
+
+func (h *Handler) mediaPreviewCache(path string, width int) (string, string, bool) {
+	stat, err := os.Stat(path)
+	if err != nil || stat.IsDir() {
+		return "", "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", "", false
+	}
+	sum := sha1.Sum([]byte(abs + "|" + strconv.FormatInt(stat.ModTime().UnixNano(), 10) + "|" + strconv.FormatInt(stat.Size(), 10) + "|" + strconv.Itoa(width)))
+	ext := ".jpg"
+	mediaType := "image/jpeg"
+	if previewShouldUsePNG(path) {
+		ext = ".png"
+		mediaType = "image/png"
+	}
+	return filepath.Join(h.cfg.MediaPreviewDir, hex.EncodeToString(sum[:])+ext), mediaType, true
 }
 
 func (h *Handler) ProxyComfyView(c *gin.Context) {
@@ -411,6 +473,83 @@ func (h *Handler) DeleteNodeMedia(c *gin.Context) {
 func contentDisposition(filename string) string {
 	escaped := url.QueryEscape(filename)
 	return "attachment; filename*=UTF-8''" + escaped
+}
+
+func isPreviewImagePath(path string) bool {
+	switch strings.ToLower(filepath.Ext(strings.SplitN(path, "?", 2)[0])) {
+	case ".png", ".jpg", ".jpeg", ".webp", ".gif":
+		return true
+	default:
+		return false
+	}
+}
+
+func previewShouldUsePNG(path string) bool {
+	switch strings.ToLower(filepath.Ext(strings.SplitN(path, "?", 2)[0])) {
+	case ".png", ".webp", ".gif":
+		return true
+	default:
+		return false
+	}
+}
+
+func generateImagePreview(sourcePath, cachePath string, maxWidth int, mediaType string) error {
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	src, _, err := image.Decode(file)
+	if err != nil {
+		return err
+	}
+	srcBounds := src.Bounds()
+	srcW := srcBounds.Dx()
+	srcH := srcBounds.Dy()
+	if srcW <= 0 || srcH <= 0 {
+		return errors.New("图片尺寸无效")
+	}
+	scale := math.Min(1, float64(maxWidth)/float64(srcW))
+	dstW := max(1, int(math.Round(float64(srcW)*scale)))
+	dstH := max(1, int(math.Round(float64(srcH)*scale)))
+	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+	xdraw.ApproxBiLinear.Scale(dst, dst.Bounds(), src, srcBounds, xdraw.Over, nil)
+
+	tmpPath := cachePath + ".tmp"
+	out, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	if mediaType == "image/png" {
+		err = png.Encode(out, dst)
+	} else {
+		err = jpeg.Encode(out, dst, &jpeg.Options{Quality: 82})
+	}
+	closeErr := out.Close()
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return closeErr
+	}
+	if err := os.Rename(tmpPath, cachePath); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return nil
+}
+
+func clampInt(value, minValue, maxValue int) int {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
 }
 
 func uniqueArchiveName(base string, used map[string]bool) string {

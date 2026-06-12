@@ -1144,6 +1144,28 @@
             return langIsEn() ? `${label} failed${detail ? `: ${detail}` : ''}` : `${label}失败${detail ? `：${detail}` : ''}`;
         }
         function noReturnedImage(labelKey){ return langIsEn() ? `${tr(labelKey)} failed: no image returned` : `${tr(labelKey)}失败：未返回图片`; }
+        function canvasMediaPreviewUrl(url, size=512){
+            const raw = String(url || '');
+            if(!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+            if(!raw.startsWith('/output/') && !raw.startsWith('/assets/')) return raw;
+            if(!/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(raw)) return raw;
+            const width = Math.max(64, Math.min(2048, Math.round(Number(size) || 512)));
+            return `/api/media-preview?w=${width}&url=${encodeURIComponent(raw)}`;
+        }
+        function canvasPreviewImgHtml(url, size=512, attrs=''){
+            const original = String(url || '');
+            const preview = canvasMediaPreviewUrl(original, size);
+            return `<img src="${escapeAttr(preview)}" data-preview-src="${escapeAttr(preview)}" data-original-src="${escapeAttr(original)}" data-url="${escapeAttr(original)}"${attrs ? ` ${attrs}` : ''}>`;
+        }
+        function bindCanvasPreviewImageFallbacks(root=document){
+            root.querySelectorAll?.('img[data-preview-src][data-original-src]:not([data-preview-fallback-bound])').forEach(img => {
+                img.dataset.previewFallbackBound = '1';
+                img.addEventListener('error', () => {
+                    const original = img.dataset.originalSrc || img.dataset.url || '';
+                    if(original && img.getAttribute('src') !== original) img.src = original;
+                });
+            });
+        }
         function applyLanguage(lang){
             if(lang && window.StudioI18n) StudioI18n.set(lang);
             document.title = tr('canvas.title');
@@ -5114,6 +5136,7 @@
             refreshGeometry();
             refreshGeometryAfterLayout();
             refreshIcons();
+            bindCanvasPreviewImageFallbacks(nodesEl);
             refreshOutputTimer();
         }
         function refreshNodes(ids=[], options={}){
@@ -5147,6 +5170,7 @@
                 refreshGeometryAfterLayout();
             }
             refreshIcons();
+            bindCanvasPreviewImageFallbacks(nodesEl);
             refreshOutputTimer();
         }
         function refreshRunNodes(node, out=null){
@@ -6776,7 +6800,7 @@
                 item.innerHTML = `
                     <div class="video-input-thumb">
                         <span class="input-index">${i + 1}</span>
-                        ${src.preview ? `<img src="${src.preview}">` : '<i data-lucide="image" class="w-6 h-6 text-slate-400"></i>'}
+                        ${src.preview ? canvasPreviewImgHtml(src.preview, 160) : '<i data-lucide="image" class="w-6 h-6 text-slate-400"></i>'}
                         <span class="input-label">${escapeHtml(src.label)}</span>
                     </div>
                     ${frameLabel ? `<div class="video-frame-label">${frameLabel}</div>` : ''}
@@ -6798,7 +6822,7 @@
             if(isVideoUrl(latest)){
                 return `<div class="latest-node-preview video"><video src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" muted playsinline></video></div>`;
             }
-            return `<div class="latest-node-preview image"><img src="${escapeAttr(latest)}" data-url="${escapeAttr(latest)}" draggable="false"></div>`;
+            return `<div class="latest-node-preview image">${canvasPreviewImgHtml(latest, 320, 'draggable="false"')}</div>`;
         }
         function bindLatestPreview(wrap, node){
             wrap.querySelectorAll('.latest-node-preview img, .latest-node-preview video, .output-img-wrap img, .output-img-wrap video').forEach(el => {
@@ -9902,7 +9926,7 @@
             if(isVideoUrl(url)){
                 return `<div class="output-img-wrap"><video src="${safe}" data-url="${safe}" preload="metadata" muted playsinline disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
-            return `<div class="output-img-wrap"><img src="${safe}" data-url="${safe}" alt="generated output">${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
+            return `<div class="output-img-wrap">${canvasPreviewImgHtml(url, 512, 'alt="generated output"')}${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
         }
         function outputImageName(url){
             const clean = (url || '').split('?')[0];

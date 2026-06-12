@@ -5,8 +5,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$GoDir = Resolve-Path (Join-Path $PSScriptRoot "..")
-$Root = Resolve-Path (Join-Path $GoDir "..")
+$Root = Resolve-Path (Join-Path $PSScriptRoot "..")
+$GoDir = Resolve-Path (Join-Path $Root "app-go")
 $AppName = "Infinite-Canvas-Go"
 $BuildExe = Join-Path $GoDir "bin\$AppName.exe"
 $FinalDir = Join-Path $Root "dist\$AppName"
@@ -50,14 +50,16 @@ Write-Host "[go-package] Root: $Root"
 
 $EmbedStatic = Join-Path $GoDir "web\static"
 $EmbedWorkflows = Join-Path $GoDir "web\workflows"
-Reset-Directory $EmbedStatic
-Copy-Dir (Join-Path $Root "static") $EmbedStatic
+if (-not (Test-Path $EmbedStatic)) {
+  throw "Missing embedded Go static directory: $EmbedStatic"
+}
 $localPreset = Join-Path $EmbedStatic "system-prompts\templates\core-presets.local.json"
 if (Test-Path $localPreset) {
   Remove-Item -LiteralPath $localPreset -Force
 }
-Reset-Directory $EmbedWorkflows
-Copy-Dir (Join-Path $Root "workflows") $EmbedWorkflows
+if (-not (Test-Path $EmbedWorkflows)) {
+  throw "Missing embedded Go workflows directory: $EmbedWorkflows"
+}
 
 Push-Location $GoDir
 try {
@@ -73,11 +75,11 @@ try {
 Reset-Directory $FinalDir
 Copy-Item -LiteralPath $BuildExe -Destination $FinalExe -Force
 
-foreach ($name in @("API", "assets", "assets\input", "assets\output", "assets\cache", "assets\cache\volcengine_assets", "data", "data\canvases", "data\conversations", "output", "workflows", "workflows\custom")) {
+foreach ($name in @("API", "assets", "assets\input", "assets\output", "assets\cache", "assets\cache\volcengine_assets", "data", "data\canvases", "data\conversations", "data\media_previews", "output", "workflows", "workflows\custom")) {
   New-Item -ItemType Directory -Force (Join-Path $FinalDir $name) | Out-Null
 }
 
-Copy-Dir (Join-Path $Root "workflows") (Join-Path $FinalDir "workflows")
+Copy-Dir $EmbedWorkflows (Join-Path $FinalDir "workflows")
 
 if ($IncludeUserData) {
   Write-Host "[go-package] Including local user runtime data. Check API/.env before sharing this package."
@@ -113,8 +115,8 @@ Infinite Canvas Go package
 Run:
   Start-Go.bat
 
-Runtime data is intentionally stored in the same file and directory layout as
-the Python backend:
+Runtime data is intentionally stored in the legacy-compatible file and
+directory layout:
   API/.env
   data/api_providers.json
   data/canvases/

@@ -2,7 +2,7 @@ package web
 
 import "embed"
 
-// StaticFiles is a build-time copy of the existing Python frontend.
+// StaticFiles is the active Go-embedded frontend.
 //
 // Keep this as an explicit allowlist so ignored local prompt presets are
 // never embedded into release binaries.

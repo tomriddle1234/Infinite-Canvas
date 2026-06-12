@@ -42,6 +42,7 @@ assets/
 history.json
 global_config.json
 data/seedance_tasks.json
+data/media_previews/
 data/conversations/
 data/canvases/
 data/api_providers.json
