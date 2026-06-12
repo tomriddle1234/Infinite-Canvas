@@ -24,6 +24,7 @@ import (
 const volcengineAssetVersion = "2024-01-01"
 
 var safeAssetCacheName = regexp.MustCompile(`[^a-zA-Z0-9_.-]+`)
+var assetIDPattern = regexp.MustCompile(`^asset-[a-zA-Z0-9_-]+$`)
 
 type VolcengineAssetClient struct {
 	cfg  *config.Config
@@ -151,7 +152,7 @@ func (c *VolcengineAssetClient) CachedAssetPreview(assetID string, refresh bool)
 		return "", err
 	}
 	sourceURL := stringFromMap(info, "url")
-	if sourceURL == "" {
+	if sourceURL == "" || !isHTTPURL(sourceURL) {
 		return "", nil
 	}
 	client := &http.Client{Timeout: 45 * time.Second}
@@ -280,12 +281,16 @@ func normalizeAssetGroup(item map[string]any) map[string]any {
 func normalizeAsset(item map[string]any) map[string]any {
 	id := firstStringFromMap(item, "Id", "AssetId")
 	name := firstNonEmptyVolc(firstStringFromMap(item, "Name", "Title"), id, "未命名素材")
-	mediaURL := firstStringFromMap(item, "URL", "Url", "url", "PreviewURL")
+	mediaURL := normalizePreviewURL(firstStringFromMap(item, "URL", "Url", "url", "PreviewURL", "CoverURL"))
 	previewURL := mediaURL
 	if previewURL == "" && id != "" {
 		previewURL = "/api/volcengine/assets/preview/" + url.PathEscape(id)
 	}
-	return map[string]any{"id": id, "asset_id": id, "asset_uri": assetURI(id), "name": name, "title": stringFromMap(item, "Title"), "description": stringFromMap(item, "Description"), "asset_type": stringFromMap(item, "AssetType"), "group_id": stringFromMap(item, "GroupId"), "group_type": stringFromMap(item, "GroupType"), "status": stringFromMap(item, "Status"), "project_name": stringFromMap(item, "ProjectName"), "create_time": stringFromMap(item, "CreateTime"), "update_time": stringFromMap(item, "UpdateTime"), "url": mediaURL, "preview_url": previewURL, "preview_proxy_url": previewURL}
+	proxyURL := ""
+	if id != "" {
+		proxyURL = "/api/volcengine/assets/preview/" + url.PathEscape(id)
+	}
+	return map[string]any{"id": id, "asset_id": id, "asset_uri": assetURI(id), "name": name, "title": stringFromMap(item, "Title"), "description": stringFromMap(item, "Description"), "asset_type": stringFromMap(item, "AssetType"), "group_id": stringFromMap(item, "GroupId"), "group_type": stringFromMap(item, "GroupType"), "status": stringFromMap(item, "Status"), "project_name": stringFromMap(item, "ProjectName"), "create_time": stringFromMap(item, "CreateTime"), "update_time": stringFromMap(item, "UpdateTime"), "url": mediaURL, "preview_url": previewURL, "preview_proxy_url": firstNonEmptyVolc(proxyURL, previewURL)}
 }
 
 func normalizePresetVirtualAsset(item map[string]any) map[string]any {
@@ -296,16 +301,33 @@ func normalizePresetVirtualAsset(item map[string]any) map[string]any {
 	content, _ := group["Content"].(map[string]any)
 	assetType := "Image"
 	media := map[string]any{}
-	if images := anyListFromMap(content, "Image"); len(images) > 0 {
+	if images := firstAnyListFromMap(content, "Image", "Images", "image", "images"); len(images) > 0 {
 		media, _ = images[0].(map[string]any)
-	} else if videos := anyListFromMap(content, "Video"); len(videos) > 0 {
+	} else if videos := firstAnyListFromMap(content, "Video", "Videos", "video", "videos"); len(videos) > 0 {
 		assetType = "Video"
 		media, _ = videos[0].(map[string]any)
 	}
-	id := firstNonEmptyVolc(firstStringFromMap(media, "AssetID", "AssetId"), firstStringFromMap(item, "SID", "asset_id", "AssetId", "id", "Id"), firstStringFromMap(group, "SID"))
+	id := firstAssetID(
+		firstStringFromMap(media, "AssetID", "AssetId", "asset_id", "Id", "id"),
+		firstStringFromMap(media, "AssetURI", "AssetUri", "asset_uri"),
+		firstStringFromMap(group, "AssetID", "AssetId", "asset_id", "Id", "id"),
+		firstStringFromMap(group, "AssetURI", "AssetUri", "asset_uri"),
+		firstStringFromMap(item, "asset_id", "AssetID", "AssetId", "id", "Id", "SID"),
+		firstStringFromMap(item, "AssetURI", "AssetUri", "asset_uri"),
+		firstRecursiveStringByKeys(item, "AssetID", "AssetId", "asset_id", "AssetURI", "AssetUri", "asset_uri"),
+	)
 	name := firstNonEmptyVolc(firstStringFromMap(group, "Name", "Title"), firstStringFromMap(item, "Name", "Title"), id, "Preset virtual portrait")
-	preview := firstNonEmptyVolc(firstStringFromMap(item, "preview_url", "PreviewURL", "CoverURL", "url", "URL"), firstStringFromMap(group, "CoverURL"), firstStringFromMap(media, "CoverURL", "URL"))
-	return map[string]any{"id": id, "asset_id": id, "asset_uri": firstNonEmptyVolc(firstStringFromMap(media, "AssetURI"), firstStringFromMap(group, "AssetURI"), firstStringFromMap(item, "AssetURI"), assetURI(id)), "name": name, "title": firstStringFromMap(group, "Title"), "description": firstStringFromMap(group, "Description"), "tags": normalizeTags(firstValue(group["Tags"], item["Tags"], item["tags"])), "metadata": firstValue(group["Metadata"], map[string]any{}), "source": "volcengine_preset_virtual", "asset_type": assetType, "score": item["Score"], "preview_url": firstNonEmptyVolc(preview, "/api/volcengine/assets/preview/"+url.PathEscape(id))}
+	preview := firstUsablePreviewURL(
+		firstStringFromMap(item, "preview_url", "PreviewURL", "CoverURL", "ThumbnailURL", "PosterURL", "url", "URL"),
+		firstStringFromMap(group, "preview_url", "PreviewURL", "CoverURL", "ThumbnailURL", "PosterURL", "url", "URL"),
+		firstStringFromMap(media, "preview_url", "PreviewURL", "CoverURL", "ThumbnailURL", "PosterURL", "ImageURL", "url", "URL"),
+		firstRecursiveStringByKeys(item, "preview_url", "PreviewURL", "CoverURL", "ThumbnailURL", "PosterURL", "ImageURL", "url", "URL"),
+	)
+	proxyURL := ""
+	if id != "" {
+		proxyURL = "/api/volcengine/assets/preview/" + url.PathEscape(id)
+	}
+	return map[string]any{"id": id, "asset_id": id, "asset_uri": firstNonEmptyVolc(firstStringFromMap(media, "AssetURI"), firstStringFromMap(group, "AssetURI"), firstStringFromMap(item, "AssetURI"), assetURI(id)), "name": name, "title": firstStringFromMap(group, "Title"), "description": firstStringFromMap(group, "Description"), "tags": normalizeTags(firstValue(group["Tags"], item["Tags"], item["tags"])), "metadata": firstValue(group["Metadata"], map[string]any{}), "source": "volcengine_preset_virtual", "asset_type": assetType, "score": item["Score"], "preview_url": firstNonEmptyVolc(preview, proxyURL), "preview_proxy_url": firstNonEmptyVolc(proxyURL, preview)}
 }
 
 func (c *VolcengineAssetClient) projectName(value string) string {
@@ -399,6 +421,15 @@ func anyListFromMap(obj map[string]any, key string) []any {
 	return nil
 }
 
+func firstAnyListFromMap(obj map[string]any, keys ...string) []any {
+	for _, key := range keys {
+		if list := anyListFromMap(obj, key); len(list) > 0 {
+			return list
+		}
+	}
+	return nil
+}
+
 func firstStringFromMap(obj map[string]any, keys ...string) string {
 	for _, key := range keys {
 		if text := stringFromMap(obj, key); text != "" {
@@ -406,6 +437,81 @@ func firstStringFromMap(obj map[string]any, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstRecursiveStringByKeys(value any, keys ...string) string {
+	for _, key := range keys {
+		if text := recursiveStringByKey(value, key); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func recursiveStringByKey(value any, key string) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		if text := stringFromMap(typed, key); text != "" {
+			return text
+		}
+		for _, child := range typed {
+			if text := recursiveStringByKey(child, key); text != "" {
+				return text
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if text := recursiveStringByKey(child, key); text != "" {
+				return text
+			}
+		}
+	}
+	return ""
+}
+
+func firstAssetID(values ...string) string {
+	fallback := ""
+	for _, value := range values {
+		text := strings.TrimSpace(strings.TrimPrefix(value, "asset://"))
+		if text == "" {
+			continue
+		}
+		if fallback == "" {
+			fallback = text
+		}
+		if assetIDPattern.MatchString(text) {
+			return text
+		}
+	}
+	return fallback
+}
+
+func firstUsablePreviewURL(values ...string) string {
+	for _, value := range values {
+		if text := normalizePreviewURL(value); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func normalizePreviewURL(value string) string {
+	text := strings.TrimSpace(value)
+	if text == "" {
+		return ""
+	}
+	if strings.HasPrefix(text, "//") {
+		return "https:" + text
+	}
+	if isHTTPURL(text) || strings.HasPrefix(text, "/") || strings.HasPrefix(text, "data:image/") {
+		return text
+	}
+	return ""
+}
+
+func isHTTPURL(value string) bool {
+	text := strings.ToLower(strings.TrimSpace(value))
+	return strings.HasPrefix(text, "http://") || strings.HasPrefix(text, "https://")
 }
 
 func stringFromMap(obj map[string]any, key string) string {

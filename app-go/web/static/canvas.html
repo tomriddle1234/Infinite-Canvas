@@ -3048,8 +3048,21 @@
                 url:uri,
                 name:asset.name || asset.title || asset.asset_id || 'portrait asset',
                 role:node.role || '',
-                preview:asset.preview_url || ''
+                preview:portraitAssetPreviewUrl(asset) || ''
             };
+        }
+        function portraitAssetPreviewUrl(asset){
+            if(!asset) return '';
+            const direct = asset.preview_url || asset.url || '';
+            const proxy = asset.preview_proxy_url || '';
+            return asset.source === 'volcengine_preset_virtual'
+                ? (direct || proxy)
+                : (proxy || direct);
+        }
+        function portraitAssetFallbackPreviewUrl(asset, primary){
+            if(!asset) return '';
+            const candidates = [asset.preview_proxy_url || '', asset.preview_url || '', asset.url || ''];
+            return candidates.find(url => url && url !== primary) || '';
         }
         async function portraitFetchJson(url, body, opts={}){
             const res = await fetch(url, {
@@ -3238,8 +3251,8 @@
             )).join('');
             const assetsHtml = node.assets.length ? node.assets.map(asset => {
                 const active = asset.asset_id === selectedId ? 'active' : '';
-                const preview = asset.preview_url || '';
-                const fallbackPreview = asset.preview_proxy_url && asset.preview_proxy_url !== preview ? asset.preview_proxy_url : '';
+                const preview = portraitAssetPreviewUrl(asset);
+                const fallbackPreview = portraitAssetFallbackPreviewUrl(asset, preview);
                 const cardTitle = [asset.name || asset.asset_id, asset.description || '', asset.asset_uri || ''].filter(Boolean).join('\n');
                 return `
                     <button type="button" class="portrait-card ${active}" data-portrait-asset="${escapeAttr(asset.asset_id)}" title="${escapeAttr(cardTitle)}">

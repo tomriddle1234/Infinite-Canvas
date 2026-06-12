@@ -9,4 +9,3 @@ tmp/
 coverage.*
 cpu.out
 mem.out
-web/static/system-prompts/templates/core-presets.local.json

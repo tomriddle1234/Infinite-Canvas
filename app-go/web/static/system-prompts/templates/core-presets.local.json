@@ -1,0 +1,1348 @@
+{
+  "version": "1.0",
+  "source": "local prompt_ref synthesis; ignored core asset",
+  "presets": [
+    {
+      "id": "seedream_product_hero_ad",
+      "category": "Seedream",
+      "name": "产品英雄广告",
+      "scene": "单个产品的高端商业主视觉，适合饮料、美妆、数码、包装和电商首图。",
+      "positive": "Seedream high-fidelity commercial product hero image. Main product: [产品]. Brand mood: [品牌气质]. Place the product centered and dominant, logo facing camera, exact shape and material preserved, condensation or tactile surface details visible when relevant. Background: [场景/背景], clean premium advertising composition, cinematic studio lighting, controlled reflections, realistic shadow contact, sharp product edge, 4K detail, no extra products, no unrelated props. If text is needed, use only this exact text: [文字].",
+      "negative": "wrong logo, misspelled text, extra labels, deformed product, duplicate product, clutter, low resolution, watermark, bad reflection, floating object",
+      "params": {
+        "Seedream": "适合文生图或参考图生图；产品图建议上传参考并强调 preserve exact shape.",
+        "比例": "1:1 / 4:5 / 9:16"
+      },
+      "placeholders": [
+        "产品",
+        "品牌气质",
+        "场景/背景",
+        "文字"
+      ]
+    },
+    {
+      "id": "seedream_ecommerce_packshot",
+      "category": "Seedream",
+      "name": "电商白底棚拍",
+      "scene": "干净可售卖的产品棚拍，强调形状、材质、阴影和平台合规。",
+      "positive": "Create a clean e-commerce packshot of [产品]. Keep the product true to reference, front-facing or [角度], centered on a seamless warm-white studio background, realistic soft shadow under the object, accurate color and material, crisp label readability, high resolution product photography, minimal retouching, no lifestyle props unless specified: [必要道具].",
+      "negative": "busy background, extra objects, wrong color, wrong label, fake logo, cropped product, harsh shadow, overexposed white, text artifacts, watermark",
+      "params": {
+        "Seedream": "适合商品库图、SKU图、详情页第一屏。",
+        "比例": "1:1 / 3:4"
+      },
+      "placeholders": [
+        "产品",
+        "角度",
+        "必要道具"
+      ]
+    },
+    {
+      "id": "seedream_lifestyle_product_scene",
+      "category": "Seedream",
+      "name": "生活方式产品场景",
+      "scene": "把产品放进真实使用场景，适合品牌叙事和社媒图。",
+      "positive": "A realistic lifestyle advertising scene for [产品], used by [用户/人群] in [真实场景]. The product remains clearly visible and brand-consistent, natural human gesture, believable scale, cinematic but not exaggerated lighting, shallow depth of field, editorial commercial photography, warm authentic mood, tactile details, no distracting background objects. Visual story: [卖点/情绪].",
+      "negative": "product hidden, wrong scale, distorted hands, fake smile, messy background, extra text, watermark, overprocessed skin, uncanny face",
+      "params": {
+        "Seedream": "适合图生图时锁产品，再换场景。",
+        "比例": "4:5 / 16:9"
+      },
+      "placeholders": [
+        "产品",
+        "用户/人群",
+        "真实场景",
+        "卖点/情绪"
+      ]
+    },
+    {
+      "id": "seedream_food_beverage_splash",
+      "category": "Seedream",
+      "name": "饮品飞溅微距",
+      "scene": "饮料、果汁、咖啡、啤酒等高冲击力商业图。",
+      "positive": "Ultra-realistic beverage advertising macro shot of [饮品/容器], centered and sharp, covered with cold condensation droplets. A dynamic splash of [液体颜色/材质] erupts behind or around the product, with [水果/冰块/配料] arranged at the base. Dramatic studio lighting, high-speed photography feel, crisp droplets, premium color grading, clean composition, 4K detail, label readable and undistorted.",
+      "negative": "muddy splash, unreadable label, fake liquid physics, extra cans, wrong fruit, low detail, cartoon, watermark, messy typography",
+      "params": {
+        "Seedream": "参考库里饮料 splash 类型很强，可泛化到多品牌。",
+        "比例": "3:4 / 4:5"
+      },
+      "placeholders": [
+        "饮品/容器",
+        "液体颜色/材质",
+        "水果/冰块/配料"
+      ]
+    },
+    {
+      "id": "seedream_luxury_perfume_grid",
+      "category": "Seedream",
+      "name": "香水九宫格大片",
+      "scene": "同一产品九张高级广告方向探索，适合香水、美妆、首饰。",
+      "positive": "A 3x3 luxury product photography grid for [产品]. Keep product identity identical in every panel: same bottle shape, cap, label, material, color and proportions. Each panel explores one premium composition: water ripple, falling petals, silk fabric, golden reflection, marble tabletop, mist, macro detail, backlit silhouette, clean packshot. High-end editorial advertising, soft studio light, polished reflections, no text labels or panel numbers.",
+      "negative": "panel numbers, text captions, changed product shape, wrong logo, inconsistent bottle, cluttered layout, low quality, watermark",
+      "params": {
+        "Seedream": "适合一次出方向，也可拆成单张重跑。",
+        "比例": "1:1"
+      },
+      "placeholders": [
+        "产品"
+      ]
+    },
+    {
+      "id": "seedream_character_identity_sheet",
+      "category": "Seedream",
+      "name": "角色一致性设定表",
+      "scene": "锁定人物/角色身份，用于后续图生图、视频、表情和换装。",
+      "positive": "Seedream character identity reference sheet for [角色]. Layout: left large chest-up portrait, right three full-body views front, side, back. Preserve exact face identity, hairstyle, body proportions, outfit, accessories and color palette across all views. Neutral warm-gray background, consistent soft studio light, realistic skin texture, clean design sheet, no labels, no numbers, no extra characters. Character details: [角色细节].",
+      "negative": "different face between views, changed outfit, labels, numbers, extra people, distorted hands, bad anatomy, plastic skin, watermark",
+      "params": {
+        "Seedream": "用于参考图锁脸、换场景、Seedance角色基底。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "角色",
+        "角色细节"
+      ]
+    },
+    {
+      "id": "seedream_beauty_retouch",
+      "category": "Seedream",
+      "name": "美妆精修",
+      "scene": "人像/美妆图的自然商业修图，不破坏身份。",
+      "positive": "Retouch the reference portrait of [人物] for a premium beauty campaign. Preserve identity, face structure, skin tone, hairstyle and pose. Improve skin with natural texture still visible, refine makeup: [妆容方向], enhance catchlights, smooth stray hair, clean background, high-end beauty editorial color, crisp but natural detail, no change to facial identity.",
+      "negative": "different person, wax skin, over-smoothing, changed eye shape, changed nose, heavy filter, fake makeup, artifacts, watermark",
+      "params": {
+        "Seedream": "适合豆包 P 图类一键美化/妆容参考。",
+        "模式": "图生图/编辑"
+      },
+      "placeholders": [
+        "人物",
+        "妆容方向"
+      ]
+    },
+    {
+      "id": "seedream_hair_makeup_change",
+      "category": "Seedream",
+      "name": "发型妆容替换",
+      "scene": "改变发型、发色、妆容，同时保留人物身份和服装。",
+      "positive": "Edit the reference image: keep [人物] identity, facial features, pose, clothing and background unchanged. Change only hair and makeup according to: [发型/发色/妆容]. Make the result photorealistic, salon-quality, natural hair strands, believable lighting match, no mask edges, no changes to face shape or body.",
+      "negative": "changed identity, changed outfit, changed background, wig look, hard mask edge, smeared hair, unnatural color, distorted face, watermark",
+      "params": {
+        "Seedream": "局部编辑时最好明确 only hair and makeup.",
+        "模式": "图生图/局部编辑"
+      },
+      "placeholders": [
+        "人物",
+        "发型/发色/妆容"
+      ]
+    },
+    {
+      "id": "seedream_outfit_swap",
+      "category": "Seedream",
+      "name": "服装换装",
+      "scene": "模特/角色换衣，保留姿态、脸和场景。",
+      "positive": "Edit the image of [人物]. Preserve identity, face, hair, body pose, camera angle and background. Replace only the outfit with [目标服装], including accurate fabric, fit, seams, accessories and footwear. Match original lighting and shadows on the body, realistic cloth folds, fashion editorial quality, no visible edit boundary.",
+      "negative": "changed face, changed pose, changed background, broken limbs, bad fabric, wrong size, mask edges, duplicated accessories, watermark",
+      "params": {
+        "Seedream": "适合服装试穿和时尚方案探索。",
+        "模式": "图生图/局部替换"
+      },
+      "placeholders": [
+        "人物",
+        "目标服装"
+      ]
+    },
+    {
+      "id": "seedream_material_replace",
+      "category": "Seedream",
+      "name": "材质替换",
+      "scene": "家具、包装、服装、道具的材质替换和表面质感测试。",
+      "positive": "Edit [对象] in the reference image. Keep the exact shape, scale, position, camera angle and surrounding scene unchanged. Replace only its material with [新材质], showing believable surface texture, reflections, roughness, thickness and edge behavior. Lighting and shadows must match the original photo, photorealistic result, no geometry drift.",
+      "negative": "changed shape, changed scene, wrong scale, texture smear, unrealistic reflection, hard mask edge, extra objects, watermark",
+      "params": {
+        "Seedream": "从参考库的材质替换/P图能力抽象而来。",
+        "模式": "图生图/局部编辑"
+      },
+      "placeholders": [
+        "对象",
+        "新材质"
+      ]
+    },
+    {
+      "id": "seedream_object_replace",
+      "category": "Seedream",
+      "name": "局部物体替换",
+      "scene": "把图中某个物体替换为目标物，同时保持环境真实。",
+      "positive": "Replace [原对象] in the reference image with [新对象]. Preserve the rest of the image unchanged: background, camera angle, lighting, shadows, people and composition. The new object must fit the scene naturally, correct perspective, correct contact shadow, matching color temperature, photorealistic texture, no visible edit seams.",
+      "negative": "changed background, changed people, wrong perspective, floating object, hard edge, duplicate object, bad shadow, watermark",
+      "params": {
+        "Seedream": "局部替换要写清 preserve the rest unchanged.",
+        "模式": "图生图/局部替换"
+      },
+      "placeholders": [
+        "原对象",
+        "新对象"
+      ]
+    },
+    {
+      "id": "seedream_relight_color_grade",
+      "category": "Seedream",
+      "name": "光影色调重塑",
+      "scene": "同一图像的电影光影、时间、氛围转换。",
+      "positive": "Transform the reference image lighting and color grade to [目标光影/时间/情绪]. Keep subject identity, composition, pose, objects and camera angle unchanged. Add physically believable light direction, shadows, reflections and atmospheric depth. Cinematic color grading, natural contrast, no overprocessing, no changes to object geometry.",
+      "negative": "changed subject, changed layout, unrealistic light, muddy colors, overexposure, halo edge, extra objects, watermark",
+      "params": {
+        "Seedream": "适合日夜转换、黄金时刻、霓虹夜景、柔光棚拍。",
+        "模式": "图生图/编辑"
+      },
+      "placeholders": [
+        "目标光影/时间/情绪"
+      ]
+    },
+    {
+      "id": "seedream_style_transfer_reference",
+      "category": "Seedream",
+      "name": "参考风格迁移",
+      "scene": "把主体迁移到参考风格，不照搬参考图内容。",
+      "positive": "Use the uploaded style reference only for visual language: [风格要点]. Generate [主体] with original content and composition: [内容描述]. Preserve the subject requirements, do not copy characters, objects or layout from the style reference. Match color palette, lens, lighting, material treatment and finish, high-fidelity Seedream image, clean final composition.",
+      "negative": "copying reference subject, wrong content, inconsistent style, low detail, text artifacts, watermark, over-stylized, messy background",
+      "params": {
+        "Seedream": "区分 style reference 和 content reference。",
+        "模式": "文生图/多参考图"
+      },
+      "placeholders": [
+        "风格要点",
+        "主体",
+        "内容描述"
+      ]
+    },
+    {
+      "id": "seedream_architecture_interior",
+      "category": "Seedream",
+      "name": "室内建筑真实感",
+      "scene": "空间设计、展厅、民宿、商业室内和建筑概念图。",
+      "positive": "Photorealistic architectural interior of [空间类型], design style [设计风格], key materials [材质], functional layout [功能布局]. Wide-angle but natural perspective, vertical lines straight, realistic daylight and practical lights, clean staged environment, tactile furniture and surface details, high-end interior photography, no impossible geometry, no fake windows.",
+      "negative": "warped walls, impossible layout, extra doors, broken furniture, fisheye distortion, low detail, messy clutter, watermark, unreadable signage",
+      "params": {
+        "Seedream": "适合空间设计方案和参考图改风格。",
+        "比例": "16:9 / 3:2"
+      },
+      "placeholders": [
+        "空间类型",
+        "设计风格",
+        "材质",
+        "功能布局"
+      ]
+    },
+    {
+      "id": "seedream_medical_bento_infographic",
+      "category": "Seedream",
+      "name": "医疗科普便当图",
+      "scene": "药品、健康、科研知识卡片，参考模块化 Bento 信息图。",
+      "positive": "Create a professional medical science infographic poster about [主题]. Modular Bento Grid layout, clinical white background, medical blue and slate gray accents, clean cards with icons, charts and one realistic macro product/subject image. Sections: overview, mechanism, usage, timeline, precautions, audience. Use only exact Chinese headings provided: [标题文字]. Keep typography neat, hierarchy clear, no fabricated tiny unreadable text.",
+      "negative": "medical misinformation, unreadable microtext, messy layout, wrong anatomy, random numbers, watermark, garish colors, low resolution",
+      "params": {
+        "Seedream": "含文字场景需短标题、少文字、分区明确。",
+        "比例": "9:16"
+      },
+      "placeholders": [
+        "主题",
+        "标题文字"
+      ]
+    },
+    {
+      "id": "seedream_3d_miniature_diorama",
+      "category": "Seedream",
+      "name": "微缩施工奇观",
+      "scene": "巨型产品/食物/物体与微缩工人，适合趣味广告和概念图。",
+      "positive": "Hyper-realistic miniature diorama: [巨型主体] becomes a monumental construction site. Dozens of tiny workers with scaffolding, ladders, tools and safety gear interact with its surface. Macro photography, tilt-shift depth of field, accurate scale contrast, playful but premium commercial look, rich material detail, natural tabletop or [环境] setting, cinematic light.",
+      "negative": "wrong scale, toy-like workers, messy composition, unreadable logo, extra brands, low detail, cartoon, watermark, bad shadows",
+      "params": {
+        "Seedream": "参考库里 miniature construction 类型很有复用价值。",
+        "比例": "4:5 / 16:9"
+      },
+      "placeholders": [
+        "巨型主体",
+        "环境"
+      ]
+    },
+    {
+      "id": "seedream_isometric_city_card",
+      "category": "Seedream",
+      "name": "等距城市信息卡",
+      "scene": "城市、品牌总部、活动天气卡和社媒信息视觉。",
+      "positive": "Clear 45-degree top-down isometric miniature 3D scene of [城市/地点], featuring iconic landmarks and local atmosphere. Soft PBR materials, refined cartoon-real render, tiny people and vehicles, current weather integrated visually: [天气]. Minimal solid background. Optional centered title only: [标题]. Balanced composition, readable large text if included, no clutter.",
+      "negative": "wrong landmarks, unreadable small text, clutter, distorted buildings, inconsistent weather, watermark, low quality, random labels",
+      "params": {
+        "Seedream": "可用于城市卡片、旅游海报、活动视觉。",
+        "比例": "1:1"
+      },
+      "placeholders": [
+        "城市/地点",
+        "天气",
+        "标题"
+      ]
+    },
+    {
+      "id": "seedream_surreal_product_world",
+      "category": "Seedream",
+      "name": "超现实产品世界",
+      "scene": "把产品放进有机、科幻、自然或梦境世界，适合海报主视觉。",
+      "positive": "Surreal cinematic product world for [产品]. The product floats or stands as the sharp focal point, exact identity preserved, surrounded by [超现实元素] that visually express [卖点]. Hyper-real material detail, dramatic depth, controlled color palette, believable light interaction, premium campaign poster composition, no random objects, no text unless specified.",
+      "negative": "product distorted, logo changed, chaotic elements, fake physics, unreadable label, oversaturated, watermark, low detail",
+      "params": {
+        "Seedream": "从 organic landscape / sci-fi product 广告抽象。",
+        "比例": "9:16 / 4:5"
+      },
+      "placeholders": [
+        "产品",
+        "超现实元素",
+        "卖点"
+      ]
+    },
+    {
+      "id": "seedream_retro_software_box",
+      "category": "Seedream",
+      "name": "复古软件盒",
+      "scene": "把网站、App、服务变成 90 年代实体软件盒/CD-ROM。",
+      "positive": "Turn [网站/App/服务] into a nostalgic 1995 software box and CD-ROM product photo. Physical cardboard retail box, old Windows/Mac era design language, pixel icons, glossy CD partially visible, carpet or desk setting, believable printed packaging with exact title [标题], retro tech color palette, photorealistic still life, soft indoor light.",
+      "negative": "modern UI, wrong title, unreadable text, fake brand marks, warped box, extra packaging, watermark, low resolution",
+      "params": {
+        "Seedream": "参考库中 website to product box 类型，适合趣味品牌物料。",
+        "比例": "4:5"
+      },
+      "placeholders": [
+        "网站/App/服务",
+        "标题"
+      ]
+    },
+    {
+      "id": "seedream_hd_restore",
+      "category": "Seedream",
+      "name": "高清修复放大",
+      "scene": "老照片、低清图、压缩图修复，保留原始内容。",
+      "positive": "Restore and upscale the reference image of [对象/人物]. Preserve original composition, identity, clothing, objects and era. Remove compression artifacts, recover natural detail, improve sharpness carefully, balance exposure and color, keep realistic film or photo texture, no invented facial features, no style change, clean high-resolution output.",
+      "negative": "changed identity, invented details, plastic skin, oversharpening, denoise smear, color shift, changed background, watermark",
+      "params": {
+        "Seedream": "适合 P 图高清修复；重点写 preserve original.",
+        "模式": "图生图/修复"
+      },
+      "placeholders": [
+        "对象/人物"
+      ]
+    },
+    {
+      "id": "seedance_15s_storyboard",
+      "category": "Seedance",
+      "name": "15秒电影分镜",
+      "scene": "通用 15 秒短片，多镜头、明确时间轴、情绪递进。",
+      "positive": "Seedance 2.0 video prompt. Format: [比例] cinematic video, 15 seconds, 24fps, high realism. Story concept: [故事概念]. Structure: 0-3s establishing wide shot, 3-6s medium action setup, 6-10s close-up emotional turn, 10-13s climax movement, 13-15s final hero frame. Keep the same subject [主体] and environment continuity. Camera language: smooth cinematic motion, motivated cuts, natural motion blur, consistent lighting, no captions.",
+      "negative": "text captions, subtitles, watermark, jump cuts, inconsistent character, changing outfit, warped hands, flicker, low resolution",
+      "params": {
+        "Seedance": "参考库最常见结构：时间轴 + 镜头 + 连贯性约束。",
+        "时长": "15s"
+      },
+      "placeholders": [
+        "比例",
+        "故事概念",
+        "主体"
+      ]
+    },
+    {
+      "id": "seedance_one_take_action",
+      "category": "Seedance",
+      "name": "一镜到底动作戏",
+      "scene": "高能动作、追逐、武术、英雄出场。",
+      "positive": "A 15-second continuous single-shot action sequence for Seedance. Subject: [主角]. Location: [场景]. The camera follows in one unbroken take: starts behind the subject, accelerates into the action, circles around during the key move, then pulls back to reveal the aftermath. Choreography: [动作设计]. Hyper-real cinematic motion, strong spatial continuity, practical impacts, readable body mechanics, dramatic but clean VFX, no cuts, no text.",
+      "negative": "hard cuts, teleporting subject, inconsistent costume, broken body, unreadable action, shaky chaos, excessive blur, watermark",
+      "params": {
+        "Seedance": "一镜到底要明确 camera path 和 no cuts.",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "主角",
+        "场景",
+        "动作设计"
+      ]
+    },
+    {
+      "id": "seedance_product_commercial",
+      "category": "Seedance",
+      "name": "产品广告短片",
+      "scene": "产品 10-15 秒商业视频，适合数码、饮品、美妆、汽车。",
+      "positive": "Seedance premium product commercial, [时长] seconds, [比例]. Product: [产品]. Use reference image as strict product identity. Shot plan: macro detail reveal, hero rotation with controlled reflections, lifestyle usage moment, final packshot. Camera movement: slow push-in, parallax orbit, clean match cuts. Lighting: [光影风格]. Preserve product shape, label, color and logo in every shot. No extra text except exact final tagline: [标语].",
+      "negative": "wrong product, changed label, random text, extra logo, flicker, warped product, low quality, watermark, unstable camera",
+      "params": {
+        "Seedance": "从汽车/手机/美妆广告分镜泛化。",
+        "时长": "10s / 15s"
+      },
+      "placeholders": [
+        "时长",
+        "比例",
+        "产品",
+        "光影风格",
+        "标语"
+      ]
+    },
+    {
+      "id": "seedance_skincare_ritual",
+      "category": "Seedance",
+      "name": "护肤仪式感视频",
+      "scene": "高端护肤/美妆品牌短片，强调微距、水润、柔和过渡。",
+      "positive": "Create a [比例] high-end skincare ritual video for Seedance, [时长] seconds. Brand mood: quiet luxury, glass-skin hydration, ivory and sage or [色彩]. Sequence: awakening morning light, cleanser texture macro, product application, water ripple transition, glowing skin close-up, final product hero. Use slow pull-back, delicate macro zoom, mist particles, soft lens flares, coherent editorial beauty aesthetic. Product [产品] remains the emotional focus.",
+      "negative": "changed product, over-smoothed skin, heavy makeup, random text, harsh light, flicker, inconsistent model, watermark",
+      "params": {
+        "Seedance": "来自护肤 storyboard 参考，适合品牌感视频。",
+        "比例": "9:16"
+      },
+      "placeholders": [
+        "比例",
+        "时长",
+        "色彩",
+        "产品"
+      ]
+    },
+    {
+      "id": "seedance_fashion_transformation",
+      "category": "Seedance",
+      "name": "时尚蜕变脚本",
+      "scene": "人物从日常到高级时装造型的连续转变。",
+      "positive": "Seedance fashion transformation story, 15 seconds. Character: [人物]. Scene 1: casual understated look in soft natural light, reflective mirror moment. Scene 2: wardrobe selection with fluid motion blur. Scene 3: accessories, jewelry, makeup and fabric macro details. Scene 4: full styling reveal with dramatic fashion lighting. Scene 5: confident runway walk, slow motion, spotlight. Scene 6: final magazine-cover freeze. Color evolves from soft muted tones to bold high-fashion contrast.",
+      "negative": "different person, outfit flicker, bad hands, random text, broken mirror, jumpy transition, watermark, low detail",
+      "params": {
+        "Seedance": "参考库里的 transformation 结构，强在情绪递进。",
+        "比例": "9:16 / 16:9"
+      },
+      "placeholders": [
+        "人物"
+      ]
+    },
+    {
+      "id": "seedance_pov_chase",
+      "category": "Seedance",
+      "name": "第一人称追逐",
+      "scene": "FPV/POV 追逐、逃生、城市穿梭。",
+      "positive": "First-person POV Seedance video, [时长] seconds. The viewer is [身份/视角] moving through [场景]. Camera is chest-mounted or handheld, natural body motion, readable speed, environmental obstacles pass close to lens. Sequence: start calm, sudden trigger, rapid chase, narrow escape, final reveal. Use realistic motion blur, breathing rhythm, spatial audio implied by visuals, consistent geography, no UI text.",
+      "negative": "third-person view, impossible teleport, nausea shake, random subtitles, broken perspective, inconsistent location, watermark",
+      "params": {
+        "Seedance": "POV 类参考很多，关键是视角身份和空间连续。",
+        "比例": "16:9 / 9:16"
+      },
+      "placeholders": [
+        "时长",
+        "身份/视角",
+        "场景"
+      ]
+    },
+    {
+      "id": "seedance_fpv_drone",
+      "category": "Seedance",
+      "name": "FPV穿越镜头",
+      "scene": "无人机、鱼眼、穿越城市/建筑/自然场景。",
+      "positive": "Cinematic FPV racing drone shot for Seedance. Lens: 8mm fisheye, hyper-fluid motion, high speed but readable. Environment: [环境]. Flight path: dive from high altitude, skim close to surfaces, pass through a narrow opening, orbit [主体], then accelerate into a wide reveal. Realistic parallax, strong depth, dynamic light streaks, no cuts unless specified, no text overlays.",
+      "negative": "static camera, impossible path, clipping through objects, excessive blur, broken geometry, text, watermark, stutter",
+      "params": {
+        "Seedance": "参考 FPV racing drone prompt 模式。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "环境",
+        "主体"
+      ]
+    },
+    {
+      "id": "seedance_macro_liquid_pov",
+      "category": "Seedance",
+      "name": "微距液体POV",
+      "scene": "冰块入杯、汽水、咖啡、颜料等微距物理镜头。",
+      "positive": "Extreme macro Seedance video: [物体] enters [液体/容器] in slow motion. The camera follows at liquid surface level, bubbles, droplets, refraction and tiny splashes visible. Sequence: object approaches, first contact, liquid crown forms, bubbles rise, final calm hero macro. Photorealistic fluid physics, crisp highlights, shallow depth of field, high-speed cinematography, no text.",
+      "negative": "fake fluid, muddy bubbles, wrong scale, random objects, text, watermark, low detail, unstable focus",
+      "params": {
+        "Seedance": "来自 ice cube soda 类 POV 参考，适合质感测试。",
+        "比例": "16:9 / 1:1"
+      },
+      "placeholders": [
+        "物体",
+        "液体/容器"
+      ]
+    },
+    {
+      "id": "seedance_elemental_duel",
+      "category": "Seedance",
+      "name": "元素对决VFX",
+      "scene": "武士、魔法、机甲、英雄类高能 VFX 短片。",
+      "positive": "15-second Seedance elemental duel. Character A: [角色A] using [元素A]. Character B: [角色B] using [元素B]. Setting: [场景]. 0-5s tension setup and power charging, 5-10s high-speed approach with trails and environmental reaction, 10-15s central collision and controlled VFX explosion. Make effects physically interact with air, ground, fabric and particles. Cinematic fantasy realism, no gore, no captions.",
+      "negative": "unreadable chaos, inconsistent characters, excessive particles hiding action, gore, text, watermark, low quality, flicker",
+      "params": {
+        "Seedance": "来自呼吸法/元素战斗提示词，保留三段式。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "角色A",
+        "元素A",
+        "角色B",
+        "元素B",
+        "场景"
+      ]
+    },
+    {
+      "id": "seedance_horror_multi_act",
+      "category": "Seedance",
+      "name": "恐怖多幕短片",
+      "scene": "悬疑、逃生、地下空间、怪物暗示。",
+      "positive": "Seedance survival horror short, [时长] seconds. Title concept: [概念]. Act 1: atmospheric opening in [地点], handheld realism, subtle dread. Act 2: discovery of [线索/入口], slow push-in, sound implied by visual tension. Act 3: descent into darker space, claustrophobic framing, emergency lights. Act 4: partial reveal of [威胁], never fully overexpose it. Act 5: final escape or twist. Cinematic realism, rain/fog/texture, no explicit gore, no text.",
+      "negative": "jump-scare text, gore, cartoon monster, inconsistent location, random subtitles, overbright horror, watermark, low detail",
+      "params": {
+        "Seedance": "参考多幕恐怖短片结构；威胁要半遮半露。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "时长",
+        "概念",
+        "地点",
+        "线索/入口",
+        "威胁"
+      ]
+    },
+    {
+      "id": "seedance_car_commercial",
+      "category": "Seedance",
+      "name": "汽车广告分镜",
+      "scene": "高端汽车/摩托/交通工具短片。",
+      "positive": "Seedance cinematic automotive commercial, 15 seconds, 16:9, 4K look. Vehicle: [车型/车辆]. Concept: [广告概念]. Shot 1: low tracking shot of wheels and road texture. Shot 2: hero three-quarter reveal with reflections. Shot 3: dynamic driving through [环境]. Shot 4: interior detail macro. Shot 5: final stop, dust/rain/light reacting naturally. Preserve exact vehicle design and color, premium grading, no fake badges.",
+      "negative": "wrong car shape, fake logo, warped wheels, impossible driving, random text, license errors, flicker, watermark",
+      "params": {
+        "Seedance": "参考汽车广告 storyboard 类型。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "车型/车辆",
+        "广告概念",
+        "环境"
+      ]
+    },
+    {
+      "id": "seedance_anime_hard_cuts",
+      "category": "Seedance",
+      "name": "动漫高速硬切",
+      "scene": "10秒内多硬切，适合动漫动作、MV、预告片。",
+      "positive": "Seedance anime high-speed cut test: [时长] seconds, around [镜头数] hard cuts. Subject: [角色/动作]. Each cut is a distinct readable composition: eye close-up, hand grip, foot impact, wide charge, profile slash, object reaction, silhouette, final hero frame. Strong anime timing, speed lines, impact frames, dynamic lighting, consistent character design and costume, no captions.",
+      "negative": "inconsistent character, unreadable cuts, random subtitles, broken anatomy, excessive smear, watermark, low quality",
+      "params": {
+        "Seedance": "参考 anime hard cuts；镜头数要明确但别过密。",
+        "时长": "10s"
+      },
+      "placeholders": [
+        "时长",
+        "镜头数",
+        "角色/动作"
+      ]
+    },
+    {
+      "id": "seedance_dialogue_overlap",
+      "category": "Seedance",
+      "name": "双人对白调度",
+      "scene": "双人对话、冲突、暧昧、课堂/办公室/餐桌戏。",
+      "positive": "Seedance cinematic two-person dialogue scene, [时长] seconds. Characters: [角色A] and [角色B]. Setting: [场景]. Blocking: start with over-the-shoulder shot, cut to reaction close-up, slight overlap of gestures, one character interrupts or leans in, final silent beat. Natural facial micro-expressions, eye lines consistent, realistic mouth movement without readable subtitles, soft practical lighting, no text.",
+      "negative": "subtitles, wrong eyeline, face flicker, changed costume, extra people, uncanny mouth, watermark, low quality",
+      "params": {
+        "Seedance": "对白视频要描述 blocking 和 reaction，而不是只写台词。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "时长",
+        "角色A",
+        "角色B",
+        "场景"
+      ]
+    },
+    {
+      "id": "seedance_music_performance",
+      "category": "Seedance",
+      "name": "音乐舞台演出",
+      "scene": "乐队、偶像、香水风舞台、MV片段。",
+      "positive": "Seedance music performance short. Performers: [表演者]. Stage concept: [舞台概念]. Camera sequence: wide stage reveal, dolly-in on lead performer, side tracking with dancers or instruments, overhead light sweep, final synchronized pose. Lighting reacts to rhythm, colorful but controlled costumes, cinematic concert atmosphere, no lyrics on screen, no random logos.",
+      "negative": "text lyrics, inconsistent faces, extra limbs, chaotic lighting, unreadable performance, watermark, flicker, low resolution",
+      "params": {
+        "Seedance": "参考舞台/乐队/香水风演出案例。",
+        "比例": "16:9 / 9:16"
+      },
+      "placeholders": [
+        "表演者",
+        "舞台概念"
+      ]
+    },
+    {
+      "id": "seedance_reference_morph_sequence",
+      "category": "Seedance",
+      "name": "参考图无缝变形",
+      "scene": "多张参考图之间的形态/场景连续转场。",
+      "positive": "Seedance reference-driven seamless morph sequence using [参考图数量] images. Preserve the main subject identity while smoothly transforming from image 1 to image [参考图数量]. Each transition uses a visual bridge: matching silhouette, color wipe, object motion, lighting shift or camera move. No abrupt cuts, no new unrelated characters, maintain coherent perspective and material continuity, cinematic polish.",
+      "negative": "hard jump, identity loss, unrelated objects, melted face, broken geometry, text, watermark, flicker",
+      "params": {
+        "Seedance": "参考 seven-image seamless morphing sequence。",
+        "模式": "多参考图视频"
+      },
+      "placeholders": [
+        "参考图数量"
+      ]
+    },
+    {
+      "id": "seedance_industrial_timelapse",
+      "category": "Seedance",
+      "name": "工业延时建造",
+      "scene": "产品组装、建筑搭建、机械运转、工厂流程。",
+      "positive": "Ultra-realistic industrial timelapse for Seedance. Subject/process: [流程]. Camera locked or slow slider move, machines and workers move efficiently, parts assemble in logical order, sparks, steam, dust and light rays behave naturally. Show beginning, mid-build complexity and final completed reveal. High-detail industrial textures, no impossible assembly, no safety chaos, no text overlays.",
+      "negative": "illogical assembly, teleporting parts, unsafe chaos, random text, broken machinery, flicker, watermark, low detail",
+      "params": {
+        "Seedance": "参考 industrial timelapse 类型，适合制造流程。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "流程"
+      ]
+    },
+    {
+      "id": "seedance_beach_emotion",
+      "category": "Seedance",
+      "name": "海滩情绪片段",
+      "scene": "宁静、治愈、青春、旅行、人物情绪短片。",
+      "positive": "Cinematic emotional beach sequence, 16 seconds. Character: [人物]. 0-4s golden-hour wide shot, gentle waves, subject walking slowly along shore. 4-8s medium shot at water edge, hand touching water. 8-12s close-up face toward horizon, soft rim light and shallow depth. 12-16s wide pull-back into silhouette, warm fade. Natural wind, delicate lens flare, calm reflective mood, consistent wardrobe.",
+      "negative": "changed character, random text, harsh sun, overdramatic acting, flicker, bad hands, watermark, low quality",
+      "params": {
+        "Seedance": "来自海滩多镜头参考，适合情绪片。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "人物"
+      ]
+    },
+    {
+      "id": "seedance_forest_creator_memory",
+      "category": "Seedance",
+      "name": "森林创作青春感",
+      "scene": "摄影、朋友、成长、复古胶片氛围。",
+      "positive": "Cinematic coming-of-age forest video, 15 seconds. A small group of [人物/群体] explores a lush forest during golden hour. Shots: wide arrival through trees, macro hands adjusting camera focus, slow-motion portrait session between trunks, 360-degree gentle orbit, final aerial pull-up through canopy as they review photos together. Dreamy haze, natural color grade, fine film grain, nostalgic warmth.",
+      "negative": "changed group, random text, fake forest, excessive fog, broken cameras, watermark, flicker, low detail",
+      "params": {
+        "Seedance": "参考森林摄影创作段落，强调怀旧和镜头动作。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "人物/群体"
+      ]
+    },
+    {
+      "id": "seedance_loopable_cinemagraph",
+      "category": "Seedance",
+      "name": "无缝循环动图",
+      "scene": "社媒循环视频、产品氛围、背景动效。",
+      "positive": "Create a seamless loopable Seedance cinemagraph, [时长] seconds. Scene: [场景]. Only subtle elements move: [循环元素], while the main subject remains stable. Start and end frame must match perfectly for infinite looping. Smooth micro-motion, natural light flicker avoided, no camera jump, no text, clean premium mood, high-resolution output.",
+      "negative": "non-looping end, camera jump, subject drift, flicker, random text, watermark, low quality, excessive motion",
+      "params": {
+        "Seedance": "适合海报背景和社媒短循环。",
+        "时长": "4s / 6s / 8s"
+      },
+      "placeholders": [
+        "时长",
+        "场景",
+        "循环元素"
+      ]
+    },
+    {
+      "id": "seedance_travel_suitcase_montage",
+      "category": "Seedance",
+      "name": "旅行箱伙伴蒙太奇",
+      "scene": "旅行产品、城市切换、轻松 vlog 广告。",
+      "positive": "Seedance travel suitcase buddy montage, [时长] seconds. Product/character: [旅行箱/主体]. Sequence moves through [城市/地点列表] using match cuts: airport floor roll, hotel lobby reflection, cobblestone street, scenic overlook, final sunset packshot. Friendly lifestyle tone, stabilized handheld vlog feeling, product remains recognizable and consistent, no random brand changes, no captions.",
+      "negative": "changed suitcase, random text, inconsistent cities, bad wheels, flicker, watermark, low quality, impossible scale",
+      "params": {
+        "Seedance": "参考 travel suitcase montage 商业案例。",
+        "比例": "9:16"
+      },
+      "placeholders": [
+        "时长",
+        "旅行箱/主体",
+        "城市/地点列表"
+      ]
+    },
+    {
+      "id": "gpt_image2_science_diagram",
+      "category": "GPT-Image-2",
+      "name": "科研机制图",
+      "scene": "论文/报告里的机制示意、workflow sketch、实验流程图。",
+      "positive": "GPT-Image-2 scientific visual diagram. Topic: [主题]. Create a clean, publication-style mechanism figure with 3-5 labeled modules, clear arrows, simplified but accurate shapes, restrained color palette, white background, consistent line weight, readable short labels only: [标签列表]. Use it as a conceptual workflow sketch, not a data claim. Avoid decorative clutter, keep hierarchy obvious.",
+      "negative": "fake data, unreadable tiny labels, excessive text, inaccurate anatomy, messy arrows, decorative noise, watermark",
+      "params": {
+        "GPT-Image-2": "参考科研配图提示：适合作为 workflow sketch.",
+        "比例": "16:9 / 4:3"
+      },
+      "placeholders": [
+        "主题",
+        "标签列表"
+      ]
+    },
+    {
+      "id": "gpt_image2_paper_figure_panel",
+      "category": "GPT-Image-2",
+      "name": "论文多面板图",
+      "scene": "A/B/C/D 多面板科研概念图或方法图。",
+      "positive": "Create a polished multi-panel research figure about [研究主题]. Layout: four panels A-D, each with one concise visual idea: problem, method, experiment setup, expected interpretation. Minimal academic style, vector-like clarity, consistent labels, short captions under each panel using exact text: [面板标题]. Use neutral background and color-coded flows. No fabricated numeric results.",
+      "negative": "random numbers, unreadable labels, visual clutter, inconsistent style, fake charts, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "适合科研图结构探索，不建议直接当正式论文图。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "研究主题",
+        "面板标题"
+      ]
+    },
+    {
+      "id": "gpt_image2_ui_mockup",
+      "category": "GPT-Image-2",
+      "name": "产品UI Mockup",
+      "scene": "App/SaaS/工具界面概念图，高保真静态 UI。",
+      "positive": "Design a high-fidelity product UI mockup for [产品/功能]. Screen type: [页面类型]. Audience: [用户]. Use realistic modern interface layout, clear navigation, dense but readable information, restrained colors, real component hierarchy, accurate icons, tables/cards/forms as needed. Include only these visible text labels: [界面文字]. Make it feel like a usable product screen, not a landing page.",
+      "negative": "marketing hero page, fake lorem ipsum, unreadable microtext, inconsistent spacing, decorative clutter, warped UI, watermark",
+      "params": {
+        "GPT-Image-2": "参考 UI Mockup 能力；文字要短且明确。",
+        "比例": "16:9 / 9:16"
+      },
+      "placeholders": [
+        "产品/功能",
+        "页面类型",
+        "用户",
+        "界面文字"
+      ]
+    },
+    {
+      "id": "gpt_image2_game_hud",
+      "category": "GPT-Image-2",
+      "name": "游戏HUD",
+      "scene": "游戏界面、技能面板、战斗 HUD、道具栏。",
+      "positive": "Create a game HUD concept for [游戏类型]. View: [视角]. Include health/resource bars, mini-map, skill slots, inventory hints and one objective panel. Style: [美术风格]. UI must be readable, layered over a subtle gameplay background, consistent icon language, no random text except exact labels: [文字]. Professional game interface mockup.",
+      "negative": "unreadable UI, random symbols, cluttered screen, inconsistent icons, fake brand logos, watermark, low detail",
+      "params": {
+        "GPT-Image-2": "参考游戏 HUD 示例，适合前期视觉探索。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "游戏类型",
+        "视角",
+        "美术风格",
+        "文字"
+      ]
+    },
+    {
+      "id": "gpt_image2_comic_page",
+      "category": "GPT-Image-2",
+      "name": "漫画页分镜",
+      "scene": "漫画/动漫页面，一页多格叙事构图。",
+      "positive": "Create a single comic page for [故事场景], with 5-7 panels of varied sizes. Keep character [角色] consistent across panels. Visual style: [风格]. Panel flow should show setup, reaction, action, quiet beat and cliffhanger. Use dynamic gutters, clean inking, cinematic framing, no speech bubbles unless exact short dialogue is provided: [对白].",
+      "negative": "random text, inconsistent character, too many panels, broken anatomy, unreadable page flow, watermark, low quality",
+      "params": {
+        "GPT-Image-2": "参考动漫/漫画 gallery；适合故事板视觉探索。",
+        "比例": "2:3 / 3:4"
+      },
+      "placeholders": [
+        "故事场景",
+        "角色",
+        "风格",
+        "对白"
+      ]
+    },
+    {
+      "id": "gpt_image2_typography_poster",
+      "category": "GPT-Image-2",
+      "name": "字体海报",
+      "scene": "文字为核心的海报、标题设计、活动视觉。",
+      "positive": "Design a typography-led poster. Exact headline text: [主标题]. Secondary text: [副标题]. Theme: [主题]. Use strong typographic hierarchy, custom lettering feel, balanced negative space, limited palette, print-quality composition, supporting abstract shapes or imagery that do not overpower the words. Text must be spelled exactly and remain readable.",
+      "negative": "misspelled text, extra words, unreadable typography, clutter, warped letters, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "GPT-Image-2 对文字场景可用，但必须给 exact text.",
+        "比例": "2:3 / 4:5"
+      },
+      "placeholders": [
+        "主标题",
+        "副标题",
+        "主题"
+      ]
+    },
+    {
+      "id": "gpt_image2_event_poster",
+      "category": "GPT-Image-2",
+      "name": "活动海报",
+      "scene": "展览、音乐会、发布会、课程、节日活动。",
+      "positive": "Create a polished event poster for [活动]. Required exact text: title [标题], date [日期], venue [地点]. Visual direction: [视觉方向]. Build a clear hierarchy with title dominant, date and venue secondary, one strong image or graphic motif, print-ready margins, professional poster design, no additional invented text.",
+      "negative": "wrong date, wrong venue, extra text, unreadable details, clutter, low resolution, watermark, misspellings",
+      "params": {
+        "GPT-Image-2": "短文本海报模板；不要塞太多字。",
+        "比例": "2:3"
+      },
+      "placeholders": [
+        "活动",
+        "标题",
+        "日期",
+        "地点",
+        "视觉方向"
+      ]
+    },
+    {
+      "id": "gpt_image2_map_navigation",
+      "category": "GPT-Image-2",
+      "name": "地图导航视觉",
+      "scene": "地图、路线、城市导览、活动动线说明。",
+      "positive": "Create a clean illustrated navigation map for [地点/场景]. Show start point [起点], destination [终点], and 3-5 landmarks: [地标]. Use simplified top-down map style, clear route line, numbered or icon markers, readable short labels only, friendly wayfinding colors, no fake dense street names, balanced legend.",
+      "negative": "unreadable labels, wrong route, too many roads, cluttered legend, random text, watermark, low detail",
+      "params": {
+        "GPT-Image-2": "参考地图导航类型；适合概念地图而非精确 GIS。",
+        "比例": "16:9 / 1:1"
+      },
+      "placeholders": [
+        "地点/场景",
+        "起点",
+        "终点",
+        "地标"
+      ]
+    },
+    {
+      "id": "gpt_image2_tattoo_flash",
+      "category": "GPT-Image-2",
+      "name": "纹身闪稿",
+      "scene": "纹身图案、黑白线稿、flash sheet。",
+      "positive": "Create a tattoo flash sheet for [主题]. Include 6-9 separate tattoo designs on clean off-white paper, style [风格], bold readable silhouettes, clean linework, balanced black fills, optional limited accent color [点缀色]. No skin photo, no mockup body, no extra text unless exact title [标题] is requested.",
+      "negative": "messy lines, unreadable shapes, copied logos, random text, too much shading, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "参考纹身设计示例；适合先出 flash sheet。",
+        "比例": "3:4"
+      },
+      "placeholders": [
+        "主题",
+        "风格",
+        "点缀色",
+        "标题"
+      ]
+    },
+    {
+      "id": "gpt_image2_icon_set",
+      "category": "GPT-Image-2",
+      "name": "图标套装",
+      "scene": "App、网站、功能模块、品牌图标探索。",
+      "positive": "Create a cohesive icon set for [产品/系统]. Include [数量] icons representing: [图标列表]. Style: [图标风格]. Use consistent stroke width, corner radius, perspective and color palette, arranged on a clean grid, no labels, transparent or light neutral background, production-ready visual consistency.",
+      "negative": "inconsistent stroke, random labels, duplicate icons, complex illustration, watermark, low resolution, uneven grid",
+      "params": {
+        "GPT-Image-2": "适合视觉方向稿，最终矢量仍需重绘。",
+        "比例": "1:1"
+      },
+      "placeholders": [
+        "产品/系统",
+        "数量",
+        "图标列表",
+        "图标风格"
+      ]
+    },
+    {
+      "id": "gpt_image2_logo_routes",
+      "category": "GPT-Image-2",
+      "name": "Logo方向板",
+      "scene": "品牌标志探索，生成多个方向而非定稿。",
+      "positive": "Create a logo exploration board for brand [品牌名]. Show 8 distinct logo routes in a clean grid: wordmark, monogram, geometric symbol, organic symbol, badge, minimal line icon, editorial serif, modern sans. Brand attributes: [品牌气质]. Use black and one accent color, no mockups, no extra slogans, brand name spelled exactly.",
+      "negative": "misspelled brand, too many colors, complex illustration, random slogans, inconsistent grid, watermark, low quality",
+      "params": {
+        "GPT-Image-2": "Logo 用于方向探索，后续需人工矢量化。",
+        "比例": "4:3"
+      },
+      "placeholders": [
+        "品牌名",
+        "品牌气质"
+      ]
+    },
+    {
+      "id": "gpt_image2_packaging_label",
+      "category": "GPT-Image-2",
+      "name": "包装标签概念",
+      "scene": "食品、饮料、美妆、药品、生活用品标签设计。",
+      "positive": "Design a packaging label concept for [产品]. Exact brand/name text: [品牌/品名]. Required small text only: [必要小字]. Style: [设计风格]. Show front label flat or on simple package mockup, clean typography, ingredient/benefit hierarchy, compliant-looking spacing, premium print finish, no invented claims.",
+      "negative": "misspelled text, fake certifications, random claims, cluttered label, warped package, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "文字较多时分层，必要小字要少。",
+        "比例": "3:4"
+      },
+      "placeholders": [
+        "产品",
+        "品牌/品名",
+        "必要小字",
+        "设计风格"
+      ]
+    },
+    {
+      "id": "gpt_image2_social_carousel_cover",
+      "category": "GPT-Image-2",
+      "name": "社媒轮播封面",
+      "scene": "小红书/Instagram/LinkedIn 轮播首图。",
+      "positive": "Create a social carousel cover for [主题]. Exact title text: [标题]. Audience: [受众]. Use bold readable headline, one strong visual metaphor, clean editorial layout, safe margins for mobile, high contrast, premium but not cluttered, no extra invented text. Visual style: [风格].",
+      "negative": "tiny text, misspellings, extra words, clutter, low contrast, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "移动端封面优先大字和强中心视觉。",
+        "比例": "4:5 / 1:1"
+      },
+      "placeholders": [
+        "主题",
+        "标题",
+        "受众",
+        "风格"
+      ]
+    },
+    {
+      "id": "gpt_image2_education_explainer",
+      "category": "GPT-Image-2",
+      "name": "教育解释图",
+      "scene": "课程、科普、流程、概念解释视觉。",
+      "positive": "Create an educational explainer graphic about [概念]. Use 4-step visual flow with simple illustrations and short labels: [步骤标签]. Friendly clean style, strong left-to-right or top-to-bottom reading order, clear arrows, one example object, accessible color contrast, no dense paragraphs, no fake equations unless provided.",
+      "negative": "too much text, unreadable labels, wrong sequence, fake formulas, clutter, watermark, low quality",
+      "params": {
+        "GPT-Image-2": "适合教学图，控制文字量。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "概念",
+        "步骤标签"
+      ]
+    },
+    {
+      "id": "gpt_image2_reference_edit",
+      "category": "GPT-Image-2",
+      "name": "参考图精确编辑",
+      "scene": "保留参考图主体，只改指定局部。",
+      "positive": "Edit the provided reference image. Preserve everything except [要修改的部分]: identity, pose, background, camera angle, lighting, object geometry and composition must stay the same. Change [要修改的部分] to [目标修改]. Make the edit seamless, photorealistic, with matching shadows, reflections and texture. Do not add new text or objects.",
+      "negative": "changed identity, changed background, changed pose, visible mask edge, extra objects, random text, watermark, artifacts",
+      "params": {
+        "GPT-Image-2": "参考图编辑模板，明确 preserve everything except.",
+        "模式": "image edit"
+      },
+      "placeholders": [
+        "要修改的部分",
+        "目标修改"
+      ]
+    },
+    {
+      "id": "gpt_image2_transparent_stickers",
+      "category": "GPT-Image-2",
+      "name": "透明贴纸包",
+      "scene": "贴纸、表情包、社媒素材、App 装饰。",
+      "positive": "Create a sticker pack of [主题], [数量] separate stickers on transparent or plain checker-free background. Style: [风格]. Each sticker has a clear silhouette, thick clean outline, expressive pose, consistent palette, no text unless exact short words are provided: [文字]. Arrange with space between stickers, production-ready cutout feel.",
+      "negative": "background pattern, merged stickers, random text, inconsistent style, thin edges, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "如需要真正透明背景，生成后仍需检查 alpha。",
+        "比例": "1:1"
+      },
+      "placeholders": [
+        "主题",
+        "数量",
+        "风格",
+        "文字"
+      ]
+    },
+    {
+      "id": "gpt_image2_architecture_floorplan",
+      "category": "GPT-Image-2",
+      "name": "建筑平面概念",
+      "scene": "室内规划、平面布局概念图、展厅动线。",
+      "positive": "Create a clean architectural floorplan concept for [空间]. Include zones: [功能区]. Use top-down plan view, simple walls, doors, furniture blocks, circulation arrows, restrained annotation labels, light blueprint or modern black-line style. Keep scale visually plausible, no dense dimensions, no impossible room connections.",
+      "negative": "impossible geometry, unreadable labels, too many measurements, clutter, warped perspective, watermark, low quality",
+      "params": {
+        "GPT-Image-2": "概念规划用，不替代专业施工图。",
+        "比例": "4:3 / 16:9"
+      },
+      "placeholders": [
+        "空间",
+        "功能区"
+      ]
+    },
+    {
+      "id": "gpt_image2_data_infographic",
+      "category": "GPT-Image-2",
+      "name": "数据信息图视觉稿",
+      "scene": "没有真实数据时的视觉结构稿，或已有数据的排版方向。",
+      "positive": "Design an infographic layout for [主题]. If exact values are provided, use only these values: [数据]. Otherwise show placeholder chart structure without fabricated numbers. Include headline [标题], 3 metric cards, one bar chart area, one timeline, and one insight callout. Clean editorial data design, readable labels, strong hierarchy.",
+      "negative": "fake precise data, random numbers, unreadable chart text, clutter, wrong title, watermark, low quality",
+      "params": {
+        "GPT-Image-2": "强调不要凭空生成真实数据。",
+        "比例": "9:16 / 16:9"
+      },
+      "placeholders": [
+        "主题",
+        "数据",
+        "标题"
+      ]
+    },
+    {
+      "id": "gpt_image2_story_world_bible",
+      "category": "GPT-Image-2",
+      "name": "世界观视觉圣经",
+      "scene": "影视/游戏/小说世界观方向板。",
+      "positive": "Create a visual bible page for [世界观/项目]. Include 6 sections: environment, main character, key prop, color palette, material language, mood frame. Style: [风格]. Clean art-director board layout, consistent labels, cinematic concept art thumbnails, readable hierarchy, no random lore text beyond section titles.",
+      "negative": "inconsistent style, too much text, random characters, cluttered board, watermark, low quality",
+      "params": {
+        "GPT-Image-2": "适合前期美术设定方向。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "世界观/项目",
+        "风格"
+      ]
+    },
+    {
+      "id": "gpt_image2_product_cutaway",
+      "category": "GPT-Image-2",
+      "name": "产品剖面解释图",
+      "scene": "硬件、装备、包装、功能结构解释。",
+      "positive": "Create a polished product cutaway explainer for [产品]. Show exterior hero view and partial cutaway revealing 3-5 internal components: [组件]. Use clean technical illustration style, callout lines, short labels, accurate perspective, material layering, no fake specifications, no dense paragraphs, premium industrial design presentation.",
+      "negative": "fake specs, unreadable callouts, impossible internals, clutter, wrong product shape, watermark, low resolution",
+      "params": {
+        "GPT-Image-2": "产品结构解释，不要编造参数。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "产品",
+        "组件"
+      ]
+    },
+    {
+      "id": "nano_structured_product_beauty",
+      "category": "Nano Banana",
+      "name": "结构化美妆产品大片",
+      "scene": "Nano Banana 风格的 JSON 化美妆/产品摄影指令。",
+      "positive": "Nano Banana Pro structured generation request. Task: photorealistic product beauty macro. Product: [产品]. Reference rules: preserve product identity, label, color, shape and proportions. Output: [比例], ultra high resolution, clean true-to-life color. Scene: [场景]. Camera: macro lens, shallow depth, crisp natural sharpness. Lighting: soft studio highlights. Creative goal: [卖点]. No extra products, no random text.",
+      "negative": "wrong label, changed product, extra text, plastic skin, over-sharpening, low detail, watermark, bad hands",
+      "params": {
+        "Nano Banana": "参考结构化 generation_request 写法，压缩成节点模板。",
+        "比例": "3:4 / 4:5"
+      },
+      "placeholders": [
+        "产品",
+        "比例",
+        "场景",
+        "卖点"
+      ]
+    },
+    {
+      "id": "nano_beauty_contact_sheet_3x3",
+      "category": "Nano Banana",
+      "name": "美妆九宫格联络表",
+      "scene": "同一模特+同一产品的九张广告动作图。",
+      "positive": "Nano Banana Pro 3x3 beauty campaign contact sheet. One model [模特描述] and one product [产品] across nine panels on a clean seamless background. Preserve model identity, hair, makeup direction and product packaging in every panel. Each panel shows a different usable campaign pose: holding, applying, smiling, macro product near lips/eyes, profile, close-up, product-only, hand detail, final hero. No panel numbers, no text.",
+      "negative": "different model, changed product, panel labels, extra people, bad hands, unreadable label, watermark, low detail",
+      "params": {
+        "Nano Banana": "来自 beauty contact sheet 参考，适合广告方向墙。",
+        "比例": "4:5"
+      },
+      "placeholders": [
+        "模特描述",
+        "产品"
+      ]
+    },
+    {
+      "id": "nano_miniature_brand_construction",
+      "category": "Nano Banana",
+      "name": "品牌巨物施工",
+      "scene": "巨型品牌物体与小人施工的趣味广告。",
+      "positive": "Nano Banana Pro hyper-real miniature construction scene. Main element: [品牌物体] enlarged like a monument or building. Tiny engineers and designers in safety gear climb scaffolding, polish surfaces, repair details and inspect the logo. Environment: [环境]. Use macro photography, tilt-shift depth, cinematic commercial lighting, accurate scale contrast, playful premium mood, product identity preserved.",
+      "negative": "wrong logo, unreadable brand, toy-like render, wrong scale, messy workers, text artifacts, watermark, low detail",
+      "params": {
+        "Nano Banana": "参考 Pepsi/KFC/sneaker miniature construction 类型。",
+        "比例": "16:9 / 4:5"
+      },
+      "placeholders": [
+        "品牌物体",
+        "环境"
+      ]
+    },
+    {
+      "id": "nano_giant_food_diorama",
+      "category": "Nano Banana",
+      "name": "巨型食物微缩场景",
+      "scene": "食物、饮料、甜品与微缩人物的奇观图。",
+      "positive": "Create a photorealistic diorama where [食物/饮品] is gigantic and tiny people interact with it. Actions: [小人动作]. Surface detail must be delicious and tactile, crumbs, droplets or steam visible, macro lens, shallow depth, warm appetizing light, clean tabletop setting, whimsical scale contrast, no unrelated brands unless specified.",
+      "negative": "unappetizing texture, wrong scale, messy composition, cartoon, extra brands, bad shadows, watermark, low quality",
+      "params": {
+        "Nano Banana": "从 pizza/fries/food miniature 广告抽象。",
+        "比例": "4:5"
+      },
+      "placeholders": [
+        "食物/饮品",
+        "小人动作"
+      ]
+    },
+    {
+      "id": "nano_fabric_city_ribbon",
+      "category": "Nano Banana",
+      "name": "丝带城市浮雕",
+      "scene": "城市/国家视觉，丝带、国旗色、城市地标融合。",
+      "positive": "A silk ribbon unfurls diagonally through the image. Within the folds is a miniature sculpted city of [城市], emerging as 3D bas-relief from woven fabric. Include landmarks [地标], streets and skyline rhythm following the ribbon curvature. Palette derived from [国家/配色]. Top-down elegant poster composition, museum paper background, tactile fabric realism, refined shadows, no clutter.",
+      "negative": "wrong landmarks, flat ribbon, messy city, unreadable text, random flags, low detail, watermark",
+      "params": {
+        "Nano Banana": "参考 Paris Unfolded 类型，适合城市海报。",
+        "比例": "16:9 / 4:5"
+      },
+      "placeholders": [
+        "城市",
+        "地标",
+        "国家/配色"
+      ]
+    },
+    {
+      "id": "nano_comfort_pill_bottle",
+      "category": "Nano Banana",
+      "name": "概念产品瓶中物",
+      "scene": "把抽象体验装进药瓶/容器的概念广告。",
+      "positive": "Nano Banana Pro conceptual product photography. Core tension: [概念冲突]. A premium transparent bottle or container holds an unexpected miniature object: [瓶中物]. It sits on [台面/环境], with clean studio light, strong material definition, centered calm framing, editorial ad quality. Optional exact headline: [标题]. Make the metaphor immediately readable and premium.",
+      "negative": "unreadable metaphor, messy label, random text, warped bottle, bad glass, clutter, watermark, low resolution",
+      "params": {
+        "Nano Banana": "参考 comfort vs clinical / pill bottle 概念广告。",
+        "比例": "3:4"
+      },
+      "placeholders": [
+        "概念冲突",
+        "瓶中物",
+        "台面/环境",
+        "标题"
+      ]
+    },
+    {
+      "id": "nano_organic_product_landscape",
+      "category": "Nano Banana",
+      "name": "有机产品景观",
+      "scene": "产品悬浮在有机、液体、藤蔓、能量景观中。",
+      "positive": "Hyper-real cinematic product photography of [产品] suspended in a surreal organic landscape. Surround it with [有机元素] that echo the product color and story. Product label centered and sharp, droplets or particles catching light, dramatic depth, high contrast but premium finish, controlled background glow, exact product identity preserved, no extra text.",
+      "negative": "product hidden, wrong label, chaotic tendrils, fake material, oversaturated, watermark, low detail",
+      "params": {
+        "Nano Banana": "参考 organic tendrils / product sci-fi 场景。",
+        "比例": "9:16 / 4:5"
+      },
+      "placeholders": [
+        "产品",
+        "有机元素"
+      ]
+    },
+    {
+      "id": "nano_luxury_product_variants",
+      "category": "Nano Banana",
+      "name": "奢侈品九种构图",
+      "scene": "同一奢侈品的九个高级广告构图变体。",
+      "positive": "Nano Banana Pro luxury product 3x3 image grid. Product: [产品]. Global directives: product fidelity highest priority; identical shape, proportions, material, color and branding across every frame. Visual style: hyperreal cinematic high-end editorial. Nine compositions: marble, silk, splash, smoke, metallic reflection, floral, shadow silhouette, macro detail, final clean hero. No labels or numbers.",
+      "negative": "changed product, wrong branding, panel text, inconsistent material, clutter, low detail, watermark",
+      "params": {
+        "Nano Banana": "参考 perfume/sneaker 3x3 collection。",
+        "比例": "1:1"
+      },
+      "placeholders": [
+        "产品"
+      ]
+    },
+    {
+      "id": "nano_retro_website_box",
+      "category": "Nano Banana",
+      "name": "网站变复古盒装",
+      "scene": "把网站/服务变成 1995 年软件盒和光盘。",
+      "positive": "Transform [网站/服务] into a physical 1995 software retail box with a CD-ROM. Photoreal still life on carpet or desk, nostalgic Windows 95/Mac OS packaging aesthetics, chunky typography, globe or pixel icon language, exact title [标题], believable printed box edges, shrink-wrap shine, CD partially visible, warm indoor light.",
+      "negative": "modern SaaS look, wrong title, unreadable text, fake logos, warped box, extra brands, watermark",
+      "params": {
+        "Nano Banana": "参考 website into product box prompt。",
+        "比例": "4:5"
+      },
+      "placeholders": [
+        "网站/服务",
+        "标题"
+      ]
+    },
+    {
+      "id": "nano_medical_bento_grid",
+      "category": "Nano Banana",
+      "name": "医疗Bento海报",
+      "scene": "药物、保健、成分、流程的模块化信息海报。",
+      "positive": "Nano Banana Pro medical infographic poster about [主题], 9:16. Modular Bento Grid design, clinical white, medical blue, slate gray and mint accents. Include one photoreal macro image of [主体图], simple chemical/line icon corner, sections for mechanism, use cases, dosage or process, timeline, precautions. Use exact headings only: [标题]. Keep text blocks short and legible.",
+      "negative": "fake medical claims, dense unreadable text, random numbers, messy cards, wrong product, watermark, low detail",
+      "params": {
+        "Nano Banana": "参考 Amoxicillin Bento 信息图。",
+        "比例": "9:16"
+      },
+      "placeholders": [
+        "主题",
+        "主体图",
+        "标题"
+      ]
+    },
+    {
+      "id": "nano_topdown_fashion_lookbook",
+      "category": "Nano Banana",
+      "name": "俯拍穿搭Lookbook",
+      "scene": "服装搭配、鞋包饰品、电商穿搭方案。",
+      "positive": "Top-down fashion lookbook image for [穿搭主题]. Arrange [服装/配饰列表] neatly on a clean surface, editorial flat lay, consistent spacing, tactile fabric detail, natural shadows, color palette [配色], premium magazine styling. Optional small title exact text: [标题]. No body model unless specified, no clutter.",
+      "negative": "messy layout, wrong items, unreadable text, fake brands, distorted clothing, watermark, low detail",
+      "params": {
+        "Nano Banana": "参考 top-down fashion lookbook 类视频/图像方向。",
+        "比例": "4:5 / 1:1"
+      },
+      "placeholders": [
+        "穿搭主题",
+        "服装/配饰列表",
+        "配色",
+        "标题"
+      ]
+    },
+    {
+      "id": "nano_vlog_selfie_lifestyle",
+      "category": "Nano Banana",
+      "name": "Vlog自拍生活广告",
+      "scene": "产品在真实用户生活中的自拍/vlog 画面。",
+      "positive": "Premium lifestyle commercial in vlog selfie style. Person: [人物/人群]. Product: [产品]. Scene: [场景]. The image feels like a high-end candid frame from a creator video: arm-length or mirror perspective, natural expression, product clearly visible, believable skin and hands, soft ambient light, slight wide-angle realism, polished but authentic.",
+      "negative": "uncanny selfie, bad hands, hidden product, changed brand, overfiltered skin, random text, watermark, low quality",
+      "params": {
+        "Nano Banana": "参考 premium lifestyle commercial / vlog selfie style。",
+        "比例": "9:16"
+      },
+      "placeholders": [
+        "人物/人群",
+        "产品",
+        "场景"
+      ]
+    },
+    {
+      "id": "nano_packaging_exact_label",
+      "category": "Nano Banana",
+      "name": "精确标签包装图",
+      "scene": "饮料、化妆品、食品包装，需要保留/生成短标签文字。",
+      "positive": "Nano Banana Pro packaging hero shot. Product package: [包装]. Exact front label text: [标签文字]. Preserve or create a clean centered label, readable typography, realistic print finish, correct perspective, premium studio lighting, tactile packaging material, simple supporting props: [道具]. No extra words beyond the exact label text.",
+      "negative": "misspelled label, extra words, warped packaging, wrong material, clutter, watermark, low resolution",
+      "params": {
+        "Nano Banana": "文字包装场景尽量短文字、强约束。",
+        "比例": "3:4"
+      },
+      "placeholders": [
+        "包装",
+        "标签文字",
+        "道具"
+      ]
+    },
+    {
+      "id": "nano_stock_price_city_card",
+      "category": "Nano Banana",
+      "name": "公司等距城市卡",
+      "scene": "公司/股票/品牌的等距微缩城市信息卡。",
+      "positive": "Isometric 3D miniature tech city centered around [公司/品牌]. Include recognizable abstract product symbols [符号], tiny diverse characters, playful clean city blocks, soft PBR materials, gentle shadows. Optional overlay area for exact concise data: [数据文字]. Keep composition charming and readable, no dense financial text, no fake details unless provided.",
+      "negative": "fake stock values, unreadable tiny text, wrong brand symbols, clutter, watermark, low quality",
+      "params": {
+        "Nano Banana": "参考 stock price tech city render；数据必须用户给。",
+        "比例": "1:1"
+      },
+      "placeholders": [
+        "公司/品牌",
+        "符号",
+        "数据文字"
+      ]
+    },
+    {
+      "id": "nano_handcrafted_paper_art",
+      "category": "Nano Banana",
+      "name": "手工纸艺微缩",
+      "scene": "纸艺、折纸、手作、微缩故事场景。",
+      "positive": "A warm photoreal handcrafted paper art scene. Subject: [纸艺主体]. A person [人物动作] interacts gently with tiny paper figures on a tabletop. Slight high-angle close-up, shallow depth of field, warm focused light, visible paper fibers, handcrafted imperfections, poetic miniature storytelling mood, background softly blurred.",
+      "negative": "plastic paper, fake hands, clutter, wrong scale, extra text, watermark, low detail",
+      "params": {
+        "Nano Banana": "参考 origami/miniature doll 手作场景。",
+        "比例": "16:9"
+      },
+      "placeholders": [
+        "纸艺主体",
+        "人物动作"
+      ]
+    },
+    {
+      "id": "nano_cinematic_portrait",
+      "category": "Nano Banana",
+      "name": "电影人像",
+      "scene": "高质感写真人像、剧照感、角色宣传照。",
+      "positive": "Nano Banana Pro cinematic portrait of [人物/角色]. Preserve identity if reference is provided. Camera: [镜头/景别]. Lighting: [光影]. Wardrobe and mood: [服装/情绪]. Realistic skin texture, expressive eyes, natural pose, shallow depth, filmic color grade, detailed environment but face remains focal point, no beauty overprocessing.",
+      "negative": "different identity, plastic skin, distorted eyes, bad hands, overfilter, random text, watermark, low detail",
+      "params": {
+        "Nano Banana": "通用高质量 portrait 模板。",
+        "比例": "3:4 / 4:5"
+      },
+      "placeholders": [
+        "人物/角色",
+        "镜头/景别",
+        "光影",
+        "服装/情绪"
+      ]
+    },
+    {
+      "id": "nano_surreal_object_pill",
+      "category": "Nano Banana",
+      "name": "物体功能错位广告",
+      "scene": "把家具/电子/服务放入不寻常容器，形成广告隐喻。",
+      "positive": "Conceptual advertising image using function misuse and scale mismatch. Primary subject: [主体]. It appears inside or replacing [不寻常容器], creating the idea [隐喻]. Clean studio tabletop, centered calm framing, hyper-real materials, believable contact shadows, editorial catalog cover feeling, exact optional text [文字].",
+      "negative": "unclear metaphor, bad scale, unreadable text, clutter, low detail, watermark, random objects",
+      "params": {
+        "Nano Banana": "从 bottle/chair 概念广告抽象。",
+        "比例": "3:4"
+      },
+      "placeholders": [
+        "主体",
+        "不寻常容器",
+        "隐喻",
+        "文字"
+      ]
+    },
+    {
+      "id": "nano_interior_catalog_scene",
+      "category": "Nano Banana",
+      "name": "室内目录大片",
+      "scene": "家具、灯具、家居品牌目录图。",
+      "positive": "High-end interior catalog photography for [家具/产品]. Place it in [室内场景] with complementary materials [材质]. Composition calm and editorial, natural window light plus soft fill, realistic shadows, product centered but integrated, magazine-quality styling, no people unless specified, no random text.",
+      "negative": "warped furniture, impossible room, clutter, wrong scale, fake reflections, watermark, low quality",
+      "params": {
+        "Nano Banana": "适合家具和家居产品静态广告。",
+        "比例": "4:5 / 16:9"
+      },
+      "placeholders": [
+        "家具/产品",
+        "室内场景",
+        "材质"
+      ]
+    },
+    {
+      "id": "nano_campaign_variant_board",
+      "category": "Nano Banana",
+      "name": "广告方向变体板",
+      "scene": "同一 brief 的多种社媒广告方向，供挑选。",
+      "positive": "Create a campaign variant board for [产品/服务], 12 thumbnails in a clean 3x4 grid. Each thumbnail explores a different commercial route: premium hero, lifestyle use, macro detail, humorous scale mismatch, surreal metaphor, infographic, creator selfie, packaging flat lay, seasonal scene, urban night, natural daylight, final packshot. Keep brand identity consistent, no labels or numbers.",
+      "negative": "panel labels, inconsistent product, random text, cluttered thumbnails, low detail, watermark",
+      "params": {
+        "Nano Banana": "适合一次性探索广告方向，后续挑选精修。",
+        "比例": "4:5 / 1:1"
+      },
+      "placeholders": [
+        "产品/服务"
+      ]
+    },
+    {
+      "id": "nano_product_on_body_beauty",
+      "category": "Nano Banana",
+      "name": "上身/上脸产品展示",
+      "scene": "口红、指甲油、饰品、穿戴设备的真实展示。",
+      "positive": "Ultra-photoreal beauty product-on-body shot. Model: [模特]. Product: [产品]. Show the product being worn or applied on [部位], with matching color/finish visible, natural pose, clean beauty lighting, crisp product detail, realistic skin texture, accurate hand anatomy, premium editorial framing, background [背景]. Preserve identity if reference is provided.",
+      "negative": "bad hands, changed face, product hidden, wrong color, over-smoothed skin, random text, watermark, low detail",
+      "params": {
+        "Nano Banana": "参考 nail polish / lip gloss 美妆场景。",
+        "比例": "3:4 / 4:5"
+      },
+      "placeholders": [
+        "模特",
+        "产品",
+        "部位",
+        "背景"
+      ]
+    }
+  ]
+}

@@ -47,15 +47,12 @@ function Write-Utf8NoBom([string]$Path, [string]$Text) {
 }
 
 Write-Host "[go-package] Root: $Root"
+Write-Host "[go-package] Checking embedded assets..."
 
 $EmbedStatic = Join-Path $GoDir "web\static"
 $EmbedWorkflows = Join-Path $GoDir "web\workflows"
 if (-not (Test-Path $EmbedStatic)) {
   throw "Missing embedded Go static directory: $EmbedStatic"
-}
-$localPreset = Join-Path $EmbedStatic "system-prompts\templates\core-presets.local.json"
-if (Test-Path $localPreset) {
-  Remove-Item -LiteralPath $localPreset -Force
 }
 if (-not (Test-Path $EmbedWorkflows)) {
   throw "Missing embedded Go workflows directory: $EmbedWorkflows"
@@ -63,22 +60,30 @@ if (-not (Test-Path $EmbedWorkflows)) {
 
 Push-Location $GoDir
 try {
+  Write-Host "[go-package] Preparing app-go\bin..."
   New-Item -ItemType Directory -Force "bin" | Out-Null
   $env:CGO_ENABLED = "0"
+  Write-Host "[go-package] Running go mod tidy..."
   go mod tidy
+  Write-Host "[go-package] Running go test ./..."
   go test ./...
+  Write-Host "[go-package] Building $BuildExe..."
   go build -trimpath -ldflags "-s -w" -o $BuildExe .\cmd\server
 } finally {
   Pop-Location
 }
 
+Write-Host "[go-package] Preparing package directory: $FinalDir"
 Reset-Directory $FinalDir
+Write-Host "[go-package] Copying executable..."
 Copy-Item -LiteralPath $BuildExe -Destination $FinalExe -Force
 
+Write-Host "[go-package] Creating runtime directories..."
 foreach ($name in @("API", "assets", "assets\input", "assets\output", "assets\cache", "assets\cache\volcengine_assets", "data", "data\canvases", "data\conversations", "data\media_previews", "output", "workflows", "workflows\custom")) {
   New-Item -ItemType Directory -Force (Join-Path $FinalDir $name) | Out-Null
 }
 
+Write-Host "[go-package] Copying embedded workflows..."
 Copy-Dir $EmbedWorkflows (Join-Path $FinalDir "workflows")
 
 if ($IncludeUserData) {
@@ -105,8 +110,13 @@ set INFINITE_CANVAS_GO_HOST=127.0.0.1
 if "%INFINITE_CANVAS_GO_PORT%"=="" set INFINITE_CANVAS_GO_PORT=3000
 
 start "" "http://127.0.0.1:%INFINITE_CANVAS_GO_PORT%/"
+echo [go-start] Starting Infinite-Canvas-Go.exe on 127.0.0.1:%INFINITE_CANVAS_GO_PORT%...
 "%~dp0Infinite-Canvas-Go.exe"
+set EXIT_CODE=%errorlevel%
+echo [go-start] Server exited with code %EXIT_CODE%.
+exit /b %EXIT_CODE%
 '@
+Write-Host "[go-package] Writing Start-Go.bat..."
 Write-Utf8NoBom (Join-Path $FinalDir "Start-Go.bat") $startBat
 
 $readme = @'
@@ -137,6 +147,7 @@ if (-not $NoZip) {
   if (Test-Path $PackageZip) {
     Remove-Item -LiteralPath $PackageZip -Force
   }
+  Write-Host "[go-package] Compressing ZIP..."
   Compress-Archive -Path (Join-Path $FinalDir "*") -DestinationPath $PackageZip -Force
   Write-Host "[go-package] ZIP: $PackageZip"
 }

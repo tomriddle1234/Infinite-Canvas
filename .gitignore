@@ -20,8 +20,6 @@ app-go/*.out
 app-go/coverage.*
 app-go/cpu.out
 app-go/mem.out
-app-go/web/static/system-prompts/templates/core-presets.local.json
-
 #backup folder
 .git.backup-pre-filter/
 
