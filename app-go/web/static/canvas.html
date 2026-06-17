@@ -104,10 +104,10 @@
         .node::before { content:""; position:absolute; inset:0; border-radius:inherit; background:var(--card); pointer-events:none; z-index:-1; overflow:hidden; }
         .node.sized { display:flex; flex-direction:column; }
         .node.selected { outline:2px solid var(--strong); outline-offset:2px; }
-        .node-head { height:36px; flex:0 0 36px; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 9px; border-bottom:1px solid var(--line); border-radius:17px 17px 0 0; overflow:hidden; cursor:move; }
-        .node-title { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+        .node-head { height:28px; flex:0 0 28px; display:flex; align-items:center; justify-content:space-between; gap:6px; padding:0 8px; border-bottom:1px solid var(--line); border-radius:17px 17px 0 0; overflow:hidden; cursor:move; }
+        .node-title { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
         /* 一键运行级联状态徽章 */
-        .node-run-status { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800; letter-spacing:.04em; }
+        .node-run-status { display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:5px; font-size:9px; font-weight:800; letter-spacing:.04em; }
         .node-run-status.queued { background:#e5e7eb; color:#6b7280; }
         .node-run-status.submitted { background:#fef3c7; color:#92400e; }
         .node-run-status.running { background:#dbeafe; color:#1d4ed8; }
@@ -120,7 +120,7 @@
         body.theme-dark .node-run-status.checking { background:rgba(59,130,246,.22); color:#93c5fd; }
         body.theme-dark .node-run-status.done { background:rgba(16,185,129,.22); color:#6ee7b7; }
         body.theme-dark .node-run-status.failed { background:rgba(239,68,68,.22); color:#fca5a5; }
-        .node-run-status .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+        .node-run-status .dot { width:5px; height:5px; border-radius:50%; background:currentColor; }
         .node-run-status.running .dot,
         .node-run-status.checking .dot { animation:nodeStatusPulse 1s ease-in-out infinite; }
         @keyframes nodeStatusPulse { 50% { opacity:.3; } }
@@ -131,7 +131,7 @@
         .gen-run-row .llm-run { flex:0 0 36px; margin-top:0; }
         .video-node { width:380px; }
         .node.sized.video-node .generator-body { height:100%; display:flex; flex-direction:column; }
-        .node.sized.video-node .input-list { flex:1; min-height:64px; max-height:none; }
+        .node.sized.video-node .input-list { flex:1; min-height:56px; max-height:none; }
         .node.sized.video-node .gen-run-row,
         .node.sized.video-node .gen-btn { margin-top:auto; }
         .node.sized.generator-node .gen-run-row,
@@ -204,6 +204,8 @@
         .portrait-refresh { width:30px; height:30px; flex:0 0 30px; border:1px solid var(--line-2); border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--text); background:var(--card-solid); cursor:pointer; }
         .portrait-search { flex:1; min-width:0; height:30px; border:1px solid var(--line-2); border-radius:9px; padding:0 9px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
         .portrait-group { width:100%; height:30px; border:1px solid var(--line-2); border-radius:9px; padding:0 8px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
+        .portrait-preset-filters { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+        .portrait-preset-filters select { width:100%; height:30px; min-width:0; border:1px solid var(--line-2); border-radius:9px; padding:0 8px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
         .portrait-empty { grid-column:1/-1; padding:12px 4px; color:var(--muted); font-size:11px; font-weight:800; line-height:1.45; }
         .portrait-selected-uri { min-height:38px; padding:8px; border:1px solid var(--line-2); border-radius:9px; background:var(--soft); color:var(--text); font-size:11px; line-height:1.35; font-weight:800; word-break:break-all; }
         .portrait-grid { flex:1; min-height:250px; overflow:auto; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-rows:minmax(178px, auto); gap:8px; padding-right:10px; overscroll-behavior:contain; scrollbar-gutter:stable; scrollbar-width:auto; }
@@ -296,12 +298,16 @@
         .comfy-node { width:420px; height:460px; }
         .generator-body { min-height:0; }
         .node.sized.generator-node .generator-body { height:100%; display:flex; flex-direction:column; }
-        .latest-node-preview { position:relative; width:100%; margin-top:3px; cursor:zoom-in; }
+        .latest-node-preview { position:relative; margin-top:3px; cursor:zoom-in; display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:center; gap:4px; }
         .latest-node-preview img,
         .latest-node-preview video,
-        .latest-node-preview .canvas-video-placeholder { display:block; width:100%; height:100%; object-fit:contain; border-radius:16px; border:1px solid #edf2f7; background:#f8fafc; }
-        .latest-node-preview.video { aspect-ratio:16/9; background:#0f172a; border-radius:16px; }
-        .latest-node-preview.image { max-height:260px; }
+        .latest-node-preview .canvas-video-placeholder { display:block; width:64px; height:64px; min-height:0; object-fit:cover; border-radius:10px; border:1px solid #edf2f7; background:#f8fafc; }
+        .latest-node-preview.video { aspect-ratio:auto; background:transparent; border-radius:0; }
+        .latest-node-preview.video .canvas-video-placeholder { background:#0f172a; }
+        .latest-node-preview.video .canvas-video-placeholder .canvas-video-playmark { width:24px; height:24px; }
+        .latest-node-preview.video .canvas-video-placeholder .canvas-video-playmark i,
+        .latest-node-preview.video .canvas-video-placeholder .canvas-video-playmark svg { width:12px !important; height:12px !important; }
+        .latest-node-preview.image { max-height:none; }
         .node.sized.comfy-node .node-body { overflow:hidden; }
         .comfy-body { min-height:0; height:100%; display:flex; flex-direction:column; gap:3px; }
         .node.sized.comfy-node .comfy-body { height:100%; }
@@ -310,7 +316,7 @@
         .comfy-controls { flex:0 0 auto; margin-top:auto; display:flex; flex-direction:column; gap:3px; }
         .comfy-settings { flex:0 0 auto; margin:0; }
         .generator-controls { display:flex; gap:6px; flex-wrap:wrap; }
-        .node.sized.generator-node .input-list { flex:1; min-height:64px; max-height:none; }
+        .node.sized.generator-node .input-list { flex:1; min-height:56px; max-height:none; }
         .node.sized.generator-node .gen-btn { margin-top:auto; }
         .gen-settings { display:flex; flex-direction:column; gap:3px; margin-top:3px; margin-bottom:3px; padding:3px; border:1px solid var(--line-2); border-radius:9px; background:linear-gradient(180deg, var(--card-solid), var(--soft)); box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 8px 20px var(--shadow); }
         .gen-settings-row { display:flex; align-items:center; gap:5px; min-width:0; flex-wrap:wrap; }
@@ -384,12 +390,12 @@
         .prompt-template-body .ptpl-params-row { display:flex; gap:6px; font-size:10px; align-items:flex-start; }
         .prompt-template-body .ptpl-params-platform { font-weight:800; color:var(--text); min-width:70px; flex:0 0 auto; }
         .prompt-template-body .ptpl-params-value { color:var(--muted); word-break:break-word; }
-        .output-node { width:460px; --output-thumb-max:180px; --output-thumb-min:150px; }
+        .output-node { width:260px; --output-thumb-max:130px; --output-thumb-min:120px; }
         .output-node .node-body { overscroll-behavior:contain; }
-        .output-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(var(--output-thumb-min), var(--output-thumb-max))); gap:10px; justify-content:start; align-content:start; }
+        .output-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(var(--output-thumb-min), 1fr)); gap:8px; justify-content:start; align-content:start; }
         .output-grid.grid-layout { grid-template-columns:repeat(var(--grid-cols), minmax(0, 1fr)); justify-content:stretch; }
         .node.sized.output-node .output-grid { min-height:100%; grid-auto-rows:auto; }
-        .output-img-wrap { position:relative; width:100%; max-width:var(--output-thumb-max); aspect-ratio:1; cursor:zoom-in; }
+        .output-img-wrap { position:relative; width:100%; max-width:none; aspect-ratio:1; cursor:zoom-in; }
         .output-img-wrap:hover { transform:none; }
         .missing-asset { width:100%; height:100%; min-height:72px; border-radius:16px; border:1px dashed var(--line-2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:repeating-linear-gradient(135deg, var(--soft), var(--soft) 8px, var(--card-solid) 8px, var(--card-solid) 16px); color:var(--faint); font-size:10px; font-weight:800; text-align:center; user-select:none; cursor:default; }
         .missing-asset.compact { min-height:38px; gap:3px; font-size:9px; }
@@ -478,16 +484,16 @@
         .select-lite:disabled { opacity:.55; cursor:not-allowed; }
         .model-select { min-width:150px; max-width:100%; }
         .compact-select { min-width:88px; }
-        .input-list { display:flex; align-items:flex-start; gap:8px; min-height:78px; overflow:auto; padding-bottom:2px; }
-        .input-item { position:relative; width:72px; height:72px; flex:0 0 auto; border:1px solid #edf2f7; border-radius:16px; background:#f8fafc; padding:5px; font-size:10px; color:#475569; cursor:grab; display:flex; align-items:center; justify-content:center; }
-        .video-input-item { height:auto; min-height:0; width:92px; padding-bottom:6px; flex-direction:column; justify-content:flex-start; gap:5px; }
-        .video-input-thumb { position:relative; width:72px; height:72px; flex:0 0 auto; }
-        .video-input-thumb img { width:100%; height:100%; object-fit:cover; border-radius:12px; }
-        .input-item img { width:100%; height:100%; object-fit:cover; border-radius:12px; }
-        .input-index { position:absolute; left:5px; top:5px; min-width:18px; height:18px; border-radius:999px; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
-        .input-label { position:absolute; left:5px; right:5px; bottom:5px; border-radius:10px; padding:2px 4px; background:rgba(255,255,255,.86); color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .input-list { display:flex; align-items:flex-start; gap:6px; min-height:62px; overflow:auto; padding-bottom:2px; }
+        .input-item { position:relative; width:56px; height:56px; flex:0 0 auto; border:1px solid #edf2f7; border-radius:12px; background:#f8fafc; padding:4px; font-size:9px; color:#475569; cursor:grab; display:flex; align-items:center; justify-content:center; }
+        .video-input-item { height:auto; min-height:0; width:76px; padding-bottom:5px; flex-direction:column; justify-content:flex-start; gap:4px; }
+        .video-input-thumb { position:relative; width:56px; height:56px; flex:0 0 auto; }
+        .video-input-thumb img { width:100%; height:100%; object-fit:cover; border-radius:10px; }
+        .input-item img { width:100%; height:100%; object-fit:cover; border-radius:10px; }
+        .input-index { position:absolute; left:4px; top:4px; min-width:15px; height:15px; border-radius:999px; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; }
+        .input-label { position:absolute; left:4px; right:4px; bottom:4px; border-radius:8px; padding:1px 3px; background:rgba(255,255,255,.86); color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:9px; }
         .seedance-role-wrap { display:flex; flex-direction:column; gap:2px; margin-bottom:3px; }
-        .seedance-slot-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(58px, 68px)); justify-content:start; gap:3px; }
+        .seedance-slot-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(48px, 56px)); justify-content:start; gap:3px; }
         .seedance-slot { position:relative; min-width:0; aspect-ratio:1; border:1px dashed var(--line-2); border-radius:11px; background:rgba(248,250,252,.78); padding:4px; color:var(--muted); display:flex; align-items:center; justify-content:center; text-align:center; font-size:9px; font-weight:800; overflow:hidden; }
         .seedance-slot.assigned { border-style:solid; background:var(--card-solid); color:var(--text); cursor:grab; }
         .seedance-slot.drag-over { border-color:#111827; box-shadow:0 0 0 2px rgba(17,24,39,.12); }
@@ -2992,6 +2998,8 @@
                 query:'',
                 manualAssetId:'',
                 manualAssetName:'',
+                presetFilters:{},
+                presetFilterOptions:null,
                 groupId:'',
                 groups:[],
                 assets:[],
@@ -3027,10 +3035,17 @@
             });
         }
         function portraitAssetLibraryType(node){
-            return node?.libraryType === 'LivenessFace' ? 'LivenessFace' : 'PresetVirtual';
+            return ['AIGC', 'LivenessFace', 'PresetVirtual'].includes(node?.libraryType) ? node.libraryType : 'PresetVirtual';
         }
         function portraitAssetLabel(node){
-            return portraitAssetLibraryType(node) === 'LivenessFace' ? '真人人像库' : '预置虚拟人像';
+            const libraryType = portraitAssetLibraryType(node);
+            if(libraryType === 'LivenessFace') return '真人认证人像';
+            if(libraryType === 'AIGC') return '虚拟人像库';
+            return '预置虚拟人像';
+        }
+        function portraitAssetUsesGroups(node){
+            const libraryType = portraitAssetLibraryType(node);
+            return libraryType === 'AIGC' || libraryType === 'LivenessFace';
         }
         function normalizePortraitAssetUri(value){
             const text = String(value || '').trim();
@@ -3064,6 +3079,45 @@
             const candidates = [asset.preview_proxy_url || '', asset.preview_url || '', asset.url || ''];
             return candidates.find(url => url && url !== primary) || '';
         }
+        function portraitPresetFilters(node){
+            node.presetFilters = node.presetFilters && typeof node.presetFilters === 'object' ? node.presetFilters : {};
+            return node.presetFilters;
+        }
+        function portraitPresetFilterPayload(node){
+            const filters = portraitPresetFilters(node);
+            return {
+                gender:filters.gender || '',
+                country:filters.country || '',
+                occupation:filters.occupation || '',
+                temperament:filters.temperament || ''
+            };
+        }
+        async function loadPortraitPresetFilterOptions(nodeId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || portraitAssetLibraryType(node) !== 'PresetVirtual') return;
+            if(node.presetFilterOptions && !node._presetFilterOptionsLoading) return;
+            node._presetFilterOptionsLoading = true;
+            try {
+                const data = await portraitFetchJson('/api/volcengine/preset-portraits/filters', {
+                    query:node.query || ''
+                });
+                node.presetFilterOptions = data || {};
+            } catch(err) {
+                node.notice = err.message || '预置虚拟人像筛选项加载失败';
+            } finally {
+                node._presetFilterOptionsLoading = false;
+            }
+        }
+        function portraitFilterOptionsHtml(options, selected, emptyLabel){
+            const list = Array.isArray(options) ? options : [];
+            return [`<option value="">${escapeHtml(emptyLabel)}</option>`].concat(list.map(item => {
+                const value = String(item.value || '').trim();
+                if(!value) return '';
+                const count = Number(item.count || 0) || 0;
+                const label = count ? `${value} (${count})` : value;
+                return `<option value="${escapeAttr(value)}" ${value === selected ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+            }).filter(Boolean)).join('');
+        }
         async function portraitFetchJson(url, body, opts={}){
             const res = await fetch(url, {
                 method:'POST',
@@ -3076,14 +3130,30 @@
         }
         async function loadPortraitAssetGroups(nodeId){
             const node = nodes.find(n => n.id === nodeId);
-            if(!node || portraitAssetLibraryType(node) !== 'LivenessFace') return;
-            const data = await portraitFetchJson('/api/volcengine/assets/groups', {
-                group_type:portraitAssetLibraryType(node),
-                query:'',
-                page:1,
-                page_size:50
-            });
-            node.groups = data.items || [];
+            if(!node || !portraitAssetUsesGroups(node)) return;
+            const pageSize = 100;
+            const groups = [];
+            const seen = new Set();
+            let total = 0;
+            for(let page = 1; page <= 50; page++) {
+                const data = await portraitFetchJson('/api/volcengine/assets/groups', {
+                    group_type:portraitAssetLibraryType(node),
+                    query:'',
+                    page,
+                    page_size:pageSize
+                });
+                const items = Array.isArray(data.items) ? data.items : [];
+                total = Number(data.total || total || 0) || 0;
+                items.forEach(group => {
+                    const key = group.id || group.name || JSON.stringify(group);
+                    if(seen.has(key)) return;
+                    seen.add(key);
+                    groups.push(group);
+                });
+                if(!items.length || items.length < pageSize || (total && groups.length >= total)) break;
+            }
+            node.groups = groups;
+            node.groupTotal = total || groups.length;
             if(node.groupId && !node.groups.some(g => g.id === node.groupId)) node.groupId = '';
         }
         async function loadPortraitAssets(nodeId, opts={}){
@@ -3109,9 +3179,15 @@
             }
             refreshNodes([node.id], {geometry:false});
             try {
-                if(libraryType === 'LivenessFace' && !append && !(node.groups || []).length) await loadPortraitAssetGroups(node.id);
+                if(portraitAssetUsesGroups(node) && !append && !(node.groups || []).length) await loadPortraitAssetGroups(node.id);
+                if(libraryType === 'PresetVirtual' && !node.presetFilterOptions && !node._presetFilterOptionsLoading) {
+                    loadPortraitPresetFilterOptions(node.id).then(() => {
+                        refreshNodes([node.id], {geometry:false});
+                        scheduleSave();
+                    });
+                }
                 const page = append ? Math.max(1, Number(node.page || 1) + 1) : 1;
-                const data = libraryType === 'LivenessFace'
+                const data = portraitAssetUsesGroups(node)
                     ? await portraitFetchJson('/api/volcengine/assets/list', {
                         group_type:libraryType,
                         group_id:node.groupId || '',
@@ -3122,6 +3198,7 @@
                     }, {signal:abortController?.signal})
                     : await portraitFetchJson('/api/volcengine/preset-portraits/search', {
                         query:node.query || '',
+                        ...portraitPresetFilterPayload(node),
                         page,
                         page_size:24
                     }, {signal:abortController?.signal});
@@ -3168,6 +3245,8 @@
             node.groupId = '';
             node.groups = [];
             node.assets = [];
+            node.presetFilters = {};
+            node.presetFilterOptions = null;
             node.selectedAsset = null;
             node.page = 1;
             node.total = 0;
@@ -3245,10 +3324,22 @@
             const wrap = document.createElement('div');
             wrap.className = 'portrait-asset-body';
             const selectedId = node.selectedAsset?.asset_id || '';
+            const isGroupedLibrary = portraitAssetUsesGroups(node);
             const isRealLibrary = node.libraryType === 'LivenessFace';
+            const isPresetVirtual = node.libraryType === 'PresetVirtual';
             const groupOptions = [`<option value="">全部素材组</option>`].concat((node.groups || []).map(g =>
                 `<option value="${escapeAttr(g.id)}" ${g.id === node.groupId ? 'selected' : ''}>${escapeHtml(g.name || g.id || '素材组')}</option>`
             )).join('');
+            const presetFilters = portraitPresetFilters(node);
+            const presetOptions = node.presetFilterOptions || {};
+            const presetFiltersHtml = isPresetVirtual ? `
+                <div class="portrait-preset-filters">
+                    <select data-portrait-preset-filter="gender">${portraitFilterOptionsHtml(presetOptions.gender, presetFilters.gender || '', '全部性别')}</select>
+                    <select data-portrait-preset-filter="country">${portraitFilterOptionsHtml(presetOptions.country, presetFilters.country || '', '全部国家')}</select>
+                    <select data-portrait-preset-filter="occupation">${portraitFilterOptionsHtml(presetOptions.occupation, presetFilters.occupation || '', '全部职业')}</select>
+                    <select data-portrait-preset-filter="temperament">${portraitFilterOptionsHtml(presetOptions.temperament, presetFilters.temperament || '', '全部气质')}</select>
+                </div>
+            ` : '';
             const assetsHtml = node.assets.length ? node.assets.map(asset => {
                 const active = asset.asset_id === selectedId ? 'active' : '';
                 const preview = portraitAssetPreviewUrl(asset);
@@ -3271,13 +3362,15 @@
             wrap.innerHTML = `
                 <div class="portrait-toolbar">
                     <div class="portrait-tabs">
-                        <button type="button" data-portrait-library="PresetVirtual" class="${node.libraryType === 'PresetVirtual' ? 'active' : ''}">预置虚拟</button>
+                        <button type="button" data-portrait-library="AIGC" class="${node.libraryType === 'AIGC' ? 'active' : ''}">虚拟资产</button>
+                        <button type="button" data-portrait-library="PresetVirtual" class="${node.libraryType === 'PresetVirtual' ? 'active' : ''}">预置搜索</button>
                         <button type="button" data-portrait-library="LivenessFace" class="${node.libraryType === 'LivenessFace' ? 'active' : ''}">真人</button>
                     </div>
-                    <input class="portrait-search" value="${escapeAttr(node.query || '')}" placeholder="${isRealLibrary ? '搜索真人人像' : '搜索预置虚拟人像'}">
+                    <input class="portrait-search" value="${escapeAttr(node.query || '')}" placeholder="${isRealLibrary ? '搜索真人认证人像' : node.libraryType === 'AIGC' ? '搜索虚拟人像资产' : '搜索预置虚拟人像'}">
                     <button class="portrait-refresh" type="button" title="刷新"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                 </div>
-                ${isRealLibrary ? `<select class="portrait-group">${groupOptions}</select>` : ''}
+                ${isGroupedLibrary ? `<select class="portrait-group">${groupOptions}</select>` : ''}
+                ${presetFiltersHtml}
                 <div class="portrait-grid">${assetsHtml}</div>
                 ${selectedUriHtml}
                 <div class="portrait-status ${node.error ? 'error' : node.notice ? 'notice' : ''}">
@@ -3295,6 +3388,7 @@
             const search = wrap.querySelector('.portrait-search');
             if(search) search.oninput = e => {
                 node.query = e.target.value;
+                if(node.libraryType === 'PresetVirtual') node.presetFilterOptions = null;
                 scheduleSave();
                 queuePortraitAssetSearch(node.id);
             };
@@ -3312,6 +3406,7 @@
             if(refreshBtn) refreshBtn.onclick = e => {
                 e.stopPropagation();
                 node.groups = [];
+                if(node.libraryType === 'PresetVirtual') node.presetFilterOptions = null;
                 loadPortraitAssets(node.id);
             };
             const groupSelect = wrap.querySelector('.portrait-group');
@@ -3319,6 +3414,18 @@
                 node.groupId = e.target.value;
                 loadPortraitAssets(node.id);
             };
+            wrap.querySelectorAll('[data-portrait-preset-filter]').forEach(select => {
+                select.onchange = e => {
+                    const key = e.target.dataset.portraitPresetFilter;
+                    const filters = portraitPresetFilters(node);
+                    filters[key] = e.target.value;
+                    node.page = 1;
+                    node.assets = [];
+                    node.total = 0;
+                    node.hasMore = false;
+                    loadPortraitAssets(node.id);
+                };
+            });
             const grid = wrap.querySelector('.portrait-grid');
             if(grid) grid.onscroll = e => {
                 e.stopPropagation();
@@ -3708,7 +3815,7 @@
             // 找或创建 output 节点，立即添加 loading 占位
             let out = connections.filter(c => c.from===node.id).map(c => nodes.find(n => n.id===c.to)).find(n => n?.type==='output');
             if(!out){
-                out = {id:uid('out'), type:'output', x:node.x+460, y:node.y, images:[]};
+                out = {id:uid('out'), type:'output', x:node.x + (Number(node.w)||340) + 28, y:node.y, images:[]};
                 nodes.push(out);
                 connections.push({id:uid('c'), from:node.id, to:out.id});
             }
@@ -5341,7 +5448,7 @@
             const hasPromptUpstream = node.type === 'prompt' && connections.some(c => c.to === node.id);
             const promptSyncHtml = hasPromptUpstream ? `<button type="button" class="prompt-sync-btn" title="${escapeHtml(tr('canvas.promptSyncHint'))}"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>` : '';
             const promptExtensionHtml = node.type === 'prompt' ? `<button type="button" class="prompt-extension-btn" title="发送到 Webgen Bridge / Send to extension"><i data-lucide="send" class="w-3 h-3"></i></button>` : '';
-            el.innerHTML = `<div class="node-head"><span class="node-title">${title}</span><div style="display:flex;align-items:center;gap:8px">${statusHtml}${promptExtensionHtml}${promptSyncHtml}<button onclick="deleteNode('${node.id}', event)" class="text-gray-300 hover:text-red-500"><i data-lucide="x" class="w-4 h-4"></i></button></div></div>`;
+            el.innerHTML = `<div class="node-head"><span class="node-title">${title}</span><div style="display:flex;align-items:center;gap:8px">${statusHtml}${promptExtensionHtml}${promptSyncHtml}<button onclick="deleteNode('${node.id}', event)" class="text-gray-300 hover:text-red-500"><i data-lucide="x" class="w-3.5 h-3.5"></i></button></div></div>`;
             const body = document.createElement('div');
             body.className = 'node-body';
             if(node.type === 'image') {
@@ -5665,7 +5772,7 @@
             if(type === 'seedance') return {w:400, h:0};
             if(type === 'promptTemplate') return {w:340, h:0};
             if(type === 'comfy') return {w:420, h:460};
-            if(type === 'output') return {w:460, h:0};
+            if(type === 'output') return {w:260, h:0};
             return {w:260, h:0};
         }
         function loopCount(node){
@@ -6867,12 +6974,13 @@
             return wrap;
         }
         function latestNodePreviewHtml(node){
-            const latest = [...(node.lastOutputs || [])].reverse().find(Boolean);
-            if(!latest) return '';
-            if(isVideoUrl(latest)){
-                return `<div class="latest-node-preview video">${canvasVideoPlaceholderHtml(latest)}</div>`;
-            }
-            return `<div class="latest-node-preview image">${canvasPreviewImgHtml(latest, 320, 'draggable="false"')}</div>`;
+            const outputs = [...(node.lastOutputs || [])].reverse().filter(Boolean);
+            if(!outputs.length) return '';
+            const hasVideo = outputs.some(isVideoUrl);
+            const items = outputs.map(url => isVideoUrl(url)
+                ? canvasVideoPlaceholderHtml(url)
+                : canvasPreviewImgHtml(url, 128, 'draggable="false"')).join('');
+            return `<div class="latest-node-preview ${hasVideo ? 'video' : 'image'}">${items}</div>`;
         }
         function bindLatestPreview(wrap, node){
             wrap.querySelectorAll('.latest-node-preview img, .latest-node-preview video, .latest-node-preview .canvas-video-placeholder, .output-img-wrap img, .output-img-wrap video, .output-img-wrap .canvas-video-placeholder').forEach(el => {
@@ -8434,10 +8542,15 @@
                 showErrorModal(err.message || '保存 API 平台失败');
             }
         }
+        function adjacentOutputPos(node){
+            const w = Number(node.w) > 0 ? Number(node.w) : (defaultNodeSize(node.type).w || 340);
+            return {x: node.x + w + 28, y: node.y};
+        }
         function outputForNode(node){
             let out = connections.filter(c => c.from === node.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
-                out = {id:uid('out'), type:'output', x:node.x + 460, y:node.y, images:[]};
+                const p = adjacentOutputPos(node);
+                out = {id:uid('out'), type:'output', x:p.x, y:p.y, images:[]};
                 nodes.push(out);
                 connections.push({id:uid('c'), from:node.id, to:out.id});
             }
@@ -8512,7 +8625,10 @@
                 run.request = requestMetaFromResult(result);
                 out._pending = (out._pending || []).filter(p => !pendingIds.includes(p.id));
                 appendOutputImages(out, images, refs[0], metas);
-                node.lastOutputs = images;
+                {
+                    const seen = new Set([...(node.lastOutputs || [])].filter(Boolean));
+                    node.lastOutputs = [...(node.lastOutputs || []).filter(Boolean), ...images.filter(u => u && !seen.has(u))].slice(-24);
+                }
                 addGenerationLog({run, outputs:images, runMs:Math.max(...metas.map(m => m.runMs || 0), 0)});
                 node.runStatus = 'done'; node.runError = '';
                 render();
@@ -8985,7 +9101,7 @@
             const count = Math.max(1, Math.min(8, Number(gen.count || 1)));
             let out = connections.filter(c => c.from === gen.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
-                out = {id:uid('out'), type:'output', x:gen.x + 460, y:gen.y, images:[]};
+                out = {id:uid('out'), type:'output', x:gen.x + (Number(gen.w)||340) + 28, y:gen.y, images:[]};
                 nodes.push(out);
                 connections.push({id:uid('c'), from:gen.id, to:out.id});
             }
@@ -9038,7 +9154,7 @@
             if(!prompt){ showErrorModal(tr('canvas.videoNeedsPrompt')); return; }
             let out = connections.filter(c => c.from === node.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
-                out = {id:uid('out'), type:'output', x:node.x + 460, y:node.y, images:[]};
+                out = {id:uid('out'), type:'output', x:node.x + (Number(node.w)||340) + 28, y:node.y, images:[]};
                 nodes.push(out);
                 connections.push({id:uid('c'), from:node.id, to:out.id});
             }
@@ -9146,7 +9262,7 @@
             if((mode !== 'text' && mode !== 'custom' && !refs.length) || (mode === 'custom' && refs.length < customImageFields.length)){ showErrorModal(tr('canvas.needImage')); return; }
             let out = connections.filter(c => c.from === node.id).map(c => nodes.find(n => n.id === c.to)).find(n => n?.type === 'output');
             if(!out) {
-                out = {id:uid('out'), type:'output', x:node.x + 480, y:node.y, images:[]};
+                out = {id:uid('out'), type:'output', x:node.x + (Number(node.w)||340) + 28, y:node.y, images:[]};
                 nodes.push(out);
                 connections.push({id:uid('c'), from:node.id, to:out.id});
             }

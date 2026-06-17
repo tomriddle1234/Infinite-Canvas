@@ -64,6 +64,7 @@ func (a *App) registerRoutes(h *handler.Handler) {
 	a.engine.POST("/api/volcengine/assets/list", h.VolcengineAssetsList)
 	a.engine.POST("/api/volcengine/assets/detail", h.VolcengineAssetDetail)
 	a.engine.POST("/api/volcengine/preset-portraits/search", h.VolcenginePresetPortraitsSearch)
+	a.engine.POST("/api/volcengine/preset-portraits/filters", h.VolcenginePresetPortraitFilters)
 	a.engine.GET("/api/volcengine/assets/preview/:asset_id", h.VolcengineAssetPreview)
 	a.engine.POST("/generate", h.GenerateCloud)
 	a.engine.POST("/api/ms/generate", h.ModelScopeGenerate)

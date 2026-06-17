@@ -19,9 +19,12 @@ func (a *App) registerStatic() {
 
 	fileServer := http.FileServer(http.FS(staticFS))
 	a.engine.GET("/", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
 		serveEmbeddedFile(c, staticFS, "index.html")
 	})
 	a.engine.GET("/static/*filepath", func(c *gin.Context) {
+		// 前端随二进制一起 embed，磁盘改文件不可见；禁止缓存，避免 rebuild 后浏览器仍用旧副本。
+		c.Header("Cache-Control", "no-store")
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/static")
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	})

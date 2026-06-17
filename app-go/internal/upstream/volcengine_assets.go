@@ -15,7 +15,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"infinite-canvas/app-go/internal/config"
@@ -26,9 +28,26 @@ const volcengineAssetVersion = "2024-01-01"
 var safeAssetCacheName = regexp.MustCompile(`[^a-zA-Z0-9_.-]+`)
 var assetIDPattern = regexp.MustCompile(`^asset-[a-zA-Z0-9_-]+$`)
 
+var presetVirtualFilterCache = struct {
+	sync.Mutex
+	items map[string]presetVirtualFilterCacheEntry
+}{items: map[string]presetVirtualFilterCacheEntry{}}
+
+type presetVirtualFilterCacheEntry struct {
+	created time.Time
+	data    map[string]any
+}
+
 type VolcengineAssetClient struct {
 	cfg  *config.Config
 	http *http.Client
+}
+
+type PresetPortraitFilters struct {
+	Gender      string
+	Country     string
+	Occupation  string
+	Temperament string
 }
 
 func NewVolcengineAssetClient(cfg *config.Config) *VolcengineAssetClient {
@@ -103,10 +122,14 @@ func (c *VolcengineAssetClient) GetAsset(assetID string) (map[string]any, error)
 	return normalizeAsset(raw), nil
 }
 
-func (c *VolcengineAssetClient) SearchPresetVirtualPortraits(query string, page, pageSize int) (map[string]any, error) {
+func (c *VolcengineAssetClient) SearchPresetVirtualPortraits(query string, filters PresetPortraitFilters, page, pageSize int) (map[string]any, error) {
+	if hasPresetPortraitFilters(filters) {
+		return c.searchPresetVirtualPortraitsLocalFiltered(query, filters, page, pageSize)
+	}
+	apiFilters := []map[string]any{{"Field": "metadata.type", "Op": "must", "Conds": map[string]any{"StrValues": []string{"portrait"}}}}
 	body := map[string]any{
 		"Query":       map[string]any{},
-		"Filters":     []map[string]any{{"Field": "metadata.type", "Op": "must", "Conds": map[string]any{"StrValues": []string{"portrait"}}}},
+		"Filters":     apiFilters,
 		"PageNum":     pageClamp(page, 1, 100),
 		"PageSize":    pageClamp(pageSize, 24, 100),
 		"ProjectName": c.projectName(""),
@@ -128,6 +151,104 @@ func (c *VolcengineAssetClient) SearchPresetVirtualPortraits(query string, page,
 		}
 	}
 	return map[string]any{"items": items, "total": intValue(firstValue(raw["Total"], raw["TotalCount"]), len(items)), "page": intValue(firstValue(raw["PageNum"], raw["PageNumber"]), body["PageNum"]), "page_size": intValue(raw["PageSize"], body["PageSize"]), "source": "volcengine_list_media_asset_group"}, nil
+}
+
+func (c *VolcengineAssetClient) searchPresetVirtualPortraitsLocalFiltered(query string, filters PresetPortraitFilters, page, pageSize int) (map[string]any, error) {
+	cleanPage := pageClamp(page, 1, 100)
+	cleanPageSize := pageClamp(pageSize, 24, 100)
+	offset := (cleanPage - 1) * cleanPageSize
+	limit := offset + cleanPageSize
+	matched := 0
+	out := []map[string]any{}
+	sourceTotal := 0
+	for scanPage := 1; scanPage <= 100; scanPage++ {
+		result, err := c.SearchPresetVirtualPortraits(query, PresetPortraitFilters{}, scanPage, 100)
+		if err != nil {
+			return nil, err
+		}
+		sourceTotal = intValue(result["total"], sourceTotal)
+		items := mapListValue(result["items"])
+		if len(items) == 0 {
+			break
+		}
+		for _, item := range items {
+			if !matchesPresetPortraitFilters(item, filters) {
+				continue
+			}
+			if matched >= offset && matched < limit {
+				out = append(out, item)
+			}
+			matched++
+		}
+		if len(items) < 100 || (sourceTotal > 0 && scanPage*100 >= sourceTotal) {
+			break
+		}
+	}
+	return map[string]any{"items": out, "total": matched, "page": cleanPage, "page_size": cleanPageSize, "source": "volcengine_list_media_asset_group_local_filter"}, nil
+}
+
+func (c *VolcengineAssetClient) PresetVirtualPortraitFilters(query string) (map[string]any, error) {
+	cacheKey := c.projectName("") + "|" + strings.TrimSpace(query)
+	presetVirtualFilterCache.Lock()
+	if entry, ok := presetVirtualFilterCache.items[cacheKey]; ok && time.Since(entry.created) < 30*time.Minute {
+		presetVirtualFilterCache.Unlock()
+		return entry.data, nil
+	}
+	presetVirtualFilterCache.Unlock()
+
+	const pageSize = 100
+	sets := map[string]map[string]int{
+		"gender":      {},
+		"country":     {},
+		"occupation":  {},
+		"temperament": {},
+	}
+	total := 0
+	scanned := 0
+	for page := 1; page <= 100; page++ {
+		result, err := c.SearchPresetVirtualPortraits(query, PresetPortraitFilters{}, page, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		items, _ := result["items"].([]map[string]any)
+		if items == nil {
+			if rawItems, ok := result["items"].([]any); ok {
+				items = make([]map[string]any, 0, len(rawItems))
+				for _, item := range rawItems {
+					if obj, ok := item.(map[string]any); ok {
+						items = append(items, obj)
+					}
+				}
+			}
+		}
+		total = intValue(result["total"], total)
+		if len(items) == 0 {
+			break
+		}
+		for _, item := range items {
+			metadata, _ := item["metadata"].(map[string]any)
+			addFilterValue(sets["gender"], metadataText(metadata, "Gender"))
+			addFilterValue(sets["country"], metadataText(metadata, "Country"))
+			addFilterValue(sets["occupation"], metadataText(metadata, "Occupation"))
+			addFilterValue(sets["temperament"], metadataText(metadata, "Temperament"))
+		}
+		scanned += len(items)
+		if len(items) < pageSize || (total > 0 && scanned >= total) {
+			break
+		}
+	}
+	result := map[string]any{
+		"gender":      sortedFilterOptions(sets["gender"]),
+		"country":     sortedFilterOptions(sets["country"]),
+		"occupation":  sortedFilterOptions(sets["occupation"]),
+		"temperament": sortedFilterOptions(sets["temperament"]),
+		"total":       total,
+		"scanned":     scanned,
+	}
+	presetVirtualFilterCache.Lock()
+	presetVirtualFilterCache.items[cacheKey] = presetVirtualFilterCacheEntry{created: time.Now(), data: result}
+	presetVirtualFilterCache.Unlock()
+	return result, nil
 }
 
 func (c *VolcengineAssetClient) CachedAssetPreview(assetID string, refresh bool) (string, error) {
@@ -247,8 +368,8 @@ func normalizeAssetGroupType(value string) (string, error) {
 	if strings.TrimSpace(value) == "" {
 		return "LivenessFace", nil
 	}
-	if value != "LivenessFace" {
-		return "", fmt.Errorf("不支持的人像库类型：%s。预置虚拟人像请从火山方舟体验中心复制 asset ID/URI 后直接使用。", value)
+	if value != "LivenessFace" && value != "AIGC" {
+		return "", fmt.Errorf("不支持的人像库类型：%s。支持 LivenessFace 真人认证人像和 AIGC 虚拟人像。", value)
 	}
 	return value, nil
 }
@@ -430,6 +551,46 @@ func firstAnyListFromMap(obj map[string]any, keys ...string) []any {
 	return nil
 }
 
+func mapListValue(value any) []map[string]any {
+	switch typed := value.(type) {
+	case []map[string]any:
+		return typed
+	case []any:
+		out := make([]map[string]any, 0, len(typed))
+		for _, item := range typed {
+			if obj, ok := item.(map[string]any); ok {
+				out = append(out, obj)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func hasPresetPortraitFilters(filters PresetPortraitFilters) bool {
+	return strings.TrimSpace(filters.Gender) != "" ||
+		strings.TrimSpace(filters.Country) != "" ||
+		strings.TrimSpace(filters.Occupation) != "" ||
+		strings.TrimSpace(filters.Temperament) != ""
+}
+
+func matchesPresetPortraitFilters(item map[string]any, filters PresetPortraitFilters) bool {
+	metadata, _ := item["metadata"].(map[string]any)
+	return matchesFilterValue(metadataText(metadata, "Gender"), filters.Gender) &&
+		matchesFilterValue(metadataText(metadata, "Country"), filters.Country) &&
+		matchesFilterValue(metadataText(metadata, "Occupation"), filters.Occupation) &&
+		matchesFilterValue(metadataText(metadata, "Temperament"), filters.Temperament)
+}
+
+func matchesFilterValue(value, filter string) bool {
+	text := strings.TrimSpace(filter)
+	if text == "" {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(value), text)
+}
+
 func firstStringFromMap(obj map[string]any, keys ...string) string {
 	for _, key := range keys {
 		if text := stringFromMap(obj, key); text != "" {
@@ -572,4 +733,46 @@ func normalizeTags(value any) []string {
 	default:
 		return []string{}
 	}
+}
+
+func metadataText(metadata map[string]any, key string) string {
+	if metadata == nil {
+		return ""
+	}
+	switch value := metadata[key].(type) {
+	case string:
+		return strings.TrimSpace(value)
+	case float64:
+		return strings.TrimSpace(fmt.Sprintf("%.0f", value))
+	case int:
+		return strings.TrimSpace(fmt.Sprintf("%d", value))
+	default:
+		return ""
+	}
+}
+
+func addFilterValue(values map[string]int, value string) {
+	text := strings.TrimSpace(value)
+	if text == "" {
+		return
+	}
+	values[text]++
+}
+
+func sortedFilterOptions(values map[string]int) []map[string]any {
+	options := make([]map[string]any, 0, len(values))
+	for value, count := range values {
+		options = append(options, map[string]any{"value": value, "count": count})
+	}
+	sort.Slice(options, func(i, j int) bool {
+		ci, _ := options[i]["count"].(int)
+		cj, _ := options[j]["count"].(int)
+		if ci != cj {
+			return ci > cj
+		}
+		vi, _ := options[i]["value"].(string)
+		vj, _ := options[j]["value"].(string)
+		return vi < vj
+	})
+	return options
 }

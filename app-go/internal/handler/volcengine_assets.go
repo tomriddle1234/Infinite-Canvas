@@ -30,9 +30,13 @@ type AssetDetailRequest struct {
 }
 
 type PresetPortraitSearchRequest struct {
-	Query    string `json:"query"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
+	Query       string `json:"query"`
+	Gender      string `json:"gender"`
+	Country     string `json:"country"`
+	Occupation  string `json:"occupation"`
+	Temperament string `json:"temperament"`
+	Page        int    `json:"page"`
+	PageSize    int    `json:"page_size"`
 }
 
 func (h *Handler) VolcengineAssetGroups(c *gin.Context) {
@@ -75,7 +79,22 @@ func (h *Handler) VolcenginePresetPortraitsSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"detail": "请求参数不正确"})
 		return
 	}
-	result, err := upstream.NewVolcengineAssetClient(h.cfg).SearchPresetVirtualPortraits(payload.Query, payload.Page, payload.PageSize)
+	result, err := upstream.NewVolcengineAssetClient(h.cfg).SearchPresetVirtualPortraits(payload.Query, upstream.PresetPortraitFilters{
+		Gender:      payload.Gender,
+		Country:     payload.Country,
+		Occupation:  payload.Occupation,
+		Temperament: payload.Temperament,
+	}, payload.Page, payload.PageSize)
+	writeVolcengineAssetResult(c, result, err)
+}
+
+func (h *Handler) VolcenginePresetPortraitFilters(c *gin.Context) {
+	var payload PresetPortraitSearchRequest
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "请求参数不正确"})
+		return
+	}
+	result, err := upstream.NewVolcengineAssetClient(h.cfg).PresetVirtualPortraitFilters(payload.Query)
 	writeVolcengineAssetResult(c, result, err)
 }
 
