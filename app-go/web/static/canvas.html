@@ -3284,9 +3284,16 @@
         function selectPortraitAsset(nodeId, assetId){
             const node = nodes.find(n => n.id === nodeId);
             if(!node) return;
+            // 防御：上游极少数素材会返回空 asset_id；点击这种卡片会让所有空 ID 卡片同时高亮、无法取消。直接忽略。
+            if(!assetId) return;
             const asset = (node.assets || []).find(a => a.asset_id === assetId);
             if(!asset) return;
-            node.selectedAsset = asset;
+            // 再点已选中的卡片视为反选
+            if(node.selectedAsset?.asset_id === assetId) {
+                node.selectedAsset = null;
+            } else {
+                node.selectedAsset = asset;
+            }
             updatePortraitAssetSelectionView(node);
             syncGeneratorInputs();
             refreshGeneratorInputViews();
@@ -3300,7 +3307,8 @@
             }
             const selectedId = node.selectedAsset?.asset_id || '';
             el.querySelectorAll('[data-portrait-asset]').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.portraitAsset === selectedId);
+                // 空 selectedId 时不应让任何 dataset="" 的卡片被认为"匹配"
+                btn.classList.toggle('active', !!selectedId && btn.dataset.portraitAsset === selectedId);
             });
             const uri = el.querySelector('.portrait-selected-uri');
             if(uri) {
@@ -3341,7 +3349,7 @@
                 </div>
             ` : '';
             const assetsHtml = node.assets.length ? node.assets.map(asset => {
-                const active = asset.asset_id === selectedId ? 'active' : '';
+                const active = (selectedId && asset.asset_id === selectedId) ? 'active' : '';
                 const preview = portraitAssetPreviewUrl(asset);
                 const fallbackPreview = portraitAssetFallbackPreviewUrl(asset, preview);
                 const cardTitle = [asset.name || asset.asset_id, asset.description || '', asset.asset_uri || ''].filter(Boolean).join('\n');

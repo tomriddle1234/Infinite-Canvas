@@ -147,7 +147,13 @@ func (c *VolcengineAssetClient) SearchPresetVirtualPortraits(query string, filte
 	items := []map[string]any{}
 	for _, item := range anyListFromMap(raw, "Items") {
 		if obj, ok := item.(map[string]any); ok {
-			items = append(items, normalizePresetVirtualAsset(obj))
+			normalized := normalizePresetVirtualAsset(obj)
+			// 上游对部分素材不暴露可用的 asset_id；这些素材既不能被 Seedance 通过
+			// asset:// 引用，也会让前端选中态产生 dataset="" 碰撞（多卡同时高亮、无法取消）。
+			if firstStringFromMap(normalized, "asset_id") == "" {
+				continue
+			}
+			items = append(items, normalized)
 		}
 	}
 	return map[string]any{"items": items, "total": intValue(firstValue(raw["Total"], raw["TotalCount"]), len(items)), "page": intValue(firstValue(raw["PageNum"], raw["PageNumber"]), body["PageNum"]), "page_size": intValue(raw["PageSize"], body["PageSize"]), "source": "volcengine_list_media_asset_group"}, nil
