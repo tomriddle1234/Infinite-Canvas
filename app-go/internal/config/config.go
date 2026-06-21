@@ -107,6 +107,7 @@ func Load() (*Config, error) {
 		cfg.OutputDir,
 		cfg.AssetsDir,
 		filepath.Join(cfg.AssetsDir, "cache", "volcengine_assets"),
+		filepath.Join(cfg.AssetsDir, "cache", "volc_presets"),
 		cfg.OutputInputDir,
 		cfg.OutputOutputDir,
 		cfg.DataDir,

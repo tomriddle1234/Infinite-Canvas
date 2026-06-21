@@ -225,6 +225,42 @@
         .portrait-status.error { color:#dc2626; }
         .portrait-status.notice { color:#64748b; }
         .portrait-load-more { height:26px; padding:0 9px; border-radius:8px; border:1px solid var(--line-2); background:var(--card-solid); color:var(--text); font-size:11px; font-weight:900; cursor:pointer; }
+        .materialLib-node .node-body, .templateLib-node .node-body { overflow:hidden !important; }
+        .presetlib-body { height:100%; display:flex; flex-direction:column; gap:8px; min-height:0; }
+        .presetlib-toolbar { display:flex; gap:6px; align-items:center; }
+        .presetlib-tabs { display:flex; gap:4px; padding:3px; border:1px solid var(--line-2); border-radius:10px; background:var(--soft); flex:0 0 auto; }
+        .presetlib-tabs button { height:26px; padding:0 8px; border-radius:7px; font-size:11px; font-weight:900; color:var(--muted); background:transparent; cursor:pointer; white-space:nowrap; }
+        .presetlib-tabs button.active { color:#fff; background:var(--strong); }
+        .presetlib-search { flex:1; min-width:0; height:30px; border:1px solid var(--line-2); border-radius:9px; padding:0 9px; font-size:12px; outline:none; background:var(--card-solid); color:var(--text); }
+        .presetlib-grid { flex:1; min-height:180px; overflow:auto; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-rows:minmax(108px, auto); gap:8px; padding-right:10px; overscroll-behavior:contain; scrollbar-gutter:stable; }
+        .presetlib-grid::-webkit-scrollbar { width:14px; height:14px; }
+        .presetlib-grid::-webkit-scrollbar-track { background:var(--soft); border-radius:999px; }
+        .presetlib-grid::-webkit-scrollbar-thumb { background:var(--line-strong); border:3px solid var(--soft); border-radius:999px; }
+        .presetlib-card { position:relative; min-width:0; min-height:108px; border:1px solid var(--line-2); border-radius:10px; background:var(--card-solid); overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+        .presetlib-card.active { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.35), 0 8px 18px rgba(37,99,235,.16); }
+        .presetlib-card.active::after { content:""; position:absolute; top:7px; right:7px; width:18px; height:18px; border-radius:999px; background:#2563eb; box-shadow:0 0 0 2px var(--card-solid); z-index:3; }
+        .presetlib-card.active::before { content:""; position:absolute; top:11px; right:12px; width:7px; height:4px; border-left:2px solid #fff; border-bottom:2px solid #fff; transform:rotate(-45deg); z-index:4; }
+        .presetlib-thumb { position:relative; aspect-ratio:1/1; background:var(--soft); display:flex; align-items:center; justify-content:center; color:var(--muted); overflow:hidden; }
+        .presetlib-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .presetlib-type-badge { position:absolute; top:5px; left:5px; width:20px; height:20px; border-radius:6px; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; z-index:2; }
+        .presetlib-type-badge svg { width:12px; height:12px; }
+        .presetlib-name { height:22px; padding:0 6px; display:flex; align-items:center; font-size:10px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .presetlib-asset-badges { position:absolute; bottom:5px; left:5px; display:flex; gap:3px; z-index:2; }
+        .presetlib-asset-badges .ab { width:18px; height:18px; border-radius:5px; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; }
+        .presetlib-asset-badges .ab svg { width:11px; height:11px; }
+        .presetlib-prompt { flex:1; min-height:60px; max-height:120px; overflow:auto; border:1px solid var(--line-2); border-radius:9px; background:var(--soft); padding:7px 9px; font-size:11px; line-height:1.45; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+        .presetlib-prompt::-webkit-scrollbar { width:10px; }
+        .presetlib-prompt::-webkit-scrollbar-thumb { background:var(--line-strong); border-radius:999px; }
+        .presetlib-slots { display:flex; flex-wrap:wrap; gap:5px; }
+        .presetlib-slot { display:flex; align-items:center; gap:4px; height:24px; padding:0 7px; border:1px solid var(--line-2); border-radius:7px; background:var(--card-solid); font-size:10px; font-weight:800; color:var(--text); cursor:pointer; }
+        .presetlib-slot svg { width:12px; height:12px; }
+        .presetlib-slot.active { border-color:#2563eb; color:#2563eb; background:rgba(37,99,235,.08); }
+        .presetlib-preview { flex:0 0 auto; min-height:60px; max-height:180px; overflow:auto; border:1px solid var(--line-2); border-radius:9px; background:var(--soft); display:flex; align-items:center; justify-content:center; padding:6px; }
+        .presetlib-preview img { max-width:100%; max-height:168px; object-fit:contain; }
+        .presetlib-preview video { max-width:100%; max-height:168px; }
+        .presetlib-preview audio { width:100%; }
+        .presetlib-status { flex:0 0 auto; min-height:24px; color:var(--muted); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .presetlib-empty { grid-column:1/-1; padding:12px 4px; color:var(--muted); font-size:11px; font-weight:800; line-height:1.45; }
         .prompt-node { width:310px; }
         .prompt-node .node-body { overflow:hidden !important; }
         .prompt-node textarea { width:100%; height:140px; min-height:72px; resize:none; overflow-y:auto; scrollbar-width:thin; border:1px solid #edf2f7; border-radius:14px; outline:none; padding:9px; background:#fbfdff; font-size:13px; line-height:1.55; }
@@ -879,6 +915,8 @@
                 <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
                 <button class="tool-btn" onclick="addAudioNode()"><i data-lucide="file-audio" class="w-4 h-4"></i>Audio</button>
                 <button class="tool-btn" onclick="addPortraitAssetNode()"><i data-lucide="square-user" class="w-4 h-4"></i>人像资产</button>
+    <button class="tool-btn" onclick="addTemplateLibNode()"><i data-lucide="layout-template" class="w-4 h-4"></i>模板库</button>
+    <button class="tool-btn" onclick="addMaterialLibNode()"><i data-lucide="package" class="w-4 h-4"></i>素材库</button>
                 <button class="tool-btn" onclick="addSeedreamNode()"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="tool-btn" onclick="addGptImageNode()"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
                 <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
@@ -938,6 +976,8 @@
                 <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">图片卡片</span></button>
                 <button class="menu-btn" onclick="menuAdd('audio')"><i data-lucide="file-audio" class="w-4 h-4"></i>Audio</button>
                 <button class="menu-btn" onclick="menuAdd('portraitAsset')"><i data-lucide="square-user" class="w-4 h-4"></i>人像资产</button>
+    <button class="menu-btn" onclick="menuAdd('templateLib')"><i data-lucide="layout-template" class="w-4 h-4"></i>模板库</button>
+    <button class="menu-btn" onclick="menuAdd('materialLib')"><i data-lucide="package" class="w-4 h-4"></i>素材库</button>
                 <button class="menu-btn" onclick="menuAdd('seedream')"><i data-lucide="image" class="w-4 h-4"></i>Seedream</button>
                 <button class="menu-btn" onclick="menuAdd('gptimage')"><i data-lucide="sparkles" class="w-4 h-4"></i>GPT Image 2.0</button>
                 <button class="menu-btn" onclick="menuAdd('seedance')"><i data-lucide="film" class="w-4 h-4"></i>Seedance</button>
@@ -3456,6 +3496,401 @@
             };
             return wrap;
         }
+        // ===== 模板库 / 素材库节点（火山方舟静态资源，元数据打包，媒体走 /api/volc-presets/media 代理缓存）=====
+        function proxyMedia(raw){
+            if(!raw) return '';
+            const u = String(raw);
+            if(!u || u.startsWith('data:') || u.startsWith('blob:') || u.startsWith('/')) return u;
+            return '/api/volc-presets/media?url=' + encodeURIComponent(u);
+        }
+        function videoSnapshotUrl(u){
+            if(!u) return '';
+            const sep = u.includes('?') ? '&' : '?';
+            return u + sep + 'x-tos-process=video/snapshot,t_0';
+        }
+        // 卡片缩略图用 TOS 服务端缩放（w_220），避免下载原图导致 24 张大图同时解码卡顿。
+        // 仅对图片生效；视频用截帧（本就是小图）；音频无图。
+        function imageThumbUrl(u){
+            if(!u) return '';
+            const sep = u.includes('?') ? '&' : '?';
+            return u + sep + 'x-tos-process=image/resize,w_220';
+        }
+        // 缩略图懒加载：直接用浏览器原生 loading="lazy"，不挂 IntersectionObserver
+        // （observer 会在节点拖动时因卡片相对视口位置变化而频繁回调，拖垮主线程）。
+        // 分页已保证首屏只渲染 24 张，原生 lazy 再延迟视口外图的下载。
+        function presetTypeIconSvg(type){
+            if(type === 'video') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>';
+            if(type === 'voice') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+        }
+        // 素材库数据（188 条，打包进 /static/data/materials.json，内存缓存）
+        let materialLibraryPromise = null;
+        function loadMaterialLibrary(){
+            if(materialLibraryPromise) return materialLibraryPromise;
+            materialLibraryPromise = fetch('/static/data/materials.json').then(r => r.ok ? r.json() : Promise.reject(new Error('素材库加载失败'))).catch(err => { materialLibraryPromise = null; throw err; });
+            return materialLibraryPromise;
+        }
+        // 模板库数据（67 条，打包进 /static/data/templates.json，内存缓存）
+        let templateLibraryPromise = null;
+        let templateLibraryItems = [];
+        function loadTemplateLibrary(){
+            if(templateLibraryPromise) return templateLibraryPromise;
+            templateLibraryPromise = fetch('/static/data/templates.json').then(r => r.ok ? r.json() : Promise.reject(new Error('模板库加载失败'))).then(items => { templateLibraryItems = Array.isArray(items) ? items : []; return templateLibraryItems; }).catch(err => { templateLibraryPromise = null; throw err; });
+            return templateLibraryPromise;
+        }
+        function getTemplateById(id){ return id ? (templateLibraryItems.find(t => t.id === id) || null) : null; }
+        function addMaterialLibNode(point){
+            const p = point || defaultPoint(135, 0);
+            const node = {
+                id:uid('material'), type:'materialLib', x:p.x, y:p.y,
+                category:'all', query:'',
+                items:[], total:0,
+                selectedId:'', selectedMaterial:null,
+                visibleCount:0,
+                loading:true, error:''
+            };
+            addNode(node);
+            loadMaterialLibrary().then(items => {
+                node.items = Array.isArray(items) ? items : [];
+                node.total = node.items.length;
+                node.loading = false;
+                node.visibleCount = 0;
+                // 恢复已选
+                if(node.selectedId && !node.selectedMaterial){
+                    node.selectedMaterial = node.items.find(m => m.id === node.selectedId) || null;
+                }
+                refreshNodes([node.id], {geometry:false});
+            }).catch(err => {
+                node.loading = false;
+                node.error = (err && err.message) || '素材库加载失败';
+                refreshNodes([node.id], {geometry:false});
+            });
+            return node.id;
+        }
+        const PRESETLIB_PAGE = 24;
+        function materialLibFiltered(node){
+            const q = (node.query || '').trim().toLowerCase();
+            return (node.items || []).filter(m => {
+                if(node.category !== 'all' && m.type !== node.category) return false;
+                if(q && !((m.title || '') + ' ' + (m.subcategory || '')).toLowerCase().includes(q)) return false;
+                return true;
+            });
+        }
+        function materialPreviewHtml(m){
+            if(!m) return '<span style="color:var(--muted);font-size:11px;font-weight:800;">选中后将输出该素材给 Seedance</span>';
+            const url = proxyMedia(m.url);
+            if(m.type === 'voice') return `<audio controls src="${escapeAttr(url)}"></audio>`;
+            if(m.type === 'video') return `<video controls preload="none" src="${escapeAttr(url)}"></video>`;
+            return `<img src="${escapeAttr(url)}" alt="${escapeAttr(m.title || '')}">`;
+        }
+        function materialLibCardsHtml(node){
+            const sel = node.selectedId || '';
+            const filtered = materialLibFiltered(node);
+            if(!filtered.length) return `<div class="presetlib-empty">${node.loading ? '加载中...' : '没有匹配的素材'}</div>`;
+            const limit = Math.max(PRESETLIB_PAGE, node.visibleCount || 0);
+            const shown = filtered.slice(0, limit);
+            return shown.map(m => {
+                const active = (sel && m.id === sel) ? 'active' : '';
+                // voice 卡片无缩略图，只显示图标；视频用截帧；图片直出。全部 lazy。
+                let thumb = '';
+                if(m.type === 'video'){
+                    thumb = `<img src="${escapeAttr(proxyMedia(videoSnapshotUrl(m.url)))}" loading="lazy" class="lazy-thumb" onerror="this.remove();">`;
+                } else if(m.type === 'image'){
+                    thumb = `<img src="${escapeAttr(proxyMedia(imageThumbUrl(m.url)))}" loading="lazy" class="lazy-thumb" onerror="this.remove();">`;
+                }
+                const badge = `<span class="presetlib-type-badge">${presetTypeIconSvg(m.type)}</span>`;
+                return `<button type="button" class="presetlib-card ${active}" data-material-id="${escapeAttr(m.id)}" title="${escapeAttr(m.title || '')}">
+                    <div class="presetlib-thumb">${badge}${thumb}</div>
+                    <div class="presetlib-name">${escapeHtml(m.title || m.id || '未命名')}</div>
+                </button>`;
+            }).join('') + (filtered.length > shown.length ? `<div class="presetlib-empty">滚动加载更多（${shown.length}/${filtered.length}）</div>` : '');
+        }
+        function selectMaterial(nodeId, matId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node) return;
+            if(!matId) return;
+            const mat = (node.items || []).find(m => m.id === matId);
+            if(!mat) return;
+            if(node.selectedId === matId){
+                node.selectedId = '';
+                node.selectedMaterial = null;
+            } else {
+                node.selectedId = matId;
+                node.selectedMaterial = mat;
+            }
+            updateMaterialSelectionView(node);
+            syncGeneratorInputs();
+            refreshGeneratorInputViews();
+            scheduleSave();
+        }
+        function updateMaterialSelectionView(node){
+            const el = nodesEl.querySelector(`.materialLib-node[data-id="${CSS.escape(node.id)}"]`);
+            if(!el){ refreshNodes([node.id], {geometry:false}); return; }
+            const sel = node.selectedId || '';
+            el.querySelectorAll('[data-material-id]').forEach(btn => {
+                btn.classList.toggle('active', !!sel && btn.dataset.materialId === sel);
+            });
+            const preview = el.querySelector('.presetlib-preview');
+            if(preview) preview.innerHTML = materialPreviewHtml(node.selectedMaterial);
+            const status = el.querySelector('.presetlib-status span');
+            if(status) status.textContent = node.error ? node.error : (node.selectedMaterial ? ('已选择：' + (node.selectedMaterial.title || node.selectedMaterial.id)) : ('素材库 · ' + (node.total || 0)));
+        }
+        function renderMaterialLibBody(node){
+            node.items = Array.isArray(node.items) ? node.items : [];
+            const wrap = document.createElement('div');
+            wrap.className = 'presetlib-body';
+            const tabs = [['all','全部'],['image','图片'],['video','视频'],['voice','音频']];
+            const tabsHtml = tabs.map(([k,l]) => `<button type="button" data-material-cat="${k}" class="${node.category===k?'active':''}">${l}</button>`).join('');
+            const previewHtml = materialPreviewHtml(node.selectedMaterial);
+            wrap.innerHTML = `
+                <div class="presetlib-toolbar">
+                    <div class="presetlib-tabs">${tabsHtml}</div>
+                    <input class="presetlib-search" value="${escapeAttr(node.query || '')}" placeholder="搜索素材">
+                </div>
+                <div class="presetlib-grid">${materialLibCardsHtml(node)}</div>
+                <div class="presetlib-preview">${previewHtml}</div>
+                <div class="presetlib-status"><span>${node.error ? escapeHtml(node.error) : (node.selectedMaterial ? ('已选择：' + escapeHtml(node.selectedMaterial.title || node.selectedMaterial.id)) : ('素材库 · ' + (node.total || 0)))}</span></div>
+            `;
+            function rebindGrid(){
+                const grid = wrap.querySelector('.presetlib-grid');
+                if(!grid) return;
+                grid.querySelectorAll('[data-material-id]').forEach(btn => {
+                    btn.onclick = e => { e.preventDefault(); e.stopPropagation(); selectMaterial(node.id, btn.dataset.materialId); };
+                });
+            }
+            rebindGrid();
+            const grid = wrap.querySelector('.presetlib-grid');
+            if(grid) grid.onscroll = e => {
+                e.stopPropagation();
+                if(grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 80){
+                    const filtered = materialLibFiltered(node);
+                    if((node.visibleCount || 0) < filtered.length){
+                        node.visibleCount = (node.visibleCount || 0) + PRESETLIB_PAGE;
+                        grid.innerHTML = materialLibCardsHtml(node);
+                        rebindGrid();
+                    }
+                }
+            };
+            wrap.querySelectorAll('[data-material-cat]').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    node.category = btn.dataset.materialCat;
+                    node.visibleCount = 0;
+                    scheduleSave();
+                    const g = wrap.querySelector('.presetlib-grid');
+                    if(g){ g.innerHTML = materialLibCardsHtml(node); rebindGrid(); g.scrollTop = 0; }
+                };
+            });
+            const search = wrap.querySelector('.presetlib-search');
+            if(search) search.oninput = e => {
+                node.query = e.target.value;
+                node.visibleCount = 0;
+                scheduleSave();
+                const g = wrap.querySelector('.presetlib-grid');
+                if(g){ g.innerHTML = materialLibCardsHtml(node); rebindGrid(); g.scrollTop = 0; }
+            };
+            return wrap;
+        }
+        // ----- 模板库节点 -----
+        function addTemplateLibNode(point){
+            const p = point || defaultPoint(135, 0);
+            const node = {
+                id:uid('template'), type:'templateLib', x:p.x, y:p.y,
+                category:'all', query:'',
+                items:[], total:0,
+                selectedId:'',
+                activeSlot:0,
+                visibleCount:0,
+                loading:true, error:''
+            };
+            addNode(node);
+            loadTemplateLibrary().then(items => {
+                node.items = Array.isArray(items) ? items : [];
+                node.total = node.items.length;
+                node.loading = false;
+                refreshNodes([node.id], {geometry:false});
+            }).catch(err => {
+                node.loading = false;
+                node.error = (err && err.message) || '模板库加载失败';
+                refreshNodes([node.id], {geometry:false});
+            });
+            return node.id;
+        }
+        function templateLibFiltered(node){
+            const q = (node.query || '').trim().toLowerCase();
+            return (node.items || []).filter(t => {
+                if(node.category !== 'all' && t.category !== node.category) return false;
+                if(q && !((t.label || '') + ' ' + (t.prompt || '')).toLowerCase().includes(q)) return false;
+                return true;
+            });
+        }
+        function templateAssetBadges(t){
+            const m = t.media || {};
+            const parts = [];
+            if((m.videos || []).length) parts.push(`<span class="ab" title="视频">${presetTypeIconSvg('video')}</span>`);
+            if((m.images || []).length) parts.push(`<span class="ab" title="图片">${presetTypeIconSvg('image')}</span>`);
+            if((m.audios || []).length) parts.push(`<span class="ab" title="音频">${presetTypeIconSvg('voice')}</span>`);
+            return parts.length ? `<div class="presetlib-asset-badges">${parts.join('')}</div>` : '';
+        }
+        function templateCoverThumb(t){
+            const cover = t.cover || '';
+            if(!cover) return '';
+            if(t.coverType === 'video' || /\.(mp4|mov|webm|m4v)$/i.test(cover)){
+                return `<img src="${escapeAttr(proxyMedia(videoSnapshotUrl(cover)))}" loading="lazy" class="lazy-thumb" onerror="this.remove();">`;
+            }
+            return `<img src="${escapeAttr(proxyMedia(imageThumbUrl(cover)))}" loading="lazy" class="lazy-thumb" onerror="this.remove();">`;
+        }
+        function templateLibCardsHtml(node){
+            const sel = node.selectedId || '';
+            const filtered = templateLibFiltered(node);
+            if(!filtered.length) return `<div class="presetlib-empty">${node.loading ? '加载中...' : '没有匹配的模板'}</div>`;
+            const limit = Math.max(PRESETLIB_PAGE, node.visibleCount || 0);
+            const shown = filtered.slice(0, limit);
+            return shown.map(t => {
+                const active = (sel && t.id === sel) ? 'active' : '';
+                return `<button type="button" class="presetlib-card ${active}" data-template-id="${escapeAttr(t.id)}" title="${escapeAttr(t.label || '')}">
+                    <div class="presetlib-thumb">${templateAssetBadges(t)}${templateCoverThumb(t)}</div>
+                    <div class="presetlib-name">${escapeHtml(t.label || t.id || '未命名')}</div>
+                </button>`;
+            }).join('') + (filtered.length > shown.length ? `<div class="presetlib-empty">滚动加载更多（${shown.length}/${filtered.length}）</div>` : '');
+        }
+        function templateSlotsHtml(t, activeSlot){
+            const m = t.media || {};
+            const slots = [];
+            (m.videos || []).forEach((u, i) => slots.push({type:'video', url:u, label:`@视频${i+1}`}));
+            (m.images || []).forEach((u, i) => slots.push({type:'image', url:u, label:`@图片${i+1}`}));
+            (m.audios || []).forEach((u, i) => slots.push({type:'voice', url:u, label:`@音频${i+1}`}));
+            if(!slots.length) return '';
+            return slots.map((s, idx) => `<button type="button" class="presetlib-slot ${idx===activeSlot?'active':''}" data-template-slot="${idx}">${presetTypeIconSvg(s.type)}<span>${escapeHtml(s.label)}</span></button>`).join('');
+        }
+        function templateSlotPreviewHtml(t, slotIdx){
+            const m = t.media || {};
+            const slots = [];
+            (m.videos || []).forEach(u => slots.push({type:'video', url:u}));
+            (m.images || []).forEach(u => slots.push({type:'image', url:u}));
+            (m.audios || []).forEach(u => slots.push({type:'voice', url:u}));
+            const s = slots[slotIdx] || slots[0];
+            if(!s) return '<span style="color:var(--muted);font-size:11px;font-weight:800;">选中模板后将输出提示词与媒体给 Seedance</span>';
+            const url = proxyMedia(s.url);
+            if(s.type === 'video') return `<video controls src="${escapeAttr(url)}"></video>`;
+            if(s.type === 'voice') return `<audio controls src="${escapeAttr(url)}"></audio>`;
+            return `<img src="${escapeAttr(url)}" alt="">`;
+        }
+        function selectTemplate(nodeId, tplId){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node) return;
+            if(!tplId) return;
+            if(node.selectedId === tplId){
+                node.selectedId = '';
+                node.activeSlot = 0;
+            } else {
+                node.selectedId = tplId;
+                node.activeSlot = 0;
+            }
+            updateTemplateSelectionView(node);
+            // 选中/取消模板后，若已连到提示词节点且提示词为空，自动把模板提示词填进去（预览）
+            const t = getTemplateById(node.selectedId);
+            if(t){
+                (connections || []).forEach(c => {
+                    if(c.from !== node.id) return;
+                    const pn = nodes.find(n => n.id === c.to && n.type === 'prompt');
+                    if(pn && !pn.text){
+                        pn.text = t.prompt || '';
+                        const ta = nodesEl.querySelector(`.prompt-node[data-id="${CSS.escape(pn.id)}"] textarea`);
+                        if(ta) ta.value = pn.text;
+                    }
+                });
+            }
+            syncGeneratorInputs();
+            refreshGeneratorInputViews();
+            scheduleSave();
+        }
+        function updateTemplateSelectionView(node){
+            const el = nodesEl.querySelector(`.templateLib-node[data-id="${CSS.escape(node.id)}"]`);
+            if(!el){ refreshNodes([node.id], {geometry:false}); return; }
+            const sel = node.selectedId || '';
+            el.querySelectorAll('[data-template-id]').forEach(btn => {
+                btn.classList.toggle('active', !!sel && btn.dataset.templateId === sel);
+            });
+            const t = getTemplateById(node.selectedId);
+            const promptEl = el.querySelector('.presetlib-prompt');
+            if(promptEl) promptEl.textContent = t ? (t.prompt || '') : '';
+            const slotsEl = el.querySelector('.presetlib-slots');
+            if(slotsEl){
+                slotsEl.innerHTML = t ? templateSlotsHtml(t, node.activeSlot || 0) : '';
+                slotsEl.querySelectorAll('[data-template-slot]').forEach(btn => {
+                    btn.onclick = e => { e.preventDefault(); e.stopPropagation(); node.activeSlot = Number(btn.dataset.templateSlot); updateTemplateSelectionView(node); };
+                });
+            }
+            const preview = el.querySelector('.presetlib-preview');
+            if(preview) preview.innerHTML = t ? templateSlotPreviewHtml(t, node.activeSlot || 0) : '<span style="color:var(--muted);font-size:11px;font-weight:800;">选中模板后将输出提示词与媒体给 Seedance</span>';
+            const status = el.querySelector('.presetlib-status span');
+            if(status) status.textContent = node.error ? node.error : (t ? ('已选择：' + (t.label || t.id)) : ('模板库 · ' + (node.total || 0)));
+        }
+        function renderTemplateLibBody(node){
+            node.items = Array.isArray(node.items) ? node.items : [];
+            const wrap = document.createElement('div');
+            wrap.className = 'presetlib-body';
+            const tabs = [['all','全部'],['reference','参考生成'],['edit','视频编辑'],['timeline','时序补全']];
+            const tabsHtml = tabs.map(([k,l]) => `<button type="button" data-template-cat="${k}" class="${node.category===k?'active':''}">${l}</button>`).join('');
+            const t = getTemplateById(node.selectedId);
+            const promptHtml = t ? escapeHtml(t.prompt || '') : '';
+            const slotsHtml = t ? templateSlotsHtml(t, node.activeSlot || 0) : '';
+            const previewHtml = t ? templateSlotPreviewHtml(t, node.activeSlot || 0) : '<span style="color:var(--muted);font-size:11px;font-weight:800;">选中模板后将输出提示词与媒体给 Seedance</span>';
+            wrap.innerHTML = `
+                <div class="presetlib-toolbar">
+                    <div class="presetlib-tabs">${tabsHtml}</div>
+                    <input class="presetlib-search" value="${escapeAttr(node.query || '')}" placeholder="搜索模板">
+                </div>
+                <div class="presetlib-grid">${templateLibCardsHtml(node)}</div>
+                <div class="presetlib-prompt">${promptHtml}</div>
+                <div class="presetlib-slots">${slotsHtml}</div>
+                <div class="presetlib-preview">${previewHtml}</div>
+                <div class="presetlib-status"><span>${node.error ? escapeHtml(node.error) : (t ? ('已选择：' + escapeHtml(t.label || t.id)) : ('模板库 · ' + (node.total || 0)))}</span></div>
+            `;
+            function rebindGrid(){
+                const grid = wrap.querySelector('.presetlib-grid');
+                if(!grid) return;
+                grid.querySelectorAll('[data-template-id]').forEach(btn => {
+                    btn.onclick = e => { e.preventDefault(); e.stopPropagation(); selectTemplate(node.id, btn.dataset.templateId); };
+                });
+            }
+            rebindGrid();
+            const grid = wrap.querySelector('.presetlib-grid');
+            if(grid) grid.onscroll = e => {
+                e.stopPropagation();
+                if(grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 80){
+                    const filtered = templateLibFiltered(node);
+                    if((node.visibleCount || 0) < filtered.length){
+                        node.visibleCount = (node.visibleCount || 0) + PRESETLIB_PAGE;
+                        grid.innerHTML = templateLibCardsHtml(node);
+                        rebindGrid();
+                    }
+                }
+            };
+            wrap.querySelectorAll('[data-template-slot]').forEach(btn => {
+                btn.onclick = e => { e.preventDefault(); e.stopPropagation(); node.activeSlot = Number(btn.dataset.templateSlot); updateTemplateSelectionView(node); };
+            });
+            wrap.querySelectorAll('[data-template-cat]').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    node.category = btn.dataset.templateCat;
+                    node.visibleCount = 0;
+                    scheduleSave();
+                    const g = wrap.querySelector('.presetlib-grid');
+                    if(g){ g.innerHTML = templateLibCardsHtml(node); rebindGrid(); g.scrollTop = 0; }
+                };
+            });
+            const search = wrap.querySelector('.presetlib-search');
+            if(search) search.oninput = e => {
+                node.query = e.target.value;
+                node.visibleCount = 0;
+                scheduleSave();
+                const g = wrap.querySelector('.presetlib-grid');
+                if(g){ g.innerHTML = templateLibCardsHtml(node); rebindGrid(); g.scrollTop = 0; }
+            };
+            return wrap;
+        }
         function renderMsGenBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
@@ -4130,6 +4565,8 @@
             if(type === 'llm') addLLMNode(menuPoint);
             if(type === 'audio') addAudioNode(menuPoint);
             if(type === 'portraitAsset') addPortraitAssetNode(menuPoint);
+    if(type === 'templateLib') addTemplateLibNode(menuPoint);
+    if(type === 'materialLib') addMaterialLibNode(menuPoint);
             if(type === 'generator') addGeneratorNode(menuPoint);
             if(type === 'gptimage') addGptImageNode(menuPoint);
             if(type === 'seedream') addSeedreamNode(menuPoint);
@@ -5422,7 +5859,7 @@
             });
         }
         function isNodeControl(target){
-            return !!target.closest('textarea, input, select, option, button, audio, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .audio-body, .portrait-asset-body, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
+            return !!target.closest('textarea, input, select, option, button, audio, video, .seg, .gen-btn, .comfy-run, .input-item, .seedance-source-item, .seedance-slot, .blank-image, .audio-body, .portrait-asset-body, .presetlib-body, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview');
         }
         function isNodeDragSurface(target){
             return !isNodeControl(target) && !target.closest('.port, .resize-handle, .output-img-wrap');
@@ -5445,7 +5882,7 @@
                 else if(!selected.has(node.id)) { selected.clear(); selected.add(node.id); }
                 refreshSelectionVisuals();
             };
-            const title = node.type === 'image' ? 'Image' : node.type === 'audio' ? 'Audio' : node.type === 'portraitAsset' ? '人像资产' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptTemplate' ? tr('canvas.promptTemplate') : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'gptimage' ? 'GPT Image 2.0' : node.type === 'seedream' ? 'Seedream' : node.type === 'seedance' ? 'Seedance' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
+            const title = node.type === 'image' ? 'Image' : node.type === 'audio' ? 'Audio' : node.type === 'portraitAsset' ? '人像资产' : node.type === 'templateLib' ? '模板库' : node.type === 'materialLib' ? '素材库' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptTemplate' ? tr('canvas.promptTemplate') : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'gptimage' ? 'GPT Image 2.0' : node.type === 'seedream' ? 'Seedream' : node.type === 'seedance' ? 'Seedance' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
             // 失败徽章只在一键运行模式中显示，单节点失败已通过 alert 提示
             const showStatus = ['generator','gptimage','seedream','seedance','msgen','comfy','llm'].includes(node.type) && node.runStatus
                 && (node.runStatus !== 'failed' || node._cascadeFailed);
@@ -5517,6 +5954,8 @@
                 }
             }
             if(node.type === 'portraitAsset') body.appendChild(renderPortraitAssetBody(node));
+            if(node.type === 'materialLib') body.appendChild(renderMaterialLibBody(node));
+            if(node.type === 'templateLib') body.appendChild(renderTemplateLibBody(node));
             if(node.type === 'prompt') {
                 body.innerHTML = `<div class="prompt-editor"><textarea placeholder="${tr('canvas.promptPlaceholder')}">${escapeHtml(node.text || '')}</textarea>${promptCounterHtml(node.text || '')}</div>`;
                 const textarea = body.querySelector('textarea');
@@ -5650,7 +6089,7 @@
                 };
             }
             const canInput = ['prompt','generator','gptimage','seedream','seedance','comfy','output','llm','msgen','video'].includes(node.type);
-            const canOutput = ['image','audio','portraitAsset','prompt','promptTemplate','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
+            const canOutput = ['image','audio','portraitAsset','templateLib','materialLib','prompt','promptTemplate','loop','group','promptGroup','generator','gptimage','seedream','seedance','comfy','llm','msgen','video','output'].includes(node.type);
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
             el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
@@ -5769,6 +6208,8 @@
             if(type === 'image') return {w:260, h:336};
             if(type === 'audio') return {w:310, h:0};
             if(type === 'portraitAsset') return {w:330, h:520};
+            if(type === 'materialLib') return {w:330, h:520};
+            if(type === 'templateLib') return {w:340, h:560};
             if(type === 'prompt') return {w:310, h:0};
             if(type === 'loop') return {w:340, h:0};
             if(type === 'llm') return {w:420, h:590};
@@ -7242,6 +7683,40 @@
             refreshNodes([node.id], {geometry:false});
             scheduleSave();
         }
+        // 把 source 列表里的 reference_video role ref 抽出来，单独并入 Seedance 参考视频通道；
+        // imageInputs 只保留非视频 ref，避免视频被当成图片槽位。
+        function seedanceSplitVideoRefs(sources){
+            const videoRefs = [];
+            const seen = new Set();
+            const imageSources = sources.map(src => {
+                const refs = (src.refs || []).filter(r => {
+                    if(r && r.role === 'reference_video'){
+                        const u = r.url || '';
+                        if(u && !seen.has(u)){ seen.add(u); videoRefs.push({url:u, name:r.name || 'video', role:'reference_video'}); }
+                        return false;
+                    }
+                    return true;
+                });
+                return {...src, refs};
+            }).filter(src => src.refs.length);
+            return {imageSources, videoRefs};
+        }
+        // Seedance 的有效提示词：若上游有「提示词节点」(prompt/promptTemplate，无 refs) 中转，
+        // 则以提示词节点为准、忽略模板直连带的 prompt；否则用所有源的 prompt（含模板直连）。
+        function seedanceEffectivePrompt(sources){
+            const list = (sources || []).filter(Boolean);
+            const promptNodeSources = list.filter(s => s.prompt && !s.refs?.length && (s.type === 'prompt' || s.type === 'promptTemplate'));
+            const pool = promptNodeSources.length ? promptNodeSources : list;
+            return pool.map(s => s.prompt).filter(Boolean).join('\n\n');
+        }
+        // 用于 prompt-list 渲染的提示词源：有 prompt 即纳入（模板源虽带 refs 也算提示词源），
+        // 但若存在提示词节点中转，则只显示提示词节点（与 seedanceEffectivePrompt 保持一致）。
+        function seedancePromptInputs(ordered){
+            const list = (ordered || []).filter(Boolean);
+            const promptNodeSources = list.filter(s => s.prompt && !s.refs?.length && (s.type === 'prompt' || s.type === 'promptTemplate'));
+            if(promptNodeSources.length) return promptNodeSources;
+            return list.filter(s => s.prompt);
+        }
         function seedanceImagePayload(node, imageInputs, hasReferenceMediaOverride=null){
             const hasReferenceMedia = hasReferenceMediaOverride == null
                 ? Boolean((node.refVideos || []).length || (node.refAudios || []).length)
@@ -7432,15 +7907,16 @@
             wrap.className = 'generator-body';
             const inputSources = generatorSources(node);
             const ordered = orderedSources(node, inputSources);
-            const imageInputs = ordered.filter(src => src.refs?.length);
-            const promptInputs = ordered.filter(src => src.prompt && !src.refs?.length);
+            const {imageSources, videoRefs:connectedVideoRefs} = seedanceSplitVideoRefs(ordered);
+            const imageInputs = imageSources;
+            const promptInputs = seedancePromptInputs(ordered);
             const seedanceDefaultModel = 'doubao-seedance-1-5-pro-251215';
             const supportsReferenceMedia = seedanceSupportsReferenceMedia(node.model || seedanceDefaultModel);
             const connectedAudioRefs = supportsReferenceMedia ? seedanceConnectedAudioRefs(ordered) : [];
             const audioRefs = supportsReferenceMedia ? seedanceAudioPayload(node, ordered) : [];
             seedanceSyncDurationFromAudio(node, audioRefs);
             const seedanceDurationMax = seedanceMaxDuration(node.model || seedanceDefaultModel);
-            const referenceVideos = supportsReferenceMedia ? (node.refVideos || []) : [];
+            const referenceVideos = supportsReferenceMedia ? [...(node.refVideos || []), ...connectedVideoRefs].slice(0, 3) : [];
             const hasReferenceMedia = Boolean(referenceVideos.length || audioRefs.length);
             const imageSlots = normalizeSeedanceImageSlots(node, imageInputs, hasReferenceMedia);
             const referenceMediaHtml = supportsReferenceMedia ? `
@@ -8244,6 +8720,24 @@
                     if(last) return {id:n.id, type:'outputImage', label:'上游输出', preview:last, refs:[{url:last, name:'output.png'}], prompt:''};
                 }
                 if(n.type === 'image' && n.url) return {id:n.id, type:'image', label:n.name || 'image', preview:n.url, refs:[{url:n.url, name:n.name || 'image', role:n.role || ''}], prompt:''};
+                if(n.type === 'materialLib') {
+                    const m = n.selectedMaterial;
+                    if(!m) return null;
+                    const url = proxyMedia(m.url);
+                    if(m.type === 'voice') return {id:n.id, type:'materialLib', label:m.title || '素材', refs:[], audioRefs:[{url, name:m.title || 'audio', role:'reference_audio'}], prompt:''};
+                    return {id:n.id, type:'materialLib', label:m.title || '素材', preview:url, refs:[{url, name:m.title || 'material', role: m.type === 'video' ? 'reference_video' : 'reference_image'}], prompt:''};
+                }
+                if(n.type === 'templateLib') {
+                    const t = getTemplateById(n.selectedId);
+                    if(!t) return null;
+                    const media = t.media || {};
+                    const refs = [
+                        ...(media.videos || []).map((u, i) => ({url:proxyMedia(u), name:`视频${i+1}`, role:'reference_video'})),
+                        ...(media.images || []).map((u, i) => ({url:proxyMedia(u), name:`图片${i+1}`, role:'reference_image'})),
+                    ];
+                    const audioRefs = (media.audios || []).map((u, i) => ({url:proxyMedia(u), name:`音频${i+1}`, role:'reference_audio'}));
+                    return {id:n.id, type:'templateLib', label:t.label || '模板', preview:proxyMedia(t.cover || ''), refs, audioRefs, prompt:t.prompt || ''};
+                }
                 if(n.type === 'portraitAsset') {
                     const ref = portraitAssetRef(n);
                     if(ref) return {id:n.id, type:'portraitAsset', label:ref.name || '人像资产', preview:ref.preview || '', refs:[{url:ref.url, name:ref.name || 'portrait asset', role:ref.role || ''}], prompt:''};
@@ -8879,12 +9373,13 @@
                 return;
             }
             const sources = orderedSources(node, generatorSources(node));
-            const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
-            const imageInputs = sources.filter(src => src.refs?.length);
+            const prompt = seedanceEffectivePrompt(sources);
+            const {imageSources, videoRefs:connectedVideoRefs} = seedanceSplitVideoRefs(sources);
+            const imageInputs = imageSources;
             const model = node.model || 'doubao-seedance-1-5-pro-251215';
             const supportsReferenceMedia = seedanceSupportsReferenceMedia(model);
             const audioRefs = supportsReferenceMedia ? seedanceAudioPayload(node, sources) : [];
-            const referenceVideos = supportsReferenceMedia ? (node.refVideos || []) : [];
+            const referenceVideos = supportsReferenceMedia ? [...(node.refVideos || []), ...connectedVideoRefs].slice(0, 3) : [];
             const hasReferenceMediaInput = Boolean(referenceVideos.length || audioRefs.length);
             const {refs:imageRefs, hasFirst, hasLast, refCount, hasReferenceMedia} = seedanceImagePayload(node, imageInputs, hasReferenceMediaInput);
             const duration = seedanceClampDuration(model, node.duration || 5);
@@ -10788,8 +11283,8 @@
                         if(!connections.some(c => c.from === fromId && c.to === toId)){ pushUndo(); connections.push({id:uid('c'), from:fromId, to:toId}); }
                         const toNode = nodes.find(n => n.id === toId);
                         if(toNode && toNode.type === 'prompt' && !toNode.text){
-                            const fromNode = nodes.find(n => n.id === fromId);
-                            const newSrc = fromNode && generatorSources(fromNode).filter(s => s.prompt).map(s => s.prompt).filter(Boolean).join('\n\n');
+                            // 用 toNode（提示词节点作为汇聚点）取上游 prompt，这样能覆盖 promptTemplate / templateLib 等源
+                            const newSrc = generatorSources(toNode).filter(s => s.prompt).map(s => s.prompt).filter(Boolean).join('\n\n');
                             if(newSrc) toNode.text = newSrc;
                         }
                         syncGeneratorInputs();
@@ -10828,6 +11323,8 @@
             if(!from || !to) return false;
             if(from.type === 'audio') return to.type === 'seedance' && seedanceSupportsReferenceMedia(to);
             if(from.type === 'portraitAsset') return to.type === 'seedance';
+    if(from.type === 'materialLib') return to.type === 'seedance';
+    if(from.type === 'templateLib') return to.type === 'seedance' || to.type === 'prompt';
             if(to.type === 'loop') return Boolean(to.imageInput) && ['image','group','output'].includes(from.type);
             if(['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(from.type)) return to.type === 'output';
             if(to.type === 'llm') return ['prompt','loop','promptGroup','llm','image','group','output'].includes(from.type);
