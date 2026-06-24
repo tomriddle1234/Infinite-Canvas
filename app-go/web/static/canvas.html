@@ -11323,8 +11323,8 @@
             if(!from || !to) return false;
             if(from.type === 'audio') return to.type === 'seedance' && seedanceSupportsReferenceMedia(to);
             if(from.type === 'portraitAsset') return to.type === 'seedance';
-    if(from.type === 'materialLib') return to.type === 'seedance';
-    if(from.type === 'templateLib') return to.type === 'seedance' || to.type === 'prompt';
+            if(from.type === 'materialLib') return ['seedance','seedream','gptimage'].includes(to.type);
+            if(from.type === 'templateLib') return ['seedance','seedream','gptimage','prompt'].includes(to.type);
             if(to.type === 'loop') return Boolean(to.imageInput) && ['image','group','output'].includes(from.type);
             if(['generator','gptimage','seedream','seedance','comfy','msgen','video'].includes(from.type)) return to.type === 'output';
             if(to.type === 'llm') return ['prompt','loop','promptGroup','llm','image','group','output'].includes(from.type);
